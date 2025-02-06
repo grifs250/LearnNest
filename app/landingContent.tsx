@@ -12,10 +12,12 @@ async function fetchCourses(collectionName: string) {
 }
 
 export default async function LandingContent() {
-  // Fetch courses from Firestore (Server-side for SEO)
-  const subjects = await fetchCourses("subjects");
-  const languages = await fetchCourses("languages");
-  const itCourses = await fetchCourses("itCourses");
+  // ✅ Fetch data on the server (SEO-friendly)
+  const [subjects, languages, itCourses] = await Promise.all([
+    fetchCourses("subjects"),
+    fetchCourses("languages"),
+    fetchCourses("itCourses"),
+  ]);
 
   return (
     <main className="bg-base-200 min-h-screen">
@@ -52,7 +54,7 @@ export default async function LandingContent() {
         </div>
       </section>
 
-      {/* Clickable Course Sections */}
+      {/* Course Sections */}
       <CourseSections subjects={subjects} languages={languages} itCourses={itCourses} />
 
       {/* BUJ (FAQ) */}

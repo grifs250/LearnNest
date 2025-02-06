@@ -1,4 +1,3 @@
-// components/SmoothScrollLink.tsx
 "use client";
 
 import React from "react";
@@ -7,9 +6,10 @@ type Props = {
   href: string;
   children: React.ReactNode;
   className?: string;
+  onClick?: () => void;  // ✅ Allow onClick
 };
 
-export default function SmoothScrollLink({ href, children, className }: Props) {
+export default function SmoothScrollLink({ href, children, className, onClick }: Props) {
   function handleClick(e: React.MouseEvent<HTMLAnchorElement>) {
     const anchor = href.replace("#", "");
     const el = document.getElementById(anchor);
@@ -17,6 +17,7 @@ export default function SmoothScrollLink({ href, children, className }: Props) {
       e.preventDefault();
       el.scrollIntoView({ behavior: "smooth" });
     }
+    if (onClick) onClick(); // ✅ Call the onClick function if provided
   }
 
   return (

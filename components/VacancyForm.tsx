@@ -6,12 +6,12 @@ import "react-calendar/dist/Calendar.css";
 import { auth, db } from "@/lib/firebaseClient";
 import { doc, setDoc } from "firebase/firestore";
 
-type CalendarValue = Date | Date[];
+type CalendarValue = Date | [Date, Date] | null;
 
 export default function VacancyForm() {
   const [subject, setSubject] = useState("Matemātika");
   const [description, setDescription] = useState("");
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [selectedDates, setSelectedDates] = useState<[Date, Date] | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -25,11 +25,19 @@ export default function VacancyForm() {
       return;
     }
 
+    if (!selectedDates) {
+      alert("Lūdzu izvēlieties pieejamos laikus!");
+      setLoading(false);
+      return;
+    }
+
+    const [start, end] = selectedDates;
     const vacancyRef = doc(db, "vacancies", `${user.uid}_${Date.now()}`);
+
     await setDoc(vacancyRef, {
       subject,
       description,
-      timeslots: selectedDates.map((date) => date.toISOString()),
+      timeslots: [start.toISOString(), end.toISOString()],
       teacherId: user.uid,
       teacherName: user.displayName || "Unknown",
     });
@@ -41,7 +49,7 @@ export default function VacancyForm() {
   return (
     <form onSubmit={handleSubmit} className="card bg-base-200 p-4">
       <h3 className="font-bold text-lg mb-2">Izveidot vakanci</h3>
-      
+
       <div className="form-control">
         <label className="label font-semibold">Priekšmets</label>
         <select className="select select-bordered" value={subject} onChange={(e) => setSubject(e.target.value)}>
@@ -59,9 +67,9 @@ export default function VacancyForm() {
       <div className="form-control">
         <label className="label font-semibold">Izvēlieties pieejamos laikus</label>
         <Calendar
-          onChange={(value) => setSelectedDates(value as Date[])}
+          onChange={(value) => setSelectedDates(value as [Date, Date] | null)}
           value={selectedDates}
-          selectRange
+          selectRange // 🔹 Allows selecting a date range
         />
       </div>
 

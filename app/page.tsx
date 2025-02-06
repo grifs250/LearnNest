@@ -5,6 +5,6 @@ export const metadata: Metadata = {
   title: "LearnNest - Mācību Platforma",
 };
 
-export default function HomePage() {
-  return <LandingContent />;
+export default async function HomePage() {
+  return await LandingContent();
 }
