@@ -15,7 +15,8 @@ export async function POST(req: Request) {
     await updateDoc(vacancyRef, { students: arrayUnion(studentEmail) });
 
     return NextResponse.json({ success: true, event });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
