@@ -11,24 +11,24 @@ async function fetchCourses(collectionName: string) {
 }
 
 export default async function LandingContent() {
-  // 1) Fetch data from Firestore with Admin SDK
+  // Fetch courses from Firestore (Server-side for SEO)
   const subjects = await fetchCourses("subjects");
   const languages = await fetchCourses("languages");
   const itCourses = await fetchCourses("itCourses");
 
   return (
     <main className="bg-base-200 min-h-screen">
-      {/* Hero */}
+      {/* Hero Section */}
       <section className="hero bg-primary text-primary-content p-10 text-center flex flex-col items-center gap-4">
         <h1 className="text-4xl font-bold mb-4">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>
         <p className="text-xl">Izmēģini LearnNest jau šodien!</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a className="btn btn-accent w-full sm:w-auto" href="/auth?role=skolēns">
+          <a className="btn btn-accent w-full sm:w-auto" href="/auth?role=skolēns">
             👩‍🎓 Reģistrēties kā Skolēns
-            </a>
-            <a className="btn btn-secondary w-full sm:w-auto" href="/auth?role=pasniedzējs">
+          </a>
+          <a className="btn btn-secondary w-full sm:w-auto" href="/auth?role=pasniedzējs">
             👨‍🏫 Reģistrēties kā Pasniedzējs
-            </a>
+          </a>
         </div>
       </section>
 
@@ -54,6 +54,7 @@ export default async function LandingContent() {
       {/* Course Sections */}
       <CourseSections subjects={subjects} languages={languages} itCourses={itCourses} />
 
+      {/* BUJ (FAQ) */}
       <div id="buj">
         <BujPage />
       </div>
@@ -65,9 +66,19 @@ export default async function LandingContent() {
           <p className="mb-4">E-pasts: info@learnnest.com</p>
           <p className="mb-4">Tālrunis: +371 12345678</p>
           <p>Adrese: Rīga, Latvija</p>
+          <p className="mt-4">
+            <a href="/privacy-policy" className="text-blue-500 underline">
+              📜 Privātuma politika
+            </a>
+          </p>
+          <p className="mt-2">
+            <a href="/terms-of-service" className="text-blue-500 underline">
+              📖 Lietošanas noteikumi
+            </a>
+          </p>
         </div>
       </section>
+
     </main>
   );
 }
-

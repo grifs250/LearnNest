@@ -1,86 +1,72 @@
 "use client";
 
 import { useState } from "react";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
+import { auth, db } from "@/lib/firebaseClient";
+import { doc, setDoc } from "firebase/firestore";
 
-const subjects = [
-  "Matemātika", "Ķīmija", "Bioloģija", "Fizika",
-  "Angļu valoda", "Krievu valoda", "Franču valoda", "Vācu valoda",
-  "Excel", "HTML & CSS", "JavaScript", "Python"
-];
+type CalendarValue = Date | Date[];
 
-interface Props {
-  onCreate: (subject: string, description: string, timeslots: string[]) => void;
-}
-
-export default function VacancyForm({ onCreate }: Props) {
-  const [subject, setSubject] = useState(subjects[0]);
+export default function VacancyForm() {
+  const [subject, setSubject] = useState("Matemātika");
   const [description, setDescription] = useState("");
-  const [timeslotInput, setTimeslotInput] = useState("");
-  const [timeslots, setTimeslots] = useState<string[]>([]);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  function handleAddTimeslot() {
-    if (!timeslotInput) return;
-    setTimeslots((prev) => [...prev, timeslotInput]);
-    setTimeslotInput("");
-  }
-
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onCreate(subject, description, timeslots);
-    setDescription("");
-    setTimeslotInput("");
-    setTimeslots([]);
+    setLoading(true);
+
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You need to be logged in to create a vacancy!");
+      setLoading(false);
+      return;
+    }
+
+    const vacancyRef = doc(db, "vacancies", `${user.uid}_${Date.now()}`);
+    await setDoc(vacancyRef, {
+      subject,
+      description,
+      timeslots: selectedDates.map((date) => date.toISOString()),
+      teacherId: user.uid,
+      teacherName: user.displayName || "Unknown",
+    });
+
+    alert("Vacancy created successfully!");
+    setLoading(false);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mb-4 space-y-4 card bg-base-200 p-4">
+    <form onSubmit={handleSubmit} className="card bg-base-200 p-4">
       <h3 className="font-bold text-lg mb-2">Izveidot vakanci</h3>
+      
       <div className="form-control">
         <label className="label font-semibold">Priekšmets</label>
-        <select
-          className="select select-bordered"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-        >
-          {subjects.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
+        <select className="select select-bordered" value={subject} onChange={(e) => setSubject(e.target.value)}>
+          {["Matemātika", "Ķīmija", "Bioloģija", "Fizika"].map((s) => (
+            <option key={s} value={s}>{s}</option>
           ))}
         </select>
       </div>
+
       <div className="form-control">
         <label className="label font-semibold">Apraksts</label>
-        <textarea
-          className="textarea textarea-bordered"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+        <textarea className="textarea textarea-bordered" value={description} onChange={(e) => setDescription(e.target.value)} />
+      </div>
+
+      <div className="form-control">
+        <label className="label font-semibold">Izvēlieties pieejamos laikus</label>
+        <Calendar
+          onChange={(value) => setSelectedDates(value as Date[])}
+          value={selectedDates}
+          selectRange
         />
       </div>
 
-      <div className="form-control">
-        <label className="label font-semibold">
-          Pievienot Laiku (piem. "2023-08-01 10:00")
-        </label>
-        <div className="flex gap-2">
-          <input
-            className="input input-bordered"
-            value={timeslotInput}
-            onChange={(e) => setTimeslotInput(e.target.value)}
-          />
-          <button type="button" onClick={handleAddTimeslot} className="btn">
-            Pievienot
-          </button>
-        </div>
-        <div className="mt-2 space-x-2">
-          {timeslots.map((slot, i) => (
-            <span key={i} className="badge badge-secondary">{slot}</span>
-          ))}
-        </div>
-      </div>
-
-      <button type="submit" className="btn btn-primary mt-4">
-        Izveidot
+      <button type="submit" className="btn btn-primary mt-4" disabled={loading}>
+        {loading ? "Saglabā..." : "Izveidot"}
       </button>
     </form>
   );
