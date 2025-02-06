@@ -1,59 +1,56 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { db } from "@/lib/firebaseClient";
-import { collection, getDocs } from "firebase/firestore";
+import React from "react";
 import Link from "next/link";
 
-type Vacancy = {
+type Course = {
   id: string;
-  subject: string;
-  description: string;
-  teacherName: string;
-  timeslots: string[];
+  name?: string;
+  description?: string;
+  hasVacancy?: boolean;
 };
 
-export default function AvailableVacancies() {
-  const [vacancies, setVacancies] = useState<Vacancy[]>([]);
+interface CourseSectionsProps {
+  subjects: Course[];
+  languages: Course[];
+  itCourses: Course[];
+}
 
-  useEffect(() => {
-    async function fetchVacancies() {
-      const querySnapshot = await getDocs(collection(db, "vacancies"));
-      const vacancyList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Vacancy[];
-      setVacancies(vacancyList);
-    }
-    fetchVacancies();
-  }, []);
-
+export default function CourseSections({ subjects, languages, itCourses }: CourseSectionsProps) {
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-6 text-center">Pieejamās Nodarbības</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {vacancies.length === 0 ? (
-          <p className="text-center text-gray-500">Nav pieejamu nodarbību</p>
-        ) : (
-          vacancies.map((v) => (
-            <div key={v.id} className="card bg-white p-4 shadow-md">
-              <h3 className="text-lg font-bold">{v.subject}</h3>
-              <p>{v.description}</p>
-              <p className="text-sm">Pasniedzējs: {v.teacherName}</p>
-              <div className="mt-2">
-                {v.timeslots.map((slot, index) => (
-                  <button key={index} className="btn btn-outline btn-sm m-1">
-                    {new Date(slot).toLocaleString()}
-                  </button>
-                ))}
-              </div>
-              <Link href={`/booking?vacancyId=${v.id}`} className="btn btn-primary mt-2">
-                Rezervēt nodarbību
-              </Link>
-            </div>
+    <>
+      {/* Mācību Priekšmeti */}
+      <CourseCategory title="Mācību Priekšmeti" courses={subjects} category="subjects" />
+
+      {/* Valodu kursi */}
+      <CourseCategory title="Valodu Kursi" courses={languages} category="languages" />
+
+      {/* IT Kursi */}
+      <CourseCategory title="IT Kursi" courses={itCourses} category="itCourses" />
+    </>
+  );
+}
+
+function CourseCategory({ title, courses, category }: { title: string; courses: Course[]; category: string }) {
+  return (
+    <section id={category} className="py-16 px-8 bg-base-100">
+      <h2 className="text-2xl font-bold mb-8 text-center">{title}</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {courses.length > 0 ? (
+          courses.map((course) => (
+            <Link
+              key={course.id}
+              href={`/vacancies/${category}/${course.id}`} // Dynamic link
+              className="card bg-base-100 shadow p-6 hover:shadow-lg transition cursor-pointer"
+            >
+              <h3 className="text-lg font-semibold mb-2">{course.name || "Nezināms"}</h3>
+              <p className="text-sm text-gray-600">{course.description || "..."}</p>
+            </Link>
           ))
+        ) : (
+          <p className="text-center text-gray-500">Nav pieejamu kursu</p>
         )}
       </div>
-    </div>
+    </section>
   );
 }

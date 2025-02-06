@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebaseAdmin"; // Server-side Firestore
 import CourseSections from "@/components/CourseSections";
 import BujPage from "./buj/page";
+import Link from "next/link";
 
 async function fetchCourses(collectionName: string) {
   const snapshot = await adminDb.collection(collectionName).get();
@@ -51,7 +52,7 @@ export default async function LandingContent() {
         </div>
       </section>
 
-      {/* Course Sections */}
+      {/* Clickable Course Sections */}
       <CourseSections subjects={subjects} languages={languages} itCourses={itCourses} />
 
       {/* BUJ (FAQ) */}
@@ -78,7 +79,6 @@ export default async function LandingContent() {
           </p>
         </div>
       </section>
-
     </main>
   );
 }
