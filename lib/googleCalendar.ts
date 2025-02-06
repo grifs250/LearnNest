@@ -20,22 +20,36 @@ export async function createGoogleCalendarEvent(
   startTime: string
 ) {
   try {
+    // Refresh token to get a new access token
+    const { token } = await auth.getAccessToken();
+    if (!token) throw new Error("Failed to get access token.");
+    auth.setCredentials({ access_token: token });
+
     const event = {
       summary: `Nodarbība: ${subject}`,
       description: `Tiešsaistes nodarbība starp ${teacherEmail} un ${studentEmail}.`,
       start: { dateTime: startTime, timeZone: "Europe/Riga" },
-      end: { dateTime: new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString(), timeZone: "Europe/Riga" },
+      end: {
+        dateTime: new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString(),
+        timeZone: "Europe/Riga",
+      },
       attendees: [{ email: teacherEmail }, { email: studentEmail }],
-      conferenceData: { createRequest: { requestId: `meet-${Date.now()}` } },
+      conferenceData: {
+        createRequest: {
+          requestId: `meet-${Date.now()}`,
+          conferenceSolutionKey: { type: "hangoutsMeet" },
+        },
+      },
     };
 
-    const createdEvent = await calendar.events.insert({
+    const response = await calendar.events.insert({
+      auth,
       calendarId: "primary",
-      resource: event,
-      conferenceDataVersion: 1, // Enables Google Meet link
+      requestBody: event, // 🔹 Correct Type
+      conferenceDataVersion: 1,
     });
 
-    return createdEvent.data;
+    return response.data; // 🔹 Fix for .data issue
   } catch (error) {
     console.error("Google Calendar API Error:", error);
     throw new Error("Failed to create Google Calendar event.");
