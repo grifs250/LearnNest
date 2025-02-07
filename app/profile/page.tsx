@@ -4,8 +4,18 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebaseClient";
 import { onAuthStateChanged, signOut, updateProfile } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import VacancyForm from "@/components/VacancyForm"; // Import vacancy form for teachers
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import WorkSchedule from "@/components/WorkSchedule"; 
+import LessonForm from "@/components/LessonForm"; 
+
+type Lesson = {
+  id: string;
+  subject: string;
+  description: string;
+  teacherName: string;
+  availableTimes: string[];
+  bookedBy?: string;
+};
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -16,6 +26,8 @@ export default function ProfilePage() {
   const [isTeacher, setIsTeacher] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [myLessons, setMyLessons] = useState<Lesson[]>([]);
+  const [bookedLessons, setBookedLessons] = useState<Lesson[]>([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -25,7 +37,6 @@ export default function ProfilePage() {
       }
       setUser(u);
 
-      // Load user data from Firestore
       const snap = await getDoc(doc(db, "users", u.uid));
       if (snap.exists()) {
         const data = snap.data();
@@ -39,6 +50,22 @@ export default function ProfilePage() {
 
     return () => unsub();
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchLessons = async () => {
+      const q = query(collection(db, "lessons"), where("teacherId", "==", user.uid));
+      const snapshot = await getDocs(q);
+      setMyLessons(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
+
+      const q2 = query(collection(db, "lessons"), where("bookedBy", "==", user.uid));
+      const snapshot2 = await getDocs(q2);
+      setBookedLessons(snapshot2.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
+    };
+
+    fetchLessons();
+  }, [user]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -61,6 +88,13 @@ export default function ProfilePage() {
     }
 
     setSaving(false);
+  }
+
+  async function handleDeleteLesson(lessonId: string) {
+    if (!confirm("Vai tiešām vēlaties dzēst šo nodarbību?")) return;
+    await deleteDoc(doc(db, "lessons", lessonId));
+    setMyLessons(myLessons.filter((lesson) => lesson.id !== lessonId));
+    alert("Nodarbība dzēsta!");
   }
 
   if (loading) {
@@ -111,11 +145,52 @@ export default function ProfilePage() {
         Izrakstīties
       </button>
 
-      {/* Show VacancyForm only for teachers */}
       {isTeacher && (
+        <>
+          <div className="mt-6">
+            <h2 className="text-xl font-bold mb-2">Darba laika iestatījumi</h2>
+            <WorkSchedule />
+          </div>
+
+          <div className="mt-6">
+            <h2 className="text-xl font-bold mb-2">Jūsu nodarbības</h2>
+            <LessonForm />
+            <ul className="mt-4">
+            {myLessons.map((lesson) => (
+              <li key={lesson.id} className="p-2 border-b">
+                <p>
+                  <strong>{lesson.subject}</strong> -{" "}
+                  {lesson.availableTimes && lesson.availableTimes.length > 0
+                    ? lesson.availableTimes.join(", ")
+                    : "Nav pieejamu laiku"} {/* ✅ Show a message if times are missing */}
+                </p>
+                {lesson.bookedBy ? (
+                  <p className="text-green-500">Student signed up</p>
+                ) : (
+                  <button
+                    onClick={() => handleDeleteLesson(lesson.id)}
+                    className="btn btn-error btn-sm mt-2"
+                  >
+                    Dzēst nodarbību
+                  </button>
+                )}
+              </li>
+            ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {!isTeacher && (
         <div className="mt-6">
-          <h2 className="text-xl font-bold mb-2">Jūsu vakances</h2>
-          <VacancyForm />
+          <h2 className="text-xl font-bold mb-2">Jūsu rezervētās nodarbības</h2>
+          <ul className="mt-4">
+            {bookedLessons.map((lesson) => (
+              <li key={lesson.id} className="p-2 border-b">
+                {lesson.subject} - {lesson.availableTimes.join(", ")} ({lesson.teacherName})
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

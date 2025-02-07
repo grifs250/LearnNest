@@ -9,9 +9,11 @@ import { doc, setDoc } from "firebase/firestore";
 interface AuthFormProps {
   initialMode: string;
   initialRole: string;
+  updateRole: (role: string) => void;
+  updateMode: (mode: string) => void;
 }
 
-export default function AuthForm({ initialMode, initialRole }: AuthFormProps) {
+export default function AuthForm({ initialMode, initialRole, updateRole, updateMode }: AuthFormProps) {
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(initialMode !== "login");
   const [email, setEmail] = useState("");
@@ -21,8 +23,9 @@ export default function AuthForm({ initialMode, initialRole }: AuthFormProps) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setRole(initialRole); // Ensure role updates from URL params
-  }, [initialRole]);
+    setRole(initialRole);
+    setIsSignUp(initialMode !== "login");
+  }, [initialRole, initialMode]);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -54,19 +57,27 @@ export default function AuthForm({ initialMode, initialRole }: AuthFormProps) {
     }
   }
 
+  // Function to toggle login/signup mode
+  function toggleMode() {
+    const newMode = isSignUp ? "login" : "signup";
+    setIsSignUp(!isSignUp);
+    updateMode(newMode);
+  }
+
+  // Function to handle role change
+  function handleRoleChange(newRole: string) {
+    setRole(newRole);
+    updateRole(newRole);
+  }
+
   // Dynamic Background & Button Colors
   const bgColor = isSignUp ? (role === "pasniedzējs" ? "bg-orange-200" : "bg-green-200") : "bg-gray-100";
   const buttonColor = isSignUp ? (role === "pasniedzējs" ? "btn-secondary" : "btn-accent") : "btn-neutral";
 
   return (
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${bgColor}`}>
-      <form
-        onSubmit={isSignUp ? handleSignUp : handleSignIn}
-        className="card bg-white shadow-xl p-6 w-full max-w-md"
-      >
-        <h1 className="text-2xl font-bold mb-4 text-center">
-          {isSignUp ? "Reģistrēties" : "Pieslēgties"}
-        </h1>
+      <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="card bg-white shadow-xl p-6 w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-4 text-center">{isSignUp ? "Reģistrēties" : "Pieslēgties"}</h1>
 
         {error && <p className="text-red-500">{error}</p>}
 
@@ -90,14 +101,14 @@ export default function AuthForm({ initialMode, initialRole }: AuthFormProps) {
                 <button
                   type="button"
                   className={`btn w-1/2 ${role === "skolēns" ? "btn-accent" : "btn-outline"}`}
-                  onClick={() => setRole("skolēns")}
+                  onClick={() => handleRoleChange("skolēns")}
                 >
                   Skolēns
                 </button>
                 <button
                   type="button"
                   className={`btn w-1/2 ${role === "pasniedzējs" ? "btn-secondary" : "btn-outline"}`}
-                  onClick={() => setRole("pasniedzējs")}
+                  onClick={() => handleRoleChange("pasniedzējs")}
                 >
                   Pasniedzējs
                 </button>
@@ -134,11 +145,7 @@ export default function AuthForm({ initialMode, initialRole }: AuthFormProps) {
 
         <p className="mt-4 text-center">
           {isSignUp ? "Jau ir konts?" : "Nav konta?"}{" "}
-          <button
-            type="button"
-            className="text-blue-500 underline"
-            onClick={() => setIsSignUp(!isSignUp)}
-          >
+          <button type="button" className="text-blue-500 underline" onClick={toggleMode}>
             {isSignUp ? "Pieslēgties" : "Reģistrēties"}
           </button>
         </p>
