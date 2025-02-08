@@ -3,6 +3,7 @@ import CourseSections from "@/components/CourseSections";
 import BujPage from "./buj/page";
 import Link from "next/link";
 import { fetchCategories } from "@/lib/fetchCategories";
+import AuthButtons from "@/components/AuthButtons";
 
 async function fetchCourses(collectionName: string) {
   const snapshot = await adminDb.collection(collectionName).get();
@@ -13,23 +14,14 @@ async function fetchCourses(collectionName: string) {
 }
 
 export default async function LandingContent() {
-  // ✅ Fetch data on the server (SEO-friendly)
   const categories = await fetchCategories();
 
   return (
     <main className="bg-base-200 min-h-screen">
       {/* Hero Section */}
-      <section className="hero bg-primary text-primary-content p-10 text-center flex flex-col items-center gap-4">
+      <section className="hero bg-primary text-primary-content p-24 text-center flex flex-col items-center gap-4">
         <h1 className="text-4xl font-bold mb-4">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>
-        <p className="text-xl">Izmēģini LearnNest jau šodien!</p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a className="btn btn-accent w-full sm:w-auto" href="/auth?role=skolēns">
-            👩‍🎓 Reģistrēties kā Skolēns
-          </a>
-          <a className="btn btn-secondary w-full sm:w-auto" href="/auth?role=pasniedzējs">
-            👨‍🏫 Reģistrēties kā Pasniedzējs
-          </a>
-        </div>
+        <AuthButtons />
       </section>
 
       {/* Kā tas strādā? */}

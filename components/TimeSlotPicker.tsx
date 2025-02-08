@@ -11,9 +11,10 @@ interface TimeSlotPickerProps {
   availableSlots: TimeSlot[];
   onSelect: (slot: TimeSlot | null) => void;
   selectedSlot: TimeSlot | null;
+  disabled?: boolean;
 }
 
-export default function TimeSlotPicker({ availableSlots, onSelect, selectedSlot }: TimeSlotPickerProps) {
+export default function TimeSlotPicker({ availableSlots, onSelect, selectedSlot, disabled = false }: TimeSlotPickerProps) {
   const [selectedDate, setSelectedDate] = useState<string>('');
 
   // Group slots by date
@@ -30,7 +31,7 @@ export default function TimeSlotPicker({ availableSlots, onSelect, selectedSlot 
   const dates = Object.keys(slotsByDate).sort();
 
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
       {/* Date selector */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {dates.map(date => (

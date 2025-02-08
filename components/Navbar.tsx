@@ -58,7 +58,7 @@ export default function Navbar() {
       {/* Navigation Bar */}
       <nav className="navbar bg-primary text-primary-content">
         {/* Left side: Logo */}
-        <div className="flex-1">
+        <div className="flex-1 mr-10">
           <Link href="/" className="btn btn-ghost normal-case text-xl">
             📚 LearnNest
           </Link>

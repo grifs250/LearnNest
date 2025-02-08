@@ -5,8 +5,18 @@ import { auth, db } from "@/lib/firebaseClient";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { fetchSubjects } from "@/lib/fetchSubjects";
 
-export default function LessonForm() {
-  const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
+interface Subject {
+  id: string;
+  name: string;
+  category: string;
+}
+
+interface LessonFormProps {
+  onLessonCreated?: () => void;  // Add callback prop
+}
+
+export default function LessonForm({ onLessonCreated }: LessonFormProps) {
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [lessonLength, setLessonLength] = useState(45); // Default 45 min
@@ -15,6 +25,7 @@ export default function LessonForm() {
   useEffect(() => {
     async function loadSubjects() {
       const subjectsData = await fetchSubjects();
+      subjectsData.sort((a, b) => a.name.localeCompare(b.name, 'lv'));
       setSubjects(subjectsData);
     }
     loadSubjects();
@@ -24,21 +35,29 @@ export default function LessonForm() {
     e.preventDefault();
     if (!auth.currentUser) return alert("Jums ir jābūt pieteiktam!");
 
+    const selectedSubject = subjects.find(s => s.id === subject);
+    if (!selectedSubject) return alert("Lūdzu izvēlieties priekšmetu!");
+
     setSaving(true);
     try {
       await addDoc(collection(db, "lessons"), {
-        subject,
+        subject: selectedSubject.name,
+        subjectId: subject,
         description,
         lessonLength,
         teacherId: auth.currentUser.uid,
         teacherName: auth.currentUser.displayName,
-        bookedBy: null,
+        bookedTimes: {},
+        category: selectedSubject.category || 'subjects'
       });
 
       alert("Nodarbība izveidota!");
+      // Reset form
       setSubject("");
       setDescription("");
       setLessonLength(45);
+      // Notify parent component
+      onLessonCreated?.();
     } catch (error) {
       console.error("Kļūda veidojot nodarbību:", error);
       alert("Neizdevās izveidot nodarbību.");

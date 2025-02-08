@@ -8,6 +8,19 @@ export interface FirestoreLesson {
   bookedBy: string | null;
 }
 
-export interface Lesson extends FirestoreLesson {
+export interface Lesson {
   id: string;
+  subject: string;    // Latvian name
+  subjectId: string;  // Reference ID
+  description: string;
+  teacherId: string;
+  teacherName: string;
+  lessonLength: number;
+  bookedTimes: {
+    [timeSlot: string]: {
+      studentId: string;
+      status: 'pending' | 'accepted' | 'rejected';
+    };
+  };
+  category?: string;
 } 

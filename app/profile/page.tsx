@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebaseClient";
 import { onAuthStateChanged, signOut, updateProfile } from "firebase/auth";
@@ -9,6 +9,7 @@ import WorkSchedule from "@/components/WorkSchedule";
 import LessonForm from "@/components/LessonForm"; 
 import StudentBookings from "@/components/StudentBookings";
 import TeacherBookings from "@/components/TeacherBookings";
+import StudentLessons from "@/components/StudentLessons";
 
 type Lesson = {
   id: string;
@@ -30,6 +31,20 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [myLessons, setMyLessons] = useState<Lesson[]>([]);
   const [bookedLessons, setBookedLessons] = useState<Lesson[]>([]);
+
+  const fetchLessons = useCallback(async () => {
+    if (!user?.uid) return;
+    
+    const q = query(
+      collection(db, "lessons"),
+      where("teacherId", "==", user.uid)
+    );
+    const snapshot = await getDocs(q);
+    setMyLessons(snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Lesson)));
+  }, [user?.uid]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -56,16 +71,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
 
-    const fetchLessons = async () => {
-      if (isTeacher) {
-        const q = query(collection(db, "lessons"), where("teacherId", "==", user.uid));
-        const snapshot = await getDocs(q);
-        setMyLessons(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
-      }
-    };
-
     fetchLessons();
-  }, [user, isTeacher]);
+  }, [user, fetchLessons]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -148,7 +155,7 @@ export default function ProfilePage() {
 
             <div className="bg-base-100 shadow p-6 rounded-lg">
               <h2 className="text-xl font-bold mb-4">Jūsu nodarbības</h2>
-              <LessonForm />
+              <LessonForm onLessonCreated={fetchLessons} />
               <div className="mt-4 space-y-4">
                 {myLessons.map((lesson) => (
                   <div key={lesson.id} className="card bg-base-100 shadow p-4">
@@ -213,7 +220,7 @@ export default function ProfilePage() {
 
             <div className="bg-base-100 shadow p-6 rounded-lg">
               <h2 className="text-xl font-bold mb-4">Manas rezervētās nodarbības</h2>
-              <StudentBookings userId={user.uid} />
+              <StudentLessons studentId={user.uid} />
             </div>
           </div>
         </>
