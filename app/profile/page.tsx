@@ -7,6 +7,8 @@ import { onAuthStateChanged, signOut, updateProfile } from "firebase/auth";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import WorkSchedule from "@/components/WorkSchedule"; 
 import LessonForm from "@/components/LessonForm"; 
+import StudentBookings from "@/components/StudentBookings";
+import TeacherBookings from "@/components/TeacherBookings";
 
 type Lesson = {
   id: string;
@@ -55,17 +57,15 @@ export default function ProfilePage() {
     if (!user) return;
 
     const fetchLessons = async () => {
-      const q = query(collection(db, "lessons"), where("teacherId", "==", user.uid));
-      const snapshot = await getDocs(q);
-      setMyLessons(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
-
-      const q2 = query(collection(db, "lessons"), where("bookedBy", "==", user.uid));
-      const snapshot2 = await getDocs(q2);
-      setBookedLessons(snapshot2.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
+      if (isTeacher) {
+        const q = query(collection(db, "lessons"), where("teacherId", "==", user.uid));
+        const snapshot = await getDocs(q);
+        setMyLessons(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Lesson[]);
+      }
     };
 
     fetchLessons();
-  }, [user]);
+  }, [user, isTeacher]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -101,98 +101,123 @@ export default function ProfilePage() {
     return <div className="p-6 text-center">Ielādē...</div>;
   }
 
+  if (!user) return <div>Loading...</div>;
+
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-base-100 shadow">
-      <h1 className="text-2xl font-bold mb-4">Profils</h1>
-
-      {error && <p className="text-red-500">{error}</p>}
-
-      <div className="form-control mb-4">
-        <label className="label">Vārds</label>
-        <input
-          type="text"
-          className="input input-bordered"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-        />
-      </div>
-
-      <div className="form-control mb-4">
-        <label className="label">Loma</label>
-        <input
-          type="text"
-          className="input input-bordered"
-          value={isTeacher ? "Pasniedzējs" : "Skolēns"}
-          disabled
-        />
-      </div>
-
-      <div className="form-control mb-4">
-        <label className="label">Apraksts</label>
-        <textarea
-          className="textarea textarea-bordered"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Aprakstiet sevi..."
-        />
-      </div>
-
-      <button onClick={handleSaveProfile} className="btn btn-primary mt-4" disabled={saving}>
-        {saving ? "Saglabā..." : "Saglabāt"}
-      </button>
-
-      <button onClick={handleLogout} className="btn btn-error mt-4">
-        Izrakstīties
-      </button>
-
-      {isTeacher && (
+    <main className="p-8">
+      {isTeacher ? (
         <>
-          <div className="mt-6">
-            <h2 className="text-xl font-bold mb-2">Darba laika iestatījumi</h2>
-            <WorkSchedule />
-          </div>
+          <h1 className="text-2xl font-bold mb-6">Pasniedzēja profils</h1>
+          
+          <div className="flex flex-col gap-8 max-w-xl mx-auto">
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Profila informācija</h2>
+              {error && <p className="text-red-500">{error}</p>}
+              <div className="form-control mb-4">
+                <label className="label">Vārds</label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </div>
+              <div className="form-control mb-4">
+                <label className="label">Apraksts</label>
+                <textarea
+                  className="textarea textarea-bordered"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Aprakstiet sevi..."
+                />
+              </div>
+              <div className="flex gap-4 mt-4">
+                <button onClick={handleSaveProfile} className="btn btn-primary flex-1" disabled={saving}>
+                  {saving ? "Saglabā..." : "Saglabāt"}
+                </button>
+                <button onClick={handleLogout} className="btn btn-error flex-1">
+                  Izrakstīties
+                </button>
+              </div>
+            </div>
 
-          <div className="mt-6">
-            <h2 className="text-xl font-bold mb-2">Jūsu nodarbības</h2>
-            <LessonForm />
-            <ul className="mt-4">
-            {myLessons.map((lesson) => (
-              <li key={lesson.id} className="p-2 border-b">
-                <p>
-                  <strong>{lesson.subject}</strong> -{" "}
-                  {lesson.availableTimes && lesson.availableTimes.length > 0
-                    ? lesson.availableTimes.join(", ")
-                    : "Nav pieejamu laiku"} {/* ✅ Show a message if times are missing */}
-                </p>
-                {lesson.bookedBy ? (
-                  <p className="text-green-500">Student signed up</p>
-                ) : (
-                  <button
-                    onClick={() => handleDeleteLesson(lesson.id)}
-                    className="btn btn-error btn-sm mt-2"
-                  >
-                    Dzēst nodarbību
-                  </button>
-                )}
-              </li>
-            ))}
-            </ul>
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Darba grafiks</h2>
+              <WorkSchedule />
+            </div>
+
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Jūsu nodarbības</h2>
+              <LessonForm />
+              <div className="mt-4 space-y-4">
+                {myLessons.map((lesson) => (
+                  <div key={lesson.id} className="card bg-base-100 shadow p-4">
+                    <h3 className="font-semibold">{lesson.subject}</h3>
+                    <p className="text-sm">{lesson.description}</p>
+                    {lesson.bookedBy ? (
+                      <p className="text-success mt-2">Rezervēta</p>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteLesson(lesson.id)}
+                        className="btn btn-error btn-sm mt-2"
+                      >
+                        Dzēst nodarbību
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Pieteikumi uz nodarbībām</h2>
+              <TeacherBookings teacherId={user.uid} />
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <h1 className="text-2xl font-bold mb-6">Skolēna profils</h1>
+          
+          <div className="flex flex-col gap-8 max-w-xl mx-auto">
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Profila informācija</h2>
+              {error && <p className="text-red-500">{error}</p>}
+              <div className="form-control mb-4">
+                <label className="label">Vārds</label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </div>
+              <div className="form-control mb-4">
+                <label className="label">Apraksts</label>
+                <textarea
+                  className="textarea textarea-bordered"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Aprakstiet sevi..."
+                />
+              </div>
+              <div className="flex gap-4 mt-4">
+                <button onClick={handleSaveProfile} className="btn btn-primary flex-1" disabled={saving}>
+                  {saving ? "Saglabā..." : "Saglabāt"}
+                </button>
+                <button onClick={handleLogout} className="btn btn-error flex-1">
+                  Izrakstīties
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-base-100 shadow p-6 rounded-lg">
+              <h2 className="text-xl font-bold mb-4">Manas rezervētās nodarbības</h2>
+              <StudentBookings userId={user.uid} />
+            </div>
           </div>
         </>
       )}
-
-      {!isTeacher && (
-        <div className="mt-6">
-          <h2 className="text-xl font-bold mb-2">Jūsu rezervētās nodarbības</h2>
-          <ul className="mt-4">
-            {bookedLessons.map((lesson) => (
-              <li key={lesson.id} className="p-2 border-b">
-                {lesson.subject} - {lesson.availableTimes.join(", ")} ({lesson.teacherName})
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    </main>
   );
 }

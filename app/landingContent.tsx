@@ -2,7 +2,7 @@ import { adminDb } from "@/lib/firebaseAdmin"; // Server-side Firestore
 import CourseSections from "@/components/CourseSections";
 import BujPage from "./buj/page";
 import Link from "next/link";
-import { fetchSubjects } from "@/lib/fetchSubjects";
+import { fetchCategories } from "@/lib/fetchCategories";
 
 async function fetchCourses(collectionName: string) {
   const snapshot = await adminDb.collection(collectionName).get();
@@ -14,7 +14,7 @@ async function fetchCourses(collectionName: string) {
 
 export default async function LandingContent() {
   // ✅ Fetch data on the server (SEO-friendly)
-  const subjects = await fetchSubjects();
+  const categories = await fetchCategories();
 
   return (
     <main className="bg-base-200 min-h-screen">
@@ -52,7 +52,7 @@ export default async function LandingContent() {
       </section>
 
       {/* Course Sections */}
-      <CourseSections subjects={subjects} />;
+      <CourseSections categories={categories} />
           
       {/* BUJ (FAQ) */}
       <div id="buj">
