@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebaseClient";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc, query, where, getDocs, doc, deleteDoc } from "firebase/firestore";
 import { fetchSubjects } from "@/lib/fetchSubjects";
+import { Clock, Plus, Trash2 } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -11,24 +12,50 @@ interface Subject {
   category: string;
 }
 
+interface Lesson {
+  id: string;
+  subject: string;
+  description: string;
+  lessonLength: number;
+  price: number;
+  status: 'active' | 'inactive';
+}
+
 interface LessonFormProps {
-  onLessonCreated?: () => void;  // Add callback prop
+  onLessonCreated?: () => void;
 }
 
 export default function LessonForm({ onLessonCreated }: LessonFormProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [lessonLength, setLessonLength] = useState(45); // Default 45 min
+  const [lessonLength, setLessonLength] = useState(45);
+  const [price, setPrice] = useState("");
   const [saving, setSaving] = useState(false);
+  const [myLessons, setMyLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadSubjects() {
-      const subjectsData = await fetchSubjects();
-      subjectsData.sort((a, b) => a.name.localeCompare(b.name, 'lv'));
-      setSubjects(subjectsData);
+    async function loadData() {
+      const [subjectsData, lessonsSnapshot] = await Promise.all([
+        fetchSubjects(),
+        getDocs(query(
+          collection(db, "lessons"),
+          where("teacherId", "==", auth.currentUser?.uid)
+        ))
+      ]);
+
+      setSubjects(subjectsData.sort((a, b) => a.name.localeCompare(b.name, 'lv')));
+      setMyLessons(lessonsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Lesson)));
+      setLoading(false);
     }
-    loadSubjects();
+
+    if (auth.currentUser) {
+      loadData();
+    }
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -40,23 +67,33 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
 
     setSaving(true);
     try {
-      await addDoc(collection(db, "lessons"), {
+      const docRef = await addDoc(collection(db, "lessons"), {
         subject: selectedSubject.name,
         subjectId: subject,
         description,
         lessonLength,
+        price: Number(price),
         teacherId: auth.currentUser.uid,
         teacherName: auth.currentUser.displayName,
-        bookedTimes: {},
+        status: 'active',
+        createdAt: new Date(),
         category: selectedSubject.category || 'subjects'
       });
 
+      setMyLessons(prev => [...prev, {
+        id: docRef.id,
+        subject: selectedSubject.name,
+        description,
+        lessonLength,
+        price: Number(price),
+        status: 'active'
+      }]);
+
       alert("Nodarbība izveidota!");
-      // Reset form
       setSubject("");
       setDescription("");
       setLessonLength(45);
-      // Notify parent component
+      setPrice("");
       onLessonCreated?.();
     } catch (error) {
       console.error("Kļūda veidojot nodarbību:", error);
@@ -65,54 +102,135 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
     setSaving(false);
   }
 
+  async function handleDeleteLesson(lessonId: string) {
+    if (!confirm("Vai tiešām vēlaties dzēst šo nodarbību?")) return;
+
+    try {
+      await deleteDoc(doc(db, "lessons", lessonId));
+      setMyLessons(prev => prev.filter(lesson => lesson.id !== lessonId));
+      alert("Nodarbība dzēsta!");
+    } catch (error) {
+      console.error("Error deleting lesson:", error);
+      alert("Neizdevās dzēst nodarbību.");
+    }
+  }
+
+  if (loading) {
+    return <div className="loading loading-spinner loading-lg"></div>;
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="p-6 bg-white shadow-lg rounded-lg max-w-lg mx-auto">
-      <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">📚 Izveidot Nodarbību</h3>
+    <div className="space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="label">
+            <span className="label-text">Priekšmets</span>
+          </label>
+          <select
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            required
+            className="select select-bordered w-full"
+          >
+            <option value="">Izvēlieties priekšmetu</option>
+            {subjects.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
 
-      {/* Priekšmeta izvēle */}
-      <label className="block text-gray-700 font-semibold mb-1">Priekšmets</label>
-      <select
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        required
-        className="input input-bordered w-full mb-4"
-      >
-        <option value="">Izvēlieties priekšmetu</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
-        ))}
-      </select>
+        <div>
+          <label className="label">
+            <span className="label-text">Apraksts</span>
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+            className="textarea textarea-bordered w-full"
+            placeholder="Aprakstiet nodarbību..."
+            rows={3}
+          />
+        </div>
 
-      {/* Apraksts */}
-      <label className="block text-gray-700 font-semibold mb-1">Apraksts</label>
-      <textarea
-        placeholder="Aprakstiet nodarbību, piemēram, 'Algebras pamati - vienādojumi un nevienādības'"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-        className="textarea textarea-bordered w-full mb-4"
-      />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">
+              <span className="label-text">Nodarbības ilgums (minūtēs)</span>
+            </label>
+            <input
+              type="number"
+              min="30"
+              max="120"
+              step="15"
+              value={lessonLength}
+              onChange={(e) => setLessonLength(Number(e.target.value))}
+              className="input input-bordered w-full"
+            />
+          </div>
 
-      {/* Nodarbības ilgums */}
-      <label className="block text-gray-700 font-semibold mb-1">Nodarbības ilgums (minūtēs)</label>
-      <input
-        type="number"
-        min="30"
-        max="120"
-        step="15"
-        value={lessonLength}
-        onChange={(e) => setLessonLength(Number(e.target.value))}
-        className="input input-bordered w-full mb-4"
-      />
+          <div>
+            <label className="label">
+              <span className="label-text">Cena (€)</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              required
+              className="input input-bordered w-full"
+              placeholder="15.00"
+            />
+          </div>
+        </div>
 
-      {/* Saglabāšanas poga */}
-      <button
-        type="submit"
-        className={`btn w-full mt-4 ${saving ? "btn-disabled" : "btn-primary"}`}
-        disabled={saving}
-      >
-        {saving ? "Saglabā..." : "✅ Izveidot Nodarbību"}
-      </button>
-    </form>
+        <button
+          type="submit"
+          className={`btn btn-primary w-full ${saving ? "loading" : ""}`}
+          disabled={saving}
+        >
+          {saving ? "Saglabā..." : "Izveidot nodarbību"}
+        </button>
+      </form>
+
+      <div className="divider">Manas nodarbības</div>
+
+      <div className="space-y-4">
+        {myLessons.length === 0 ? (
+          <div className="text-center text-gray-500">
+            Nav izveidotu nodarbību
+          </div>
+        ) : (
+          myLessons.map((lesson) => (
+            <div key={lesson.id} className="card bg-base-100 shadow-lg">
+              <div className="card-body">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-lg">{lesson.subject}</h3>
+                    <p className="text-sm text-gray-600">{lesson.description}</p>
+                    <div className="mt-2 space-x-2">
+                      <span className="badge badge-outline">
+                        {lesson.lessonLength} min
+                      </span>
+                      <span className="badge badge-outline">
+                        {lesson.price}€
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteLesson(lesson.id)}
+                    className="btn btn-ghost btn-sm text-error"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

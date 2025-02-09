@@ -10,6 +10,8 @@ import {
   doc, 
   updateDoc 
 } from "firebase/firestore";
+import { canCancelLesson, BUFFER_TIMES } from "@/lib/constants";
+import Link from "next/link";
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected';
 
@@ -197,10 +199,17 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
     return 'badge-warning';
   }
 
-  function getStatusText(status: BookingStatus): string {
-    if (status === 'accepted') return 'Apstiprināts';
-    if (status === 'rejected') return 'Noraidīts';
-    return 'Gaida apstiprinājumu';
+  function getStatusText(status: string) {
+    switch (status) {
+      case 'pending':
+        return 'Gaida apstiprinājumu';
+      case 'accepted':
+        return 'Apstiprināts';
+      case 'rejected':
+        return 'Noraidīts';
+      default:
+        return status;
+    }
   }
 
   if (loading) {
@@ -229,118 +238,147 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
           className={`tab ${view === 'pending' ? 'tab-active' : ''}`}
           onClick={() => setView('pending')}
         >
-          Pending ({pendingBookings.length})
+          Neapstiprināti ({pendingBookings.length})
         </button>
         <button 
           className={`tab ${view === 'accepted' ? 'tab-active' : ''}`}
           onClick={() => setView('accepted')}
         >
-          Accepted ({acceptedBookings.length})
+          Apstiprināti ({acceptedBookings.length})
         </button>
       </div>
 
-      {view === 'pending' ? (
-        <div className="space-y-4">
-          {pendingBookings.length === 0 ? (
-            <div className="alert alert-info">No pending bookings</div>
-          ) : (
-            pendingBookings.map((booking) => (
-              <div 
-                key={`${booking.lessonId}-${booking.date}-${booking.time}`}
-                className="card bg-base-100 shadow p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold">{booking.subject}</h3>
-                    <p>Skolēns: {booking.studentName}</p>
-                    <p>
-                      {new Date(`${booking.date}T${booking.time}`).toLocaleString('lv-LV', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                    <div className={`badge mt-2 ${getStatusBadgeClass(booking.status)}`}>
-                      {getStatusText(booking.status)}
-                    </div>
-                  </div>
-
-                  {booking.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleStatusUpdate(
-                          booking.lessonId,
-                          `${booking.date}T${booking.time}`,
-                          'accepted'
-                        )}
-                        className="btn btn-success btn-sm"
-                      >
-                        Apstiprināt
-                      </button>
-                      <button
-                        onClick={() => handleStatusUpdate(
-                          booking.lessonId,
-                          `${booking.date}T${booking.time}`,
-                          'rejected'
-                        )}
-                        className="btn btn-error btn-sm"
-                      >
-                        Noraidīt
-                      </button>
-                    </div>
-                  )}
-                </div>
+      <div>
+        {view === 'pending' ? (
+          <div className="space-y-4">
+            {pendingBookings.length === 0 ? (
+              <div className="alert bg-base-200 text-base-content">
+                Nav neapstiprinātu pieteikumu
               </div>
-            ))
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {acceptedBookings.length === 0 ? (
-            <div className="alert alert-info">No accepted bookings</div>
-          ) : (
-            acceptedBookings.map((booking) => (
-              <div 
-                key={`${booking.lessonId}-${booking.date}-${booking.time}`}
-                className="card bg-base-100 shadow p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold">{booking.subject}</h3>
-                    <p>Student: {booking.studentName}</p>
-                    <p>
-                      {new Date(`${booking.date}T${booking.time}`).toLocaleString('lv-LV', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                    <div className="badge badge-success mt-2">
-                      {getStatusText(booking.status)}
+            ) : (
+              pendingBookings.map((booking) => (
+                <div 
+                  key={`${booking.lessonId}-${booking.date}-${booking.time}`}
+                  className="card bg-base-100 shadow p-4"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{booking.subject}</h3>
+                      <Link 
+                        href={`/profile/${booking.studentId}`}
+                        className="hover:underline text-primary"
+                      >
+                        Skolēns: {booking.studentName}
+                      </Link>
+                      <p>
+                        {new Date(`${booking.date}T${booking.time}`).toLocaleString('lv-LV', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <div className={`badge mt-2 ${getStatusBadgeClass(booking.status)}`}>
+                        {getStatusText(booking.status)}
+                      </div>
                     </div>
-                  </div>
 
-                  <button
-                    onClick={() => handleCancel(
-                      booking.lessonId,
-                      `${booking.date}T${booking.time}`
+                    {booking.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleStatusUpdate(
+                            booking.lessonId,
+                            `${booking.date}T${booking.time}`,
+                            'accepted'
+                          )}
+                          className="btn btn-success btn-sm"
+                        >
+                          Apstiprināt
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(
+                            booking.lessonId,
+                            `${booking.date}T${booking.time}`,
+                            'rejected'
+                          )}
+                          className="btn btn-error btn-sm"
+                        >
+                          Noraidīt
+                        </button>
+                      </div>
                     )}
-                    className="btn btn-error btn-sm"
-                  >
-                    Cancel Lesson
-                  </button>
+                  </div>
                 </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {acceptedBookings.length === 0 ? (
+              <div className="alert bg-base-200 text-base-content">
+                Nav apstiprinātu nodarbību
               </div>
-            ))
-          )}
-        </div>
-      )}
+            ) : (
+              acceptedBookings.map((booking) => {
+                const lessonTime = `${booking.date}T${booking.time}`;
+                const canCancel = canCancelLesson(lessonTime);
+                
+                return (
+                  <div key={`${booking.lessonId}-${booking.date}-${booking.time}`}
+                       className="card bg-base-100 shadow p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold">{booking.subject}</h3>
+                        <Link 
+                          href={`/profile/${booking.studentId}`}
+                          className="hover:underline text-primary"
+                        >
+                          Skolēns: {booking.studentName}
+                        </Link>
+                        <p>
+                          {new Date(lessonTime).toLocaleString('lv-LV', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        <div className="badge badge-success mt-2">
+                          {getStatusText(booking.status)}
+                        </div>
+                      </div>
+
+                      <div className="relative group">
+                        <button
+                          onClick={() => handleCancel(
+                            booking.lessonId,
+                            lessonTime
+                          )}
+                          className={`btn btn-error btn-sm ${!canCancel ? 'opacity-50' : ''}`}
+                          disabled={!canCancel}
+                        >
+                          Atcelt nodarbību
+                        </button>
+                        {!canCancel && (
+                          <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-10">
+                            <div className="bg-base-300 text-sm p-2 rounded shadow-lg whitespace-nowrap">
+                              ⚠️ Atcelšana iespējama vismaz {BUFFER_TIMES.CANCEL}h pirms nodarbības
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 } 

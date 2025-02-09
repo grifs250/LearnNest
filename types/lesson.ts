@@ -23,4 +23,36 @@ export interface Lesson {
     };
   };
   category?: string;
+}
+
+export interface TimeSlot {
+  date: string;
+  start: string;
+  end: string;
+}
+
+export interface LessonData {
+  id: string;
+  subject: string;
+  description: string;
+  teacherId: string;
+  teacherName: string;
+  price: number;
+  lessonLength: number;
+  bookedTimes: {
+    [timeSlot: string]: {
+      studentId: string;
+      status: 'pending' | 'accepted' | 'rejected';
+    };
+  };
+}
+
+export interface TeacherLesson {
+  id: string;
+  subject: string;
+  teacherId: string;
+  status: string;
+  date?: string;
+  time?: string;
+  [key: string]: any;  // For any additional fields
 } 

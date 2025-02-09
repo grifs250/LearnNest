@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { db } from "../lib/firebaseClient";
 import { collection, query, where, getDocs, doc, updateDoc, getDoc } from "firebase/firestore";
+import PaymentForm from "./PaymentForm";
 import { useRouter } from "next/navigation";
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected';
@@ -45,13 +46,37 @@ interface StudentLessonsProps {
   readonly studentId: string;
 }
 
+interface BookedLesson {
+  id: string;
+  subject: string;
+  teacherId: string;
+  teacherName: string;
+  date: string;
+  time: string;
+  lessonLength: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  price: number;
+}
+
+interface Booking {
+  studentId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
+function isBooking(obj: any): obj is Booking {
+  return obj 
+    && typeof obj === 'object'
+    && 'studentId' in obj 
+    && 'status' in obj;
+}
+
 function getStatusBadgeClass(status: BookingStatus): string {
   if (status === 'accepted') return 'badge-success';
   if (status === 'rejected') return 'badge-error';
   return 'badge-warning';
 }
 
-function getStatusText(status: BookingStatus): string {
+function getStatusText(status: string): string {
   if (status === 'accepted') return 'Apstiprināts';
   if (status === 'rejected') return 'Noraidīts';
   return 'Gaida apstiprinājumu';
@@ -59,62 +84,64 @@ function getStatusText(status: BookingStatus): string {
 
 export default function StudentLessons({ studentId }: StudentLessonsProps) {
   const router = useRouter();
-  const [myLessons, setMyLessons] = useState<StudentLesson[]>([]);
+  const [bookings, setBookings] = useState<BookedLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMyLessons();
-  }, [studentId]);
+    const loadBookings = async () => {
+      if (!studentId) return;
+      
+      setLoading(true);
+      setError(null);
 
-  async function fetchMyLessons() {
-    setLoading(true);
-    setError(null);
-    try {
-      const lessonsQuery = query(
-        collection(db, "lessons"),
-        where("bookedTimes", "!=", null)
-      );
-      const lessonsSnap = await getDocs(lessonsQuery);
-      
-      const lessonsList: StudentLesson[] = [];
-      
-      for (const docSnap of lessonsSnap.docs) {
-        const data = docSnap.data() as LessonData;
-        const bookedTimes = data.bookedTimes ?? {};
+      try {
+        const lessonsQuery = query(
+          collection(db, "lessons"),
+          where("bookedTimes", "!=", null)
+        );
+        const lessonsSnap = await getDocs(lessonsQuery);
         
-        for (const [timeSlot, booking] of Object.entries(bookedTimes)) {
-          if (booking?.studentId === studentId) {
-            const [date, time] = timeSlot.split('T');
-            
-            // Fetch teacher data
-            const teacherDoc = await getDoc(doc(db, "users", data.teacherId));
-            const teacherData = teacherDoc.data() as TeacherData;
-            
-            lessonsList.push({
-              id: docSnap.id,
-              subject: data.subject,
-              teacherName: data.teacherName,
-              teacherId: data.teacherId,
-              date,
-              time,
-              status: booking.status ?? 'pending',
-              availableTimes: Object.keys(teacherData?.workHours ?? {}),
-              category: data.category ?? 'subjects',
-              subjectId: data.subjectId
-            });
+        const bookingsList: BookedLesson[] = [];
+        
+        for (const lessonDoc of lessonsSnap.docs) {
+          const lessonData = lessonDoc.data();
+          const bookedTimes = lessonData.bookedTimes || {};
+          
+          for (const [timeSlot, booking] of Object.entries(bookedTimes)) {
+            if (isBooking(booking) && booking.studentId === studentId) {
+              const [date, time] = timeSlot.split('T');
+              
+              // Get teacher info
+              const teacherDoc = await getDoc(doc(db, "users", lessonData.teacherId));
+              const teacherName = teacherDoc.exists() ? teacherDoc.data().displayName : "Unknown";
+              
+              bookingsList.push({
+                id: lessonDoc.id,
+                subject: lessonData.subject,
+                teacherId: lessonData.teacherId,
+                teacherName,
+                date,
+                time,
+                lessonLength: lessonData.lessonLength || 60,
+                status: booking.status || 'pending',
+                price: lessonData.price || 0
+              });
+            }
           }
         }
+        
+        setBookings(bookingsList);
+      } catch (err) {
+        console.error("Error loading bookings:", err);
+        setError("Neizdevās ielādēt rezervācijas");
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setMyLessons(lessonsList);
-    } catch (error) {
-      console.error("Error fetching lessons:", error);
-      setError("Failed to load your lessons");
-    } finally {
-      setLoading(false);
-    }
-  }
+    loadBookings();
+  }, [studentId]);
 
   async function handleCancel(lessonId: string, timeSlot: string) {
     try {
@@ -131,7 +158,7 @@ export default function StudentLessons({ studentId }: StudentLessonsProps) {
       });
 
       // Update local state
-      setMyLessons(prev => prev.filter(lesson => 
+      setBookings(prev => prev.filter(lesson => 
         !(lesson.id === lessonId && `${lesson.date}T${lesson.time}` === timeSlot)
       ));
 
@@ -142,86 +169,75 @@ export default function StudentLessons({ studentId }: StudentLessonsProps) {
     }
   }
 
-  async function handleReschedule(lesson: StudentLesson, timeSlot: string) {
+  async function handleReschedule(lesson: BookedLesson, timeSlot: string) {
     try {
-      // Use the full path structure
-      router.push(`/lessons/${lesson.category || 'all'}/${lesson.subject}/${lesson.id}?oldTimeSlot=${timeSlot}`);
+      // Use userId instead of studentId if necessary
+      router.push(`/profile/${studentId}`);
     } catch (error) {
       console.error("Error preparing reschedule:", error);
       setError("Failed to prepare reschedule");
     }
   }
 
-  if (loading) return <div className="loading loading-spinner loading-lg"></div>;
-  if (error) return <div className="alert alert-error">{error}</div>;
-  if (myLessons.length === 0) {
-    return (
-      <div className="card bg-base-100 shadow-lg p-8 text-center">
-        <div className="card-body">
-          <h2 className="card-title justify-center text-2xl mb-4">
-            🎓 Nav rezervētu nodarbību
-          </h2>
-          <p className="text-gray-600 mb-6">
-            Jums pašlaik nav nevienas rezervētas nodarbības. 
-            Izvēlieties mācību priekšmetu un sāciet mācīties!
-          </p>
-          <div className="card-actions justify-center">
-            <button 
-              onClick={() => router.push('/#subjects')} 
-              className="btn btn-primary btn-lg"
-            >
-              <span className="mr-2">📚</span>
-              Atrast Nodarbību
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center">
+    <span className="loading loading-spinner loading-md"></span>
+  </div>;
+
+  if (error) return <div className="text-error">{error}</div>;
+
+  if (bookings.length === 0) return <div className="text-center text-muted-foreground">
+    Nav aktīvu rezervāciju
+  </div>;
 
   return (
     <div className="space-y-4">
-      {myLessons.map(lesson => (
-        <div key={`${lesson.id}-${lesson.date}-${lesson.time}`} className="card bg-base-100 shadow p-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold">{lesson.subject}</h3>
-              <p>Pasniedzējs: {lesson.teacherName}</p>
-              <p>
-                {new Date(`${lesson.date}T${lesson.time}`).toLocaleString('lv-LV', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-              <div className={`badge mt-2 ${getStatusBadgeClass(lesson.status)}`}>
-                {getStatusText(lesson.status)}
+      {bookings.map((booking) => {
+        const lessonTime = new Date(`${booking.date}T${booking.time}`);
+        const endTime = new Date(lessonTime.getTime() + booking.lessonLength * 60000);
+        
+        return (
+          <div key={`${booking.id}-${booking.date}-${booking.time}`} 
+               className="card bg-base-100 shadow p-4"
+          >
+            <h3 className="font-semibold">{booking.subject}</h3>
+            <p>Pasniedzējs: {booking.teacherName}</p>
+            <p>
+              {lessonTime.toLocaleString('lv-LV', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+              {' - '}
+              {endTime.toLocaleTimeString('lv-LV', {
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </p>
+            <div className="flex justify-between items-center mt-2">
+              <div className={`badge ${getStatusBadgeClass(booking.status)}`}>
+                {getStatusText(booking.status)}
               </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleReschedule(
-                  lesson,
-                  `${lesson.date}T${lesson.time}`
-                )}
-                className="btn btn-primary btn-sm"
-              >
-                Rezervēt jaunu laiku
-              </button>
-              <button
-                onClick={() => handleCancel(lesson.id, `${lesson.date}T${lesson.time}`)}
-                className="btn btn-error btn-sm"
-              >
-                Atcelt
-              </button>
+              {booking.status === 'accepted' && (
+                <PaymentForm
+                  lessonId={booking.id}
+                  lessonTitle={booking.subject}
+                  teacherId={booking.teacherId}
+                  teacherName={booking.teacherName}
+                  studentId={studentId}
+                  studentName=""  // Will be filled from auth context
+                  amount={booking.price}
+                  onPaymentCreated={() => {
+                    // Optional: Refresh bookings or show success message
+                  }}
+                />
+              )}
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 } 

@@ -1,6 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Navbar from "@/components/Navbar";
+import ProfileGuard from "@/components/ProfileGuard";
+import { NavbarProvider } from '@/contexts/NavbarContext';
 
 export const metadata: Metadata = {
   title: "LearnNest",
@@ -15,8 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="light">
       <body>
-        <Navbar />
-        {children}
+        <NavbarProvider>
+          <Navbar />
+          <ProfileGuard>
+            {children}
+          </ProfileGuard>
+        </NavbarProvider>
       </body>
     </html>
   );
