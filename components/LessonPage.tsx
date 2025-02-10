@@ -31,7 +31,6 @@ export default function LessonPage() {
             <h3 className="text-lg font-bold">{lesson.subject}</h3>
             <p>{lesson.description}</p>
             <p className="text-sm">Pasniedzējs: {lesson.teacherName}</p>
-            <p>{lesson.date} {lesson.time}</p>
           </Link>
         ))}
       </div>

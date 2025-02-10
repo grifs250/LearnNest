@@ -21,6 +21,7 @@ interface BookingRequest {
   date: string;
   time: string;
   status: BookingStatus;
+  bookedAt: string;
 }
 
 interface TeacherBookingsProps {
@@ -54,76 +55,28 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
       setError(null);
       
       try {
-        // Fetch lessons
-        const lessonsQuery = query(
-          collection(db, "lessons"),
-          where("teacherId", "==", teacherId)
-        );
-        const lessonsSnap = await getDocs(lessonsQuery);
+        // Get teacher's bookings subcollection
+        const teacherBookingsRef = collection(db, "users", teacherId, "bookings");
+        const bookingsSnap = await getDocs(teacherBookingsRef);
         
-        // First, collect all unique student IDs
-        const studentIds = new Set<string>();
-        const bookingData: Array<{
-          lessonId: string;
-          subject: string;
-          studentId: string;
-          date: string;
-          time: string;
-          status: BookingStatus;
-        }> = [];
-
-        lessonsSnap.docs.forEach(lessonDoc => {
-          const lessonData = lessonDoc.data();
-          const bookedTimes = lessonData.bookedTimes || {};
-
-          Object.entries(bookedTimes).forEach(([timeSlot, data]: [string, any]) => {
-            // Skip null/undefined bookings
-            if (!data || !data.studentId) return;
-
-            const [date, time] = timeSlot.split('T');
-            studentIds.add(data.studentId);
-            
-            bookingData.push({
-              lessonId: lessonDoc.id,
-              subject: lessonData.subject,
-              studentId: data.studentId,
-              date,
-              time,
-              status: data.status || 'pending'
-            });
-          });
+        const bookingsList = bookingsSnap.docs.map(doc => {
+          const data = doc.data();
+          return {
+            lessonId: data.lessonId,
+            subject: data.subject,
+            studentId: data.studentId,
+            studentName: data.studentName,
+            date: data.timeSlot.split('T')[0],
+            time: data.timeSlot.split('T')[1],
+            status: data.status,
+            bookedAt: data.bookedAt
+          };
         });
-
-        // Fetch all student data in parallel
-        const studentSnapshots = await Promise.all(
-          Array.from(studentIds).map(id => getDoc(doc(db, "users", id)))
-        );
-
-        // Create a map of student IDs to names
-        const studentNames = new Map(
-          studentSnapshots.map(snap => [
-            snap.id,
-            snap.exists() ? snap.data().displayName : "Unknown Student"
-          ])
-        );
-
-        // Combine booking data with student names
-        const bookingRequests = bookingData.map(booking => ({
-          ...booking,
-          studentName: studentNames.get(booking.studentId) || "Unknown Student"
-        }));
-
-        // Sort bookings
-        bookingRequests.sort((a, b) => {
-          if (a.status === 'pending' && b.status !== 'pending') return -1;
-          if (a.status !== 'pending' && b.status === 'pending') return 1;
-          return new Date(`${a.date}T${a.time}`).getTime() - new Date(`${b.date}T${b.time}`).getTime();
-        });
-
-        setBookings(bookingRequests);
+        
+        setBookings(bookingsList);
       } catch (error) {
         console.error("Error fetching bookings:", error);
-        setError("Neizdevās ielādēt pieteikumus. Lūdzu, mēģiniet vēlreiz.");
+        setError("Failed to load bookings");
       } finally {
         setLoading(false);
       }
@@ -140,31 +93,62 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   async function handleStatusUpdate(
     lessonId: string,
     timeSlot: string,
-    newStatus: 'accepted' | 'rejected'
+    newStatus: BookingStatus
   ) {
     try {
       setError(null);
       
-      if (!isValidTimeSlot(timeSlot)) {
-        throw new Error("Invalid time slot format");
-      }
-
-      await updateDoc(doc(db, "lessons", lessonId), {
+      // Update lesson document
+      const lessonRef = doc(db, "lessons", lessonId);
+      await updateDoc(lessonRef, {
         [`bookedTimes.${timeSlot}.status`]: newStatus
       });
 
-      setBookings(prev => prev.map(booking => {
-        if (booking.lessonId === lessonId && `${booking.date}T${booking.time}` === timeSlot) {
-          return { ...booking, status: newStatus };
+      // Update teacher's booking
+      const teacherBookingRef = doc(db, "users", teacherId, "bookings", `${lessonId}_${timeSlot}`);
+      await updateDoc(teacherBookingRef, { status: newStatus });
+
+      // Find and update student's booking
+      const booking = bookings.find(b => b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot);
+      if (booking) {
+        const studentBookingRef = doc(db, "users", booking.studentId, "bookings", `${lessonId}_${timeSlot}`);
+        await updateDoc(studentBookingRef, { status: newStatus });
+      }
+
+      // Update local state
+      setBookings(prev => prev.map(b => {
+        if (b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot) {
+          return { ...b, status: newStatus };
         }
-        return booking;
+        return b;
       }));
 
-      const message = newStatus === 'accepted' ? "Nodarbība apstiprināta!" : "Nodarbība noraidīta!";
-      alert(message);
+      // Show success message without reloading
+      const message = newStatus === 'accepted' ? 
+        "Nodarbība apstiprināta!" : 
+        "Nodarbība noraidīta!";
+      
+      // Use a toast or alert component instead of window.alert
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${newStatus === 'accepted' ? 'success' : 'error'} mb-4`;
+      alertDiv.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>${message}</span>
+      `;
+
+      // Add alert to the page
+      const alertsContainer = document.querySelector('.booking-alerts');
+      if (alertsContainer) {
+        alertsContainer.appendChild(alertDiv);
+        // Remove alert after 3 seconds
+        setTimeout(() => alertDiv.remove(), 3000);
+      }
+
     } catch (error) {
-      console.error("Error updating booking status:", error);
-      setError("Kļūda atjaunojot statusu. Lūdzu, mēģiniet vēlreiz.");
+      console.error("Error updating status:", error);
+      setError("Failed to update booking status");
     }
   }
 
@@ -224,25 +208,34 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
 
   return (
     <div className="space-y-4">
+      <div className="booking-alerts"></div>
+
       <div className="tabs tabs-boxed">
         <button 
           className={`tab ${view === 'pending' ? 'tab-active' : ''}`}
           onClick={() => setView('pending')}
         >
-          Pending ({pendingBookings.length})
+          Gaida apstiprinājumu ({pendingBookings.length})
         </button>
         <button 
           className={`tab ${view === 'accepted' ? 'tab-active' : ''}`}
           onClick={() => setView('accepted')}
         >
-          Accepted ({acceptedBookings.length})
+          Apstiprinātās ({acceptedBookings.length})
         </button>
       </div>
 
       {view === 'pending' ? (
         <div className="space-y-4">
           {pendingBookings.length === 0 ? (
-            <div className="alert alert-info">No pending bookings</div>
+            <div className="text-center py-8">
+              <div className="text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-lg">Nav neapstiprinātu nodarbību</p>
+              </div>
+            </div>
           ) : (
             pendingBookings.map((booking) => (
               <div 
@@ -300,7 +293,14 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
       ) : (
         <div className="space-y-4">
           {acceptedBookings.length === 0 ? (
-            <div className="alert alert-info">No accepted bookings</div>
+            <div className="text-center py-8">
+              <div className="text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-lg">Nav apstiprinātu nodarbību</p>
+              </div>
+            </div>
           ) : (
             acceptedBookings.map((booking) => (
               <div 

@@ -2,15 +2,20 @@
 import { useEffect, useState } from 'react';
 import { db } from "@/lib/firebaseClient";
 import { collection, query, getDocs, where } from "firebase/firestore";
+import { BookingStatus } from "@/types/lesson";
 
 interface BookedLesson {
   id: string;
   subject: string;
+  teacherId: string;
   teacherName: string;
   date: string;
   time: string;
+  status: BookingStatus;
   lessonLength: number;
-  status?: 'pending' | 'accepted' | 'rejected';
+  bookedAt: string;
+  category?: string;
+  subjectId?: string;
 }
 
 export default function StudentBookings({ userId }: { userId: string }) {
@@ -19,37 +24,37 @@ export default function StudentBookings({ userId }: { userId: string }) {
 
   useEffect(() => {
     async function fetchBookings() {
-      const lessons = collection(db, "lessons");
-      const lessonsSnap = await getDocs(lessons);
+      if (!userId) return;
+      setLoading(true);
       
-      const bookedLessons: BookedLesson[] = [];
-      
-      lessonsSnap.docs.forEach(doc => {
-        const lessonData = doc.data();
-        Object.entries(lessonData.bookedTimes || {}).forEach(([timeSlot, studentId]) => {
-          if (studentId === userId) {
-            const [date, time] = timeSlot.split('T');
-            bookedLessons.push({
-              id: doc.id,
-              subject: lessonData.subject,
-              teacherName: lessonData.teacherName,
-              date,
-              time,
-              lessonLength: lessonData.lessonLength
-            });
-          }
+      try {
+        const userBookingsRef = collection(db, "users", userId, "bookings");
+        const bookingsSnap = await getDocs(userBookingsRef);
+        
+        const bookingsList = bookingsSnap.docs.map(doc => {
+          const data = doc.data();
+          const [date, time] = data.timeSlot.split('T');
+          
+          return {
+            id: doc.id,
+            subject: data.subject,
+            teacherId: data.teacherId,
+            teacherName: data.teacherName,
+            date,
+            time,
+            status: data.status,
+            lessonLength: data.lessonLength || 60,
+            bookedAt: data.bookedAt
+          };
         });
-      });
 
-      // Sort by date and time
-      bookedLessons.sort((a, b) => {
-        const dateA = new Date(`${a.date}T${a.time}`);
-        const dateB = new Date(`${b.date}T${b.time}`);
-        return dateA.getTime() - dateB.getTime();
-      });
-
-      setBookings(bookedLessons);
-      setLoading(false);
+        console.log('Fetched bookings:', bookingsList);
+        setBookings(bookingsList);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+      } finally {
+        setLoading(false);
+      }
     }
 
     fetchBookings();

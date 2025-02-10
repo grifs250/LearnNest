@@ -2,20 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import SmoothScrollLink from "@/components/SmoothScrollLink";
-import { Menu, X, User } from "lucide-react";
+import { Menu, X, User as UserIcon } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isTeacher, setIsTeacher] = useState<boolean | null>(null); // Use `null` for initial state
+  const [user, setUser] = useState<User | null>(null);
+  const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
 
-  // Fetch user data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
@@ -25,22 +24,21 @@ export default function Navbar() {
           if (snap.exists()) {
             setIsTeacher(snap.data().isTeacher);
           } else {
-            setIsTeacher(false); // Default to student if no Firestore data
+            setIsTeacher(false);
           }
         } catch (error) {
           console.error("Error fetching user data:", error);
-          setIsTeacher(false); // Fallback to student
+          setIsTeacher(false);
         }
       } else {
         setUser(null);
-        setIsTeacher(null); // Reset state when logged out
+        setIsTeacher(null);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Determine profile button color (only apply if role is known)
   const profileButtonClass =
     isTeacher === null ? "btn-neutral" : isTeacher ? "btn-secondary" : "btn-accent";
 
@@ -55,26 +53,24 @@ export default function Navbar() {
 
   return (
     <div>
-      {/* Navigation Bar */}
       <nav className="navbar bg-primary text-primary-content">
-        {/* Left side: Logo */}
         <div className="flex-1 mr-10">
           <Link href="/" className="btn btn-ghost normal-case text-xl">
             📚 LearnNest
           </Link>
         </div>
 
-        {/* Mobile Menu Button */}
         <div className="md:hidden">
           <button
             className="btn btn-square btn-ghost"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
-        {/* Desktop Menu */}
         <div className="hidden md:flex gap-4 mr-4 items-center">
           {navItems.map((item) => (
             <SmoothScrollLink
@@ -87,7 +83,7 @@ export default function Navbar() {
           ))}
           {user ? (
             <Link href="/profile" className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}>
-              <User size={16} />
+              <UserIcon size={16} />
               {user.email}
             </Link>
           ) : (
@@ -98,7 +94,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu (Inline) */}
       {mobileOpen && (
         <div className="bg-primary text-primary-content p-4 flex flex-col gap-2 md:hidden">
           {navItems.map((item) => (
@@ -118,7 +113,7 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
               >
-                <User size={16} />
+                <UserIcon size={16} />
                 {user.email}
               </Link>
             ) : (
