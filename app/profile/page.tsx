@@ -6,20 +6,11 @@ import { auth, db } from "@/lib/firebaseClient";
 import { onAuthStateChanged, signOut, updateProfile } from "firebase/auth";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import WorkSchedule from "@/components/WorkSchedule"; 
-import LessonForm from "@/components/LessonForm"; 
-import StudentBookings from "@/components/StudentBookings";
 import TeacherBookings from "@/components/TeacherBookings";
-import StudentLessons from "@/components/StudentLessons";
+import StudentBookings from "@/components/StudentBookings";
 import CreateLessonModal from "@/components/CreateLessonModal";
-
-type Lesson = {
-  id: string;
-  subject: string;
-  description: string;
-  teacherName: string;
-  availableTimes: string[];
-  bookedBy?: string;
-};
+import EditLessonModal from "@/components/EditLessonModal";
+import { Lesson } from "@/types/lesson";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -31,8 +22,8 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [myLessons, setMyLessons] = useState<Lesson[]>([]);
-  const [bookedLessons, setBookedLessons] = useState<Lesson[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
 
   const fetchLessons = useCallback(async () => {
     if (!user?.uid) return;
@@ -44,7 +35,15 @@ export default function ProfilePage() {
     const snapshot = await getDocs(q);
     setMyLessons(snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      subject: doc.data().subject,
+      subjectId: doc.data().subjectId,
+      description: doc.data().description,
+      teacherId: doc.data().teacherId,
+      teacherName: doc.data().teacherName,
+      lessonLength: doc.data().lessonLength,
+      bookedTimes: doc.data().bookedTimes || {},
+      category: doc.data().category,
+      price: doc.data().price || 0
     } as Lesson)));
   }, [user?.uid]);
 
@@ -107,20 +106,7 @@ export default function ProfilePage() {
   }
 
   async function handleEditLesson(lesson: Lesson) {
-    // For now, just show an alert that this feature is coming soon
-    alert("Nodarbības rediģēšana būs pieejama drīzumā!");
-    
-    // TODO: Implement lesson editing
-    // This could open a modal or navigate to an edit page
-    // const updatedLesson = {
-    //   ...lesson,
-    //   subject: "Updated subject",
-    //   description: "Updated description",
-    //   lessonLength: 60
-    // };
-    // 
-    // await updateDoc(doc(db, "lessons", lesson.id), updatedLesson);
-    // await fetchLessons(); // Refresh the lessons list
+    setEditingLesson(lesson);
   }
 
   if (loading) {
@@ -145,10 +131,11 @@ export default function ProfilePage() {
                 <h2 className="card-title text-xl mb-4">Profila informācija</h2>
                 {error && <p className="text-error">{error}</p>}
                 <div className="form-control">
-                  <label className="label">
+                  <label htmlFor="displayName" className="label">
                     <span className="label-text">Vārds</span>
                   </label>
                   <input
+                    id="displayName"
                     type="text"
                     className="input input-bordered"
                     value={displayName}
@@ -156,10 +143,11 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="form-control mt-4">
-                  <label className="label">
+                  <label htmlFor="description" className="label">
                     <span className="label-text">Apraksts</span>
                   </label>
                   <textarea
+                    id="description"
                     className="textarea textarea-bordered h-24"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -225,22 +213,21 @@ export default function ProfilePage() {
                                   <span className="mr-2">📚</span>
                                   {lesson.subject}
                                 </h3>
-                                <div className="space-y-2 text-gray-600">
-                                  <p className="flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div className="flex items-center gap-4 text-gray-600 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    €{lesson.price?.toFixed(2) || '0.00'}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
-                                    {lesson.lessonLength} minūtes
-                                  </p>
-                                  {lesson.description && (
-                                    <p className="flex items-center">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                      </svg>
-                                      {lesson.description}
-                                    </p>
-                                  )}
+                                    {lesson.lessonLength} min
+                                  </div>
                                 </div>
+                                <p className="text-gray-600">{lesson.description}</p>
                               </div>
 
                               <div className="flex flex-col gap-2">
@@ -252,7 +239,6 @@ export default function ProfilePage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
-                                {/* Remove or comment out the edit button until implemented
                                 <button
                                   onClick={() => handleEditLesson(lesson)}
                                   className="btn btn-primary btn-sm"
@@ -261,7 +247,6 @@ export default function ProfilePage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
-                                */}
                               </div>
                             </div>
 
@@ -301,8 +286,19 @@ export default function ProfilePage() {
               /* Student's Bookings */
               <div className="card bg-base-100 shadow-xl">
                 <div className="card-body">
-                  <h2 className="card-title text-xl mb-4">Manas rezervētās nodarbības</h2>
-                  <StudentLessons studentId={user.uid} />
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="card-title text-xl">Manas rezervētās nodarbības</h2>
+                    <button 
+                      onClick={() => router.push('/#subjects')}
+                      className="btn btn-primary btn-sm"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Rezervēt nodarbību
+                    </button>
+                  </div>
+                  <StudentBookings userId={user.uid} />
                 </div>
               </div>
             )}
@@ -315,6 +311,13 @@ export default function ProfilePage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onLessonCreated={fetchLessons}
+      />
+
+      <EditLessonModal 
+        lesson={editingLesson}
+        isOpen={!!editingLesson}
+        onClose={() => setEditingLesson(null)}
+        onLessonUpdated={fetchLessons}
       />
     </main>
   );

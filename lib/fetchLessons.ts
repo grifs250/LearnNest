@@ -14,7 +14,8 @@ export async function fetchLessons(subjectId?: string) {
   return snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
-    bookedTimes: doc.data().bookedTimes || {}
+    bookedTimes: doc.data().bookedTimes || {},
+    price: doc.data().price || 0
   })) as {
     id: string;
     subjectId: string;
@@ -26,5 +27,6 @@ export async function fetchLessons(subjectId?: string) {
     availableTimes: string[];
     bookedBy: string | null;
     bookedTimes: Record<string, any>;
+    price: number;
   }[];
 }

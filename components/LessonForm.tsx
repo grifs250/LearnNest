@@ -21,6 +21,7 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
   const [description, setDescription] = useState("");
   const [lessonLength, setLessonLength] = useState(45); // Default 45 min
   const [saving, setSaving] = useState(false);
+  const [price, setPrice] = useState<number | ''>('');
 
   useEffect(() => {
     async function loadSubjects() {
@@ -48,7 +49,8 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
         teacherId: auth.currentUser.uid,
         teacherName: auth.currentUser.displayName,
         bookedTimes: {},
-        category: selectedSubject.category || 'subjects'
+        category: selectedSubject.category || 'subjects',
+        price
       });
 
       alert("Nodarbība izveidota!");
@@ -56,6 +58,7 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
       setSubject("");
       setDescription("");
       setLessonLength(45);
+      setPrice('');
       // Notify parent component
       onLessonCreated?.();
     } catch (error) {
@@ -66,7 +69,7 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 bg-white shadow-lg rounded-lg max-w-lg mx-auto">
+    <form onSubmit={handleSubmit} className="p-6 bg-white shadow-lg rounded-lg max-w-lg mx-auto space-y-4">
       <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">📚 Izveidot Nodarbību</h3>
 
       {/* Priekšmeta izvēle */}
@@ -104,6 +107,22 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
         onChange={(e) => setLessonLength(Number(e.target.value))}
         className="input input-bordered w-full mb-4"
       />
+
+      <div className="form-control">
+        <label className="block text-gray-700 font-semibold mb-1">
+          Cena (EUR)
+        </label>
+        <input
+          type="number"
+          min="15"
+          step="15"
+          value={price}
+          onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
+          className="input input-bordered w-full"
+          placeholder="15"
+          required
+        />
+      </div>
 
       {/* Saglabāšanas poga */}
       <button

@@ -11,7 +11,7 @@ interface BaseLessonFields {
 }
 
 // Booking status type used throughout the application
-export type BookingStatus = 'pending' | 'accepted' | 'rejected';
+export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
 
 // Booking data structure as stored in Firestore
 export interface BookedTimeData {
@@ -39,13 +39,9 @@ export interface FirestoreLesson extends BaseLessonFields {
 
 // The lesson data as used in the application
 export interface Lesson extends BaseLessonFields {
-  bookedTimes: {
-    [timeSlot: string]: {
-      studentId: string;
-      studentName: string;
-      status: BookingStatus;
-    } | null;
-  };
+  price: number;
+  bookedTimes: FirestoreLesson['bookedTimes']; // Reuse the same type
+  category?: string;
 }
 
 // Type for creating a new lesson
@@ -60,4 +56,43 @@ export interface LessonBookingRequest {
   lessonId: string;
   studentId: string;
   timeSlot: string; // Format: "YYYY-MM-DDTHH:mm"
+}
+
+export interface TimeRange {
+  start: string;  // Format: "HH:mm"
+  end: string;    // Format: "HH:mm"
+}
+
+export interface DaySchedule {
+  enabled: boolean;
+  timeSlots: TimeRange[];
+}
+
+export interface WorkHours {
+  [key: number]: DaySchedule;  // key is 0-6 representing days of week
+}
+
+export interface Teacher {
+  displayName: string;
+  email: string;
+  description?: string;
+  education?: string;
+  experience?: string;
+  workHours: WorkHours;
+}
+
+export interface BookingData {
+  lessonId: string;
+  subject: string;
+  teacherId: string;
+  teacherName: string;
+  studentId: string;
+  studentName: string;
+  timeSlot: string;
+  status: BookingStatus;
+  bookedAt: string;
+  lessonLength: number;
+  price: number;
+  category?: string;
+  subjectId?: string;
 } 

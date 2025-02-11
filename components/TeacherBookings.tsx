@@ -3,12 +3,9 @@ import { useEffect, useState } from 'react';
 import { db } from "../lib/firebaseClient";
 import { 
   collection, 
-  query, 
   getDocs, 
-  getDoc,
-  where, 
-  doc, 
-  updateDoc 
+  updateDoc,
+  doc 
 } from "firebase/firestore";
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected';
@@ -22,6 +19,8 @@ interface BookingRequest {
   time: string;
   status: BookingStatus;
   bookedAt: string;
+  price?: number;
+  lessonLength?: number;
 }
 
 interface TeacherBookingsProps {
@@ -41,6 +40,29 @@ interface LessonData {
   };
 }
 
+async function fetchTeacherBookings(teacherId: string) {
+  if (!teacherId) return [];
+  
+  const teacherBookingsRef = collection(db, "users", teacherId, "bookings");
+  const bookingsSnap = await getDocs(teacherBookingsRef);
+  
+  return bookingsSnap.docs.map(doc => {
+    const data = doc.data();
+    return {
+      lessonId: data.lessonId,
+      subject: data.subject,
+      studentId: data.studentId,
+      studentName: data.studentName,
+      date: data.timeSlot.split('T')[0],
+      time: data.timeSlot.split('T')[1],
+      status: data.status,
+      bookedAt: data.bookedAt,
+      price: data.price,
+      lessonLength: data.lessonLength
+    };
+  });
+}
+
 export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const [bookings, setBookings] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,31 +70,11 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const [view, setView] = useState<'pending' | 'accepted'>('pending');
 
   useEffect(() => {
-    async function fetchBookings() {
-      if (!teacherId) return;
-      
-      setLoading(true);
-      setError(null);
-      
+    async function loadBookings() {
       try {
-        // Get teacher's bookings subcollection
-        const teacherBookingsRef = collection(db, "users", teacherId, "bookings");
-        const bookingsSnap = await getDocs(teacherBookingsRef);
-        
-        const bookingsList = bookingsSnap.docs.map(doc => {
-          const data = doc.data();
-          return {
-            lessonId: data.lessonId,
-            subject: data.subject,
-            studentId: data.studentId,
-            studentName: data.studentName,
-            date: data.timeSlot.split('T')[0],
-            time: data.timeSlot.split('T')[1],
-            status: data.status,
-            bookedAt: data.bookedAt
-          };
-        });
-        
+        setLoading(true);
+        setError(null);
+        const bookingsList = await fetchTeacherBookings(teacherId);
         setBookings(bookingsList);
       } catch (error) {
         console.error("Error fetching bookings:", error);
@@ -82,7 +84,7 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
       }
     }
 
-    fetchBookings();
+    loadBookings();
   }, [teacherId]);
 
   function isValidTimeSlot(timeSlot: string): boolean {
@@ -246,16 +248,20 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                   <div>
                     <h3 className="font-semibold">{booking.subject}</h3>
                     <p>Skolēns: {booking.studentName}</p>
-                    <p>
-                      {new Date(`${booking.date}T${booking.time}`).toLocaleString('lv-LV', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                    <div className="flex items-center gap-4 text-gray-600 my-2">
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        €{booking.price?.toFixed(2) ?? '0.00'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {booking.lessonLength} min
+                      </div>
+                    </div>
                     <div className={`badge mt-2 ${getStatusBadgeClass(booking.status)}`}>
                       {getStatusText(booking.status)}
                     </div>
@@ -311,16 +317,20 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                   <div>
                     <h3 className="font-semibold">{booking.subject}</h3>
                     <p>Student: {booking.studentName}</p>
-                    <p>
-                      {new Date(`${booking.date}T${booking.time}`).toLocaleString('lv-LV', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                    <div className="flex items-center gap-4 text-gray-600 my-2">
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        €{booking.price?.toFixed(2) ?? '0.00'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {booking.lessonLength} min
+                      </div>
+                    </div>
                     <div className="badge badge-success mt-2">
                       {getStatusText(booking.status)}
                     </div>
