@@ -92,46 +92,37 @@ async function createBooking(
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error("No authenticated user");
 
-  // 1. First verify the time slot is still available
-  const teacherRef = doc(db, "users", lesson.teacherId);
-  const teacherDoc = await getDoc(teacherRef);
-  const teacherData = teacherDoc.data();
-  
-  // Check if timeSlot is within teacher's work hours
-  const bookingDate = new Date(timeSlot);
-  const dayOfWeek = bookingDate.getDay();
-  const bookingTime = bookingDate.toTimeString().slice(0, 5);
-  const daySchedule = teacherData?.workHours?.[dayOfWeek];
-  const isWithinWorkHours = daySchedule?.enabled && daySchedule?.timeSlots.some((timeRange: TimeRange) => 
-    bookingTime >= timeRange.start && 
-    bookingTime <= timeRange.end
-  );
-
-  if (!isWithinWorkHours) {
-    throw new Error("Selected time is outside teacher's work hours");
-  }
-
-  // 2. Check if the slot is already booked in any lesson
-  const lessonsQuery = query(
-    collection(db, "lessons"),
-    where("teacherId", "==", lesson.teacherId)
-  );
-  const lessonsSnap = await getDocs(lessonsQuery);
-  
-  for (const doc of lessonsSnap.docs) {
-    const lessonData = doc.data();
-    if (lessonData.bookedTimes?.[timeSlot]?.status !== 'rejected') {
-      throw new Error("Time slot is no longer available");
-    }
-  }
-
-  // 3. Use a transaction to ensure atomic booking
   await runTransaction(db, async (transaction) => {
+    // 1. Get fresh teacher data
+    const teacherRef = doc(db, "users", lesson.teacherId);
+    const teacherDoc = await transaction.get(teacherRef);
+    const teacherData = teacherDoc.data();
+
+    // 2. Check if timeSlot is within teacher's work hours
+    const bookingDate = new Date(timeSlot);
+    const dayOfWeek = bookingDate.getDay();
+    const bookingTime = bookingDate.toTimeString().slice(0, 5);
+    const daySchedule = teacherData?.workHours?.[dayOfWeek];
+    const isWithinWorkHours = daySchedule?.enabled && daySchedule?.timeSlots.some((timeRange: TimeRange) => 
+      bookingTime >= timeRange.start && 
+      bookingTime <= timeRange.end
+    );
+
+    if (!isWithinWorkHours) {
+      throw new Error("Selected time is outside teacher's work hours");
+    }
+
+    // 3. Get fresh lesson data
     const lessonRef = doc(db, "lessons", lesson.id);
     const lessonDoc = await transaction.get(lessonRef);
     
     if (!lessonDoc.exists()) {
       throw new Error("Lesson not found");
+    }
+
+    const currentBookings = lessonDoc.data()?.bookedTimes ?? {};
+    if (currentBookings[timeSlot] && currentBookings[timeSlot]?.status !== 'rejected') {
+      throw new Error("Time slot is no longer available");
     }
 
     // Handle rescheduling first if there's an oldTimeSlot
@@ -141,11 +132,6 @@ async function createBooking(
       });
       transaction.delete(doc(db, "users", lesson.teacherId, "bookings", `${lesson.id}_${oldTimeSlot}`));
       transaction.delete(doc(db, "users", currentUser.uid, "bookings", `${lesson.id}_${oldTimeSlot}`));
-    }
-
-    const currentBookings = lessonDoc.data()?.bookedTimes ?? {};
-    if (currentBookings[timeSlot]?.status !== 'rejected') {
-      throw new Error("Time slot is no longer available");
     }
 
     const bookingData: BookingData = {

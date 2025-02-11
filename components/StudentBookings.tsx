@@ -215,6 +215,15 @@ export default function StudentBookings({ userId }: StudentBookingsProps) {
                       Apmaksāt
                     </button>
                   )}
+
+                  {booking.status === 'paid' && (
+                    <button 
+                      onClick={() => router.push(`/lessons/meet/${booking.lessonId}`)}
+                      className="btn btn-primary btn-sm"
+                    >
+                      Pievienoties nodarbībai
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

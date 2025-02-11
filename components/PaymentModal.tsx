@@ -1,7 +1,8 @@
 "use client";
 import { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebaseClient';
+import { auth } from '@/lib/firebaseClient';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -21,64 +22,111 @@ export default function PaymentModal({
   onPaymentComplete 
 }: PaymentModalProps) {
   const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handlePayment = async () => {
+    if (!auth.currentUser) {
+      setError("Lūdzu piesakieties, lai veiktu maksājumu");
+      return;
+    }
+
     setProcessing(true);
+    setError(null);
+
     try {
-      // Here you would integrate with your payment provider (e.g., Stripe)
-      // For now, we'll simulate a successful payment
-      const paymentId = `mock_payment_${Date.now()}`;
-      
-      // Update the booking status to paid
-      const lessonRef = doc(db, "lessons", lessonId);
-      await updateDoc(lessonRef, {
-        [`bookedTimes.${timeSlot}.paid`]: true,
-        [`bookedTimes.${timeSlot}.paymentId`]: paymentId,
-        [`bookedTimes.${timeSlot}.status`]: 'paid'
+      console.log('Starting payment process for:', {
+        lessonId,
+        timeSlot,
+        userId: auth.currentUser.uid
       });
 
+      // Get student's booking first
+      const studentBookingRef = doc(
+        db, 
+        "users", 
+        auth.currentUser.uid, 
+        "bookings", 
+        lessonId  // Use just lessonId as that's the document ID
+      );
+      
+      const studentBookingDoc = await getDoc(studentBookingRef);
+      console.log('Student booking exists:', studentBookingDoc.exists());
+      
+      if (!studentBookingDoc.exists()) {
+        throw new Error("Rezervācija nav atrasta");
+      }
+
+      const bookingData = studentBookingDoc.data();
+      console.log('Booking data:', bookingData);
+
+      // Run all updates in a transaction to ensure consistency
+      await runTransaction(db, async (transaction) => {
+        // Update student's booking
+        transaction.update(studentBookingRef, { status: 'paid' });
+
+        // Update lesson status
+        const lessonRef = doc(db, "lessons", bookingData.lessonId);
+        transaction.update(lessonRef, {
+          [`bookedTimes.${timeSlot}.status`]: 'paid'
+        });
+
+        // Update teacher's booking
+        const teacherBookingRef = doc(
+          db, 
+          "users", 
+          bookingData.teacherId, 
+          "bookings", 
+          lessonId  // Use just lessonId here too
+        );
+        transaction.update(teacherBookingRef, { status: 'paid' });
+      });
+
+      console.log('Payment completed successfully');
       onPaymentComplete();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Payment error:", error);
-      alert("Kļūda veicot maksājumu. Lūdzu mēģiniet vēlreiz.");
+      setError(error.message || "Kļūda veicot maksājumu. Lūdzu mēģiniet vēlreiz.");
+    } finally {
+      setProcessing(false);
     }
-    setProcessing(false);
   };
 
   return (
-    <div className="modal modal-open">
+    <div className={`modal ${isOpen ? 'modal-open' : ''}`}>
       <div className="modal-box">
-        <h3 className="font-bold text-lg mb-4">Apmaksāt nodarbību</h3>
-        
-        <div className="mb-6">
-          <p className="text-lg font-semibold mb-2">
-            Summa: €{price.toFixed(2)}
-          </p>
-          <p className="text-gray-600">
-            Pēc apmaksas jūs saņemsiet piekļuvi nodarbībai
-          </p>
-        </div>
-
+        <h3 className="font-bold text-lg mb-4">Veikt maksājumu</h3>
+        {error && (
+          <div className="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
+        <p className="mb-4">Summa: €{price.toFixed(2)}</p>
         <div className="modal-action">
-          <button 
-            className="btn btn-ghost" 
-            onClick={onClose}
-            disabled={processing}
-          >
+          <button className="btn" onClick={onClose} disabled={processing}>
             Atcelt
           </button>
-          <button
+          <button 
             className={`btn btn-primary ${processing ? 'loading' : ''}`}
             onClick={handlePayment}
             disabled={processing}
           >
-            {processing ? 'Apstrādā...' : 'Apmaksāt'}
+            {processing ? 'Apstrādā...' : 'Veikt maksājumu'}
           </button>
         </div>
       </div>
+      <button 
+        className="modal-backdrop" 
+        onClick={onClose}
+        aria-label="Close modal"
+      >
+        <span className="cursor-default w-full h-full" />
+      </button>
     </div>
   );
 } 

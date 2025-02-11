@@ -7,8 +7,10 @@ import {
   updateDoc,
   doc 
 } from "firebase/firestore";
+import { useRouter } from 'next/navigation';
+import StudentInfoModal from './StudentInfoModal';
 
-type BookingStatus = 'pending' | 'accepted' | 'rejected';
+type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
 
 interface BookingRequest {
   lessonId: string;
@@ -67,7 +69,9 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const [bookings, setBookings] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'pending' | 'accepted'>('pending');
+  const [view, setView] = useState<'pending' | 'accepted' | 'paid'>('pending');
+  const router = useRouter();
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadBookings() {
@@ -207,6 +211,7 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
 
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const acceptedBookings = bookings.filter(b => b.status === 'accepted');
+  const paidBookings = bookings.filter(b => b.status === 'paid');
 
   return (
     <div className="space-y-4">
@@ -225,6 +230,12 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
         >
           Apstiprinātās ({acceptedBookings.length})
         </button>
+        <button 
+          className={`tab ${view === 'paid' ? 'tab-active' : ''}`}
+          onClick={() => setView('paid')}
+        >
+          Apmaksātās ({paidBookings.length})
+        </button>
       </div>
 
       {view === 'pending' ? (
@@ -239,64 +250,100 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
               </div>
             </div>
           ) : (
-            pendingBookings.map((booking) => (
-              <div 
-                key={`${booking.lessonId}-${booking.date}-${booking.time}`}
-                className="card bg-base-100 shadow p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold">{booking.subject}</h3>
-                    <p>Skolēns: {booking.studentName}</p>
-                    <div className="flex items-center gap-4 text-gray-600 my-2">
-                      <div className="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        €{booking.price?.toFixed(2) ?? '0.00'}
+            pendingBookings.map((booking) => {
+              const lessonTime = new Date(`${booking.date}T${booking.time}`);
+              const endTime = new Date(lessonTime.getTime() + (booking.lessonLength ?? 60) * 60000);
+              
+              return (
+                <div 
+                  key={`${booking.lessonId}-${booking.date}-${booking.time}`}
+                  className="card bg-base-100 shadow p-4"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{booking.subject}</h3>
+                      <p>
+                        <button 
+                          className="text-left hover:underline"
+                          onClick={() => setSelectedStudent(booking.studentId)}
+                        >
+                          Skolēns: {booking.studentName}
+                        </button>
+                      </p>
+                      <p className="text-gray-600 my-2">
+                        {lessonTime.toLocaleString('lv-LV', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                        {' - '}
+                        {endTime.toLocaleTimeString('lv-LV', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <div className="flex items-center gap-4 text-gray-600 my-2">
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          €{booking.price?.toFixed(2) ?? '0.00'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {booking.lessonLength} min
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {booking.lessonLength} min
+                      <div className={`badge mt-2 ${getStatusBadgeClass(booking.status)}`}>
+                        {getStatusText(booking.status)}
                       </div>
                     </div>
-                    <div className={`badge mt-2 ${getStatusBadgeClass(booking.status)}`}>
-                      {getStatusText(booking.status)}
-                    </div>
-                  </div>
 
-                  {booking.status === 'pending' && (
-                    <div className="flex gap-2">
+                    {booking.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleStatusUpdate(
+                            booking.lessonId,
+                            `${booking.date}T${booking.time}`,
+                            'accepted'
+                          )}
+                          className="btn btn-success btn-sm"
+                        >
+                          Apstiprināt
+                        </button>
+                        <button
+                          onClick={() => handleStatusUpdate(
+                            booking.lessonId,
+                            `${booking.date}T${booking.time}`,
+                            'rejected'
+                          )}
+                          className="btn btn-error btn-sm"
+                        >
+                          Noraidīt
+                        </button>
+                      </div>
+                    )}
+
+                    {booking.status === 'paid' && (
                       <button
-                        onClick={() => handleStatusUpdate(
-                          booking.lessonId,
-                          `${booking.date}T${booking.time}`,
-                          'accepted'
-                        )}
-                        className="btn btn-success btn-sm"
+                        onClick={() => router.push(`/lessons/meet/${booking.lessonId}`)}
+                        className="btn btn-primary btn-sm"
                       >
-                        Apstiprināt
+                        Pievienoties nodarbībai
                       </button>
-                      <button
-                        onClick={() => handleStatusUpdate(
-                          booking.lessonId,
-                          `${booking.date}T${booking.time}`,
-                          'rejected'
-                        )}
-                        className="btn btn-error btn-sm"
-                      >
-                        Noraidīt
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
-      ) : (
+      ) : view === 'accepted' ? (
         <div className="space-y-4">
           {acceptedBookings.length === 0 ? (
             <div className="text-center py-8">
@@ -308,48 +355,170 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
               </div>
             </div>
           ) : (
-            acceptedBookings.map((booking) => (
-              <div 
-                key={`${booking.lessonId}-${booking.date}-${booking.time}`}
-                className="card bg-base-100 shadow p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-semibold">{booking.subject}</h3>
-                    <p>Student: {booking.studentName}</p>
-                    <div className="flex items-center gap-4 text-gray-600 my-2">
-                      <div className="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        €{booking.price?.toFixed(2) ?? '0.00'}
+            acceptedBookings.map((booking) => {
+              const lessonTime = new Date(`${booking.date}T${booking.time}`);
+              const endTime = new Date(lessonTime.getTime() + (booking.lessonLength ?? 60) * 60000);
+              
+              return (
+                <div 
+                  key={`${booking.lessonId}-${booking.date}-${booking.time}`}
+                  className="card bg-base-100 shadow p-4"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{booking.subject}</h3>
+                      <p>
+                        <button 
+                          className="text-left hover:underline"
+                          onClick={() => setSelectedStudent(booking.studentId)}
+                        >
+                          Student: {booking.studentName}
+                        </button>
+                      </p>
+                      <p className="text-gray-600 my-2">
+                        {lessonTime.toLocaleString('lv-LV', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                        {' - '}
+                        {endTime.toLocaleTimeString('lv-LV', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <div className="flex items-center gap-4 text-gray-600 my-2">
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          €{booking.price?.toFixed(2) ?? '0.00'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {booking.lessonLength} min
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {booking.lessonLength} min
+                      <div className="badge badge-success mt-2">
+                        {getStatusText(booking.status)}
                       </div>
                     </div>
-                    <div className="badge badge-success mt-2">
-                      {getStatusText(booking.status)}
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={() => handleCancel(
-                      booking.lessonId,
-                      `${booking.date}T${booking.time}`
+                    <button
+                      onClick={() => handleCancel(
+                        booking.lessonId,
+                        `${booking.date}T${booking.time}`
+                      )}
+                      className="btn btn-error btn-sm"
+                    >
+                      Cancel Lesson
+                    </button>
+
+                    {booking.status === 'paid' && (
+                      <button
+                        onClick={() => router.push(`/lessons/meet/${booking.lessonId}`)}
+                        className="btn btn-primary btn-sm"
+                      >
+                        Pievienoties nodarbībai
+                      </button>
                     )}
-                    className="btn btn-error btn-sm"
-                  >
-                    Cancel Lesson
-                  </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
+      ) : (
+        <div className="space-y-4">
+          {paidBookings.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-lg">Nav apmaksātu nodarbību</p>
+              </div>
+            </div>
+          ) : (
+            paidBookings.map((booking) => {
+              const lessonTime = new Date(`${booking.date}T${booking.time}`);
+              const endTime = new Date(lessonTime.getTime() + (booking.lessonLength ?? 60) * 60000);
+              
+              return (
+                <div 
+                  key={`${booking.lessonId}-${booking.date}-${booking.time}`}
+                  className="card bg-base-100 shadow p-4"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-semibold">{booking.subject}</h3>
+                      <p>
+                        <button 
+                          className="text-left hover:underline"
+                          onClick={() => setSelectedStudent(booking.studentId)}
+                        >
+                          Skolēns: {booking.studentName}
+                        </button>
+                      </p>
+                      <p className="text-gray-600 my-2">
+                        {lessonTime.toLocaleString('lv-LV', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                        {' - '}
+                        {endTime.toLocaleTimeString('lv-LV', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                      <div className="flex items-center gap-4 text-gray-600 my-2">
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          €{booking.price?.toFixed(2) ?? '0.00'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {booking.lessonLength} min
+                        </div>
+                      </div>
+                      <div className="badge badge-success mt-2">
+                        {getStatusText(booking.status)}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => router.push(`/lessons/meet/${booking.lessonId}`)}
+                      className="btn btn-primary btn-sm"
+                    >
+                      Pievienoties nodarbībai
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {selectedStudent && (
+        <StudentInfoModal
+          isOpen={true}
+          onClose={() => setSelectedStudent(null)}
+          studentId={selectedStudent}
+        />
       )}
     </div>
   );
