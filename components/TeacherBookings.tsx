@@ -182,15 +182,21 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   }
 
   function getStatusBadgeClass(status: BookingStatus): string {
-    if (status === 'accepted') return 'badge-success';
-    if (status === 'rejected') return 'badge-error';
-    return 'badge-warning';
+    switch (status) {
+      case 'accepted': return 'badge-success';
+      case 'rejected': return 'badge-error';
+      case 'paid': return 'badge-success';
+      default: return 'badge-warning';
+    }
   }
 
   function getStatusText(status: BookingStatus): string {
-    if (status === 'accepted') return 'Apstiprināts';
-    if (status === 'rejected') return 'Noraidīts';
-    return 'Gaida apstiprinājumu';
+    switch (status) {
+      case 'accepted': return 'Apstiprināts';
+      case 'rejected': return 'Noraidīts';
+      case 'paid': return 'Apmaksāts';
+      default: return 'Gaida apstiprinājumu';
+    }
   }
 
   if (loading) {
