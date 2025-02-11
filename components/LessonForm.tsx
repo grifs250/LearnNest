@@ -114,8 +114,8 @@ export default function LessonForm({ onLessonCreated }: LessonFormProps) {
         </label>
         <input
           type="number"
-          min="15"
-          step="15"
+          min="0"
+          step="0.01"
           value={price}
           onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
           className="input input-bordered w-full"
