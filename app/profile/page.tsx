@@ -157,7 +157,7 @@ export default function ProfilePage() {
                 <div className="card-actions justify-end mt-6">
                   <button 
                     onClick={handleLogout} 
-                    className="btn btn-error btn-ghost hover:btn-error"
+                    className="btn btn-outline btn-error"
                   >
                     Izrakstīties
                   </button>

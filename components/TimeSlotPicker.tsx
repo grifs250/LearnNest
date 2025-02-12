@@ -27,20 +27,20 @@ function checkTimeSlotOverlap(
   );
 }
 
-async function fetchAllTeacherBookings(teacherId: string): Promise<Record<string, boolean>> {
+async function fetchAllTeacherBookings(teacherId: string): Promise<Record<string, number>> {
   const lessonsQuery = query(
     collection(db, "lessons"),
     where("teacherId", "==", teacherId)
   );
   const lessonsSnap = await getDocs(lessonsQuery);
   
-  const allBookings: Record<string, boolean> = {};
+  const allBookings: Record<string, number> = {};
   lessonsSnap.docs.forEach(doc => {
-    const lessonData = doc.data() as { bookedTimes?: Record<string, BookedTimeData | null> };
+    const lessonData = doc.data();
     if (lessonData.bookedTimes) {
       Object.entries(lessonData.bookedTimes).forEach(([timeSlot, booking]) => {
-        if (booking && booking.status !== 'rejected') {
-          allBookings[timeSlot] = true;
+        if (booking && typeof booking === 'object' && 'status' in booking && booking.status !== 'rejected') {
+          allBookings[timeSlot] = lessonData.lessonLength || 60;
         }
       });
     }
@@ -52,15 +52,30 @@ async function fetchAllTeacherBookings(teacherId: string): Promise<Record<string
 function generateAvailableDates(workHours: WorkHours): string[] {
   const dates: string[] = [];
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < 30; i++) {
-    const date = new Date(now);
-    date.setDate(now.getDate() + i);
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
     const dayOfWeek = date.getDay();
     
-    if (workHours[dayOfWeek]?.enabled && workHours[dayOfWeek]?.timeSlots.length > 0) {
-      dates.push(date.toISOString().split('T')[0]);
+    // Only add dates that are today or in the future
+    if (date >= today && 
+        workHours[dayOfWeek]?.enabled && 
+        workHours[dayOfWeek]?.timeSlots.length > 0) {
+      // For today, only show if there are time slots still available today
+      if (date.getDate() === now.getDate()) {
+        const hasAvailableTimeToday = workHours[dayOfWeek].timeSlots.some(slot => {
+          const slotTime = new Date(`${date.toISOString().split('T')[0]}T${slot.end}`);
+          return slotTime > now;
+        });
+        if (hasAvailableTimeToday) {
+          dates.push(date.toISOString().split('T')[0]);
+        }
+      } else {
+        dates.push(date.toISOString().split('T')[0]);
+      }
     }
   }
 
@@ -72,7 +87,7 @@ function generateTimeSlots(
   dayWorkHours: TimeRange[],
   lessonLength: number,
   bookedTimes: Record<string, BookedTimeData | null>,
-  allTeacherBookings: Record<string, boolean>
+  allTeacherBookings: Record<string, number>
 ): string[] {
   const slots: string[] = [];
   const now = new Date();
@@ -110,11 +125,12 @@ function isTimeSlotAvailable(
   endTime: Date,
   timeSlot: string,
   bookedTimes: Record<string, BookedTimeData | null>,
-  allTeacherBookings: Record<string, boolean>,
+  allTeacherBookings: Record<string, number>,
   lessonLength: number
 ): boolean {
+  // Check current lesson's booked times
   for (const [bookedSlot, booking] of Object.entries(bookedTimes ?? {})) {
-    if (booking && 'status' in booking && booking.status !== 'rejected') {
+    if (booking && typeof booking === 'object' && 'status' in booking && booking.status !== 'rejected') {
       const bookedStart = new Date(bookedSlot);
       const bookedEnd = new Date(bookedStart.getTime() + lessonLength * 60000);
       if (checkTimeSlotOverlap(startTime, endTime, bookedStart, bookedEnd)) {
@@ -123,7 +139,16 @@ function isTimeSlotAvailable(
     }
   }
 
-  return !allTeacherBookings[timeSlot];
+  // Check all teacher's other bookings
+  for (const [bookedSlot, bookedLessonLength] of Object.entries(allTeacherBookings)) {
+    const bookedStart = new Date(bookedSlot);
+    const bookedEnd = new Date(bookedStart.getTime() + bookedLessonLength * 60000);
+    if (checkTimeSlotOverlap(startTime, endTime, bookedStart, bookedEnd)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export default function TimeSlotPicker({ 
@@ -139,7 +164,7 @@ export default function TimeSlotPicker({
   
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
-  const [allTeacherBookings, setAllTeacherBookings] = useState<Record<string, boolean>>({});
+  const [allTeacherBookings, setAllTeacherBookings] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
