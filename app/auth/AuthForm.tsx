@@ -46,36 +46,40 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     e.preventDefault();
     setError("");
     try {
-      auth.languageCode = 'lv';  // Set language to Latvian
+      // Set language for Firebase Auth
+      auth.languageCode = 'lv';
+      
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       
-      await sendEmailVerification(userCred.user, {
-        url: `${window.location.origin}/auth/action`,
-      });
-
+      // Create user document with pending status
       await setDoc(doc(db, "users", userCred.user.uid), {
         displayName,
         email,
         isTeacher: role === "pasniedzējs",
         emailVerified: false,
+        status: 'pending',
+        createdAt: new Date()
       });
 
-      // Update display name
-      await updateProfile(userCred.user, {
-        displayName: displayName
+      // Send verification email
+      await sendEmailVerification(userCred.user, {
+        url: `${window.location.origin}/auth/action?redirect=profile`,
+        handleCodeInApp: true
       });
 
       router.push("/verify-email");
     } catch (err) {
+      // Don't log to console in production
       if ((err as FirebaseError).code) {
         const errorMessage = {
           'auth/email-already-in-use': 'Šis e-pasts jau ir reģistrēts',
           'auth/invalid-email': 'Nederīga e-pasta adrese',
           'auth/weak-password': 'Parole ir pārāk vāja',
-        }[(err as FirebaseError).code] || (err as FirebaseError).message;
+          'auth/network-request-failed': 'Savienojuma kļūda. Pārbaudiet interneta pieslēgumu',
+        }[(err as FirebaseError).code] || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
         setError(errorMessage);
       } else {
-        setError('Kļūda reģistrējoties');
+        setError('Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
       }
     }
   }
@@ -84,7 +88,6 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     e.preventDefault();
     setError("");
     try {
-      auth.languageCode = 'lv';  // Set language to Latvian
       const userCred = await signInWithEmailAndPassword(auth, email, password);
       
       if (!userCred.user.emailVerified) {
@@ -94,32 +97,23 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
         router.push("/verify-email");
         return;
       }
-
-      // Get user data from Firestore
-      const userDoc = await getDoc(doc(db, "users", userCred.user.uid));
-      if (userDoc.exists()) {
-        // Update local user profile if needed
-        if (userDoc.data().displayName && userDoc.data().displayName !== userCred.user.displayName) {
-          await updateProfile(userCred.user, {
-            displayName: userDoc.data().displayName
-          });
-        }
-      }
       
       router.push("/profile");
     } catch (err) {
-      console.error("Sign in error:", err);
+      // Don't log to console in production
       if ((err as FirebaseError).code) {
         const errorMessage = {
+          'auth/invalid-credential': 'Nepareizs e-pasts vai parole',
           'auth/user-not-found': 'Nepareizs e-pasts vai parole',
           'auth/wrong-password': 'Nepareizs e-pasts vai parole',
           'auth/invalid-email': 'Nederīga e-pasta adrese',
           'auth/user-disabled': 'Šis konts ir bloķēts',
-          'auth/too-many-requests': 'Pārāk daudz mēģinājumu. Lūdzu, mēģiniet vēlāk',
-        }[(err as FirebaseError).code] || 'Kļūda pieslēdzoties';
+          'auth/too-many-requests': 'Pārāk daudz mēģinājumu. Lūdzu, uzgaidiet brīdi',
+          'auth/network-request-failed': 'Savienojuma kļūda. Pārbaudiet interneta pieslēgumu',
+        }[(err as FirebaseError).code] || 'Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz';
         setError(errorMessage);
       } else {
-        setError('Kļūda pieslēdzoties');
+        setError('Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz');
       }
     }
   }

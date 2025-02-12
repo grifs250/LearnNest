@@ -16,35 +16,45 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const [displayName, setDisplayName] = useState<string>('');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       setLoading(true);
-      if (u) {
-        setUser(u);
-        try {
+      try {
+        if (u) {
+          setUser(u);
           const snap = await getDoc(doc(db, "users", u.uid));
           if (snap.exists()) {
-            setIsTeacher(snap.data().isTeacher);
+            const userData = snap.data();
+            setIsTeacher(userData.isTeacher);
+            setDisplayName(userData.displayName || '');
           } else {
             setIsTeacher(false);
+            setDisplayName('');
           }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setIsTeacher(false);
+        } else {
+          setUser(null);
+          setIsTeacher(null);
+          setDisplayName('');
         }
-      } else {
-        setUser(null);
-        setIsTeacher(null);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        setIsTeacher(false);
+        setDisplayName('');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const profileButtonClass =
-    isTeacher === null ? "btn-neutral" : isTeacher ? "btn-secondary" : "btn-accent";
+  const profileButtonClass = isTeacher === null 
+    ? "btn-neutral" 
+    : isTeacher 
+      ? "btn-secondary" 
+      : "btn-accent";
 
   const navItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
@@ -102,7 +112,7 @@ export default function Navbar() {
                 className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
               >
                 <UserIcon size={16} />
-                {user.displayName || user.email}
+                {displayName || 'Profils'}
               </Link>
             ) : (
               <Link 
@@ -140,7 +150,7 @@ export default function Navbar() {
                   className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
                 >
                   <UserIcon size={16} />
-                  {user.displayName || user.email}
+                  {displayName || 'Profils'}
                 </Link>
               ) : (
                 <Link

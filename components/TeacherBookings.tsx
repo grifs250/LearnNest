@@ -1,22 +1,26 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { db } from "../lib/firebaseClient";
+import { db } from "@/lib/firebaseClient";
 import { 
   collection, 
   getDocs, 
   updateDoc,
-  doc 
+  doc,
+  writeBatch
 } from "firebase/firestore";
 import { useRouter } from 'next/navigation';
-import StudentInfoModal from './StudentInfoModal';
+import UserInfoModal from './UserInfoModal';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
 
 interface BookingRequest {
+  id: string;
   lessonId: string;
   subject: string;
-  studentId: string;
-  studentName: string;
+  userId: string;
+  userName: string;
+  studentId?: string;  // Add optional legacy fields
+  studentName?: string;
   date: string;
   time: string;
   status: BookingStatus;
@@ -48,21 +52,32 @@ async function fetchTeacherBookings(teacherId: string) {
   const teacherBookingsRef = collection(db, "users", teacherId, "bookings");
   const bookingsSnap = await getDocs(teacherBookingsRef);
   
-  return bookingsSnap.docs.map(doc => {
+  const bookings = bookingsSnap.docs.map(doc => {
     const data = doc.data();
+    console.log("Booking data:", data); // Debug log
+    
+    // Handle both old and new data structures
+    const studentId = data.userId || data.studentId;
+    const studentName = data.userName || data.studentName;
+    const [date, time] = (data.timeSlot || `${data.date}T${data.time}`).split('T');
+
     return {
+      id: doc.id,
       lessonId: data.lessonId,
       subject: data.subject,
-      studentId: data.studentId,
-      studentName: data.studentName,
-      date: data.timeSlot.split('T')[0],
-      time: data.timeSlot.split('T')[1],
+      userId: studentId,
+      userName: studentName,
+      date: date,
+      time: time,
       status: data.status,
       bookedAt: data.bookedAt,
       price: data.price,
       lessonLength: data.lessonLength
     };
   });
+
+  console.log("Processed bookings:", bookings); // Debug log
+  return bookings;
 }
 
 export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
@@ -71,7 +86,8 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'pending' | 'accepted' | 'paid'>('pending');
   const router = useRouter();
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadBookings() {
@@ -102,58 +118,97 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
     newStatus: BookingStatus
   ) {
     try {
+      if (!db) {
+        console.error("Firebase db not initialized");
+        return;
+      }
+
       setError(null);
+      console.log("Starting status update:", { lessonId, timeSlot, newStatus, teacherId });
       
-      // Update lesson document
-      const lessonRef = doc(db, "lessons", lessonId);
-      await updateDoc(lessonRef, {
-        [`bookedTimes.${timeSlot}.status`]: newStatus
-      });
+      // Find the booking
+      const booking = bookings.find(b => 
+        b.lessonId === lessonId && 
+        `${b.date}T${b.time}` === timeSlot
+      );
 
-      // Update teacher's booking
-      const teacherBookingRef = doc(db, "users", teacherId, "bookings", `${lessonId}_${timeSlot}`);
-      await updateDoc(teacherBookingRef, { status: newStatus });
-
-      // Find and update student's booking
-      const booking = bookings.find(b => b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot);
-      if (booking) {
-        const studentBookingRef = doc(db, "users", booking.studentId, "bookings", `${lessonId}_${timeSlot}`);
-        await updateDoc(studentBookingRef, { status: newStatus });
+      if (!booking) {
+        console.error("Booking not found");
+        return;
       }
 
-      // Update local state
-      setBookings(prev => prev.map(b => {
-        if (b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot) {
-          return { ...b, status: newStatus };
+      console.log("Found booking:", booking);
+
+      try {
+        // Create batch operation
+        const batch = writeBatch(db);
+
+        const teacherBookingRef = doc(db, "users", teacherId, "bookings", `${lessonId}_${timeSlot}`);
+        const studentBookingRef = doc(db, "users", booking.userId, "bookings", `${lessonId}_${timeSlot}`);
+        const lessonRef = doc(db, "lessons", lessonId);
+
+        console.log("Updating documents:", {
+          teacherPath: `users/${teacherId}/bookings/${lessonId}_${timeSlot}`,
+          studentPath: `users/${booking.userId}/bookings/${lessonId}_${timeSlot}`,
+          lessonPath: `lessons/${lessonId}`
+        });
+
+        // Set up batch operations
+        batch.update(teacherBookingRef, { 
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        });
+
+        batch.update(studentBookingRef, { 
+          status: newStatus,
+          updatedAt: new Date().toISOString()
+        });
+
+        batch.update(lessonRef, {
+          [`bookedTimes.${timeSlot}`]: {
+            studentId: booking.userId,
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+          }
+        });
+
+        await batch.commit();
+        console.log("Batch update successful");
+
+        // Update local state
+        setBookings(prev => prev.map(b => {
+          if (b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot) {
+            return { ...b, status: newStatus };
+          }
+          return b;
+        }));
+
+        // Show success message
+        const message = newStatus === 'accepted' ? 
+          "Nodarbība apstiprināta!" : 
+          "Nodarbība noraidīta!";
+        
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${newStatus === 'accepted' ? 'success' : 'error'} mb-4`;
+        alertDiv.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>${message}</span>
+        `;
+
+        const alertsContainer = document.querySelector('.booking-alerts');
+        if (alertsContainer) {
+          alertsContainer.appendChild(alertDiv);
+          setTimeout(() => alertDiv.remove(), 3000);
         }
-        return b;
-      }));
 
-      // Show success message without reloading
-      const message = newStatus === 'accepted' ? 
-        "Nodarbība apstiprināta!" : 
-        "Nodarbība noraidīta!";
-      
-      // Use a toast or alert component instead of window.alert
-      const alertDiv = document.createElement('div');
-      alertDiv.className = `alert alert-${newStatus === 'accepted' ? 'success' : 'error'} mb-4`;
-      alertDiv.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <span>${message}</span>
-      `;
-
-      // Add alert to the page
-      const alertsContainer = document.querySelector('.booking-alerts');
-      if (alertsContainer) {
-        alertsContainer.appendChild(alertDiv);
-        // Remove alert after 3 seconds
-        setTimeout(() => alertDiv.remove(), 3000);
+      } catch (error) {
+        console.error("Batch operation failed:", error);
+        throw error;
       }
-
     } catch (error) {
-      console.error("Error updating status:", error);
+      console.error("Status update failed:", error);
       setError("Failed to update booking status");
     }
   }
@@ -166,18 +221,47 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
         throw new Error("Invalid time slot format");
       }
 
-      await updateDoc(doc(db, "lessons", lessonId), {
-        [`bookedTimes.${timeSlot}`]: null
+      const batch = writeBatch(db);
+
+      // Find the booking
+      const booking = bookings.find(b => 
+        b.lessonId === lessonId && 
+        `${b.date}T${b.time}` === timeSlot
+      );
+
+      if (!booking) {
+        console.error("Booking not found");
+        return;
+      }
+
+      // Update lesson document
+      const lessonRef = doc(db, "lessons", lessonId);
+      batch.update(lessonRef, {
+        [`bookedTimes.${timeSlot}.status`]: 'rejected'  // Only update the status field
       });
 
-      setBookings(prev => prev.filter(booking => 
-        !(booking.lessonId === lessonId && `${booking.date}T${booking.time}` === timeSlot)
-      ));
+      // Update teacher's booking
+      const teacherBookingRef = doc(db, "users", teacherId, "bookings", `${lessonId}_${timeSlot}`);
+      batch.update(teacherBookingRef, { status: 'rejected' });
 
-      alert("Lesson cancelled successfully");
+      // Update student's booking
+      const studentBookingRef = doc(db, "users", booking.userId, "bookings", `${lessonId}_${timeSlot}`);
+      batch.update(studentBookingRef, { status: 'rejected' });
+
+      await batch.commit();
+
+      // Update local state
+      setBookings(prev => prev.map(b => {
+        if (b.lessonId === lessonId && `${b.date}T${b.time}` === timeSlot) {
+          return { ...b, status: 'rejected' };
+        }
+        return b;
+      }));
+
+      alert("Nodarbība atcelta!");
     } catch (error) {
       console.error("Error cancelling lesson:", error);
-      setError("Failed to cancel lesson. Please try again.");
+      setError("Neizdevās atcelt nodarbību. Lūdzu mēģiniet vēlreiz.");
     }
   }
 
@@ -269,11 +353,15 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                     <div>
                       <h3 className="font-semibold">{booking.subject}</h3>
                       <p>
+                        <span className="text-gray-600">Skolēns: </span>
                         <button 
-                          className="text-left hover:underline"
-                          onClick={() => setSelectedStudent(booking.studentId)}
+                          className="hover:underline text-primary"
+                          onClick={() => {
+                            setSelectedUserId(booking.userId || booking.studentId || null);
+                            setIsUserModalOpen(true);
+                          }}
                         >
-                          Skolēns: {booking.studentName}
+                          {booking.userName || booking.studentName || 'Nav norādīts'}
                         </button>
                       </p>
                       <p className="text-gray-600 my-2">
@@ -374,11 +462,15 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                     <div>
                       <h3 className="font-semibold">{booking.subject}</h3>
                       <p>
+                        <span className="text-gray-600">Skolēns: </span>
                         <button 
-                          className="text-left hover:underline"
-                          onClick={() => setSelectedStudent(booking.studentId)}
+                          className="hover:underline text-primary"
+                          onClick={() => {
+                            setSelectedUserId(booking.userId || booking.studentId || null);
+                            setIsUserModalOpen(true);
+                          }}
                         >
-                          Student: {booking.studentName}
+                          {booking.userName || booking.studentName || 'Nav norādīts'}
                         </button>
                       </p>
                       <p className="text-gray-600 my-2">
@@ -416,13 +508,10 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                     </div>
 
                     <button
-                      onClick={() => handleCancel(
-                        booking.lessonId,
-                        `${booking.date}T${booking.time}`
-                      )}
+                      onClick={() => handleCancel(booking.lessonId, `${booking.date}T${booking.time}`)}
                       className="btn btn-error btn-sm"
                     >
-                      Cancel Lesson
+                      Atcelt
                     </button>
 
                     {booking.status === 'paid' && (
@@ -464,11 +553,15 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
                     <div>
                       <h3 className="font-semibold">{booking.subject}</h3>
                       <p>
+                        <span className="text-gray-600">Skolēns: </span>
                         <button 
-                          className="text-left hover:underline"
-                          onClick={() => setSelectedStudent(booking.studentId)}
+                          className="hover:underline text-primary"
+                          onClick={() => {
+                            setSelectedUserId(booking.userId || booking.studentId || null);
+                            setIsUserModalOpen(true);
+                          }}
                         >
-                          Skolēns: {booking.studentName}
+                          {booking.userName || booking.studentName || 'Nav norādīts'}
                         </button>
                       </p>
                       <p className="text-gray-600 my-2">
@@ -519,11 +612,14 @@ export default function TeacherBookings({ teacherId }: TeacherBookingsProps) {
         </div>
       )}
 
-      {selectedStudent && (
-        <StudentInfoModal
-          isOpen={true}
-          onClose={() => setSelectedStudent(null)}
-          studentId={selectedStudent}
+      {selectedUserId && (
+        <UserInfoModal
+          userId={selectedUserId}
+          isOpen={isUserModalOpen}
+          onClose={() => {
+            setIsUserModalOpen(false);
+            setSelectedUserId(null);
+          }}
         />
       )}
     </div>

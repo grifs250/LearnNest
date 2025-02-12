@@ -2,32 +2,47 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { applyActionCode, signOut } from "firebase/auth";
+import { applyActionCode, signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseClient";
 import { FirebaseError } from "firebase/app";
 import { doc, updateDoc } from "firebase/firestore";
+import { Suspense } from "react";
 
-export default function AuthActionPage() {
+function ActionContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const mode = searchParams.get('mode');
     const oobCode = searchParams.get('oobCode');
+    const redirect = searchParams.get('redirect');
 
     async function verifyEmail() {
       if (mode === 'verifyEmail' && oobCode) {
         try {
-          // Sign out first to ensure clean state
-          await signOut(auth);
-          
+          // Verify the email
           await applyActionCode(auth, oobCode);
-          
-          // After verification, redirect to login
-          router.push('/auth?mode=login&verified=true');
-        } catch (err: any) {
+
+          // Update Firestore if user is authenticated
+          if (auth.currentUser) {
+            await updateDoc(doc(db, "users", auth.currentUser.uid), {
+              emailVerified: true,
+              status: 'active',
+              verifiedAt: new Date()
+            });
+          }
+
+          // Force reload user
+          await auth.currentUser?.reload();
+
+          if (redirect === 'profile') {
+            router.push('/profile');
+          } else {
+            router.push('/auth?mode=login&verified=true');
+          }
+        } catch (err) {
           console.error('Verification error:', err);
-          router.push('/auth?mode=login');
+          router.push('/auth?mode=login&error=verification-failed');
         }
       } else {
         router.push('/auth?mode=login');
@@ -44,5 +59,13 @@ export default function AuthActionPage() {
         <p className="text-lg">E-pasts tiek apstiprināts...</p>
       </div>
     </div>
+  );
+}
+
+export default function ActionPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ActionContent />
+    </Suspense>
   );
 } 

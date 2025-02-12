@@ -3,14 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebaseClient";
-import { onAuthStateChanged, signOut, updateProfile } from "firebase/auth";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "firebase/firestore";
+import { onAuthStateChanged, signOut, updateProfile, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from "firebase/firestore";
 import WorkSchedule from "@/components/WorkSchedule"; 
 import TeacherBookings from "@/components/TeacherBookings";
 import StudentBookings from "@/components/StudentBookings";
 import CreateLessonModal from "@/components/CreateLessonModal";
 import EditLessonModal from "@/components/EditLessonModal";
 import { Lesson } from "@/types/lesson";
+import { FirebaseError } from "firebase/app";
+import { LogOut, Save, Settings2, Trash2 } from "lucide-react";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -24,6 +26,9 @@ export default function ProfilePage() {
   const [myLessons, setMyLessons] = useState<Lesson[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const fetchLessons = useCallback(async () => {
     if (!user?.uid) return;
@@ -50,15 +55,10 @@ export default function ProfilePage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       try {
-        if (!u) {
-          console.log("No user, redirecting to auth");
+        if (!u || !u.emailVerified) {
+          // Sign out if not verified
+          await signOut(auth);
           router.push("/auth?mode=login");
-          return;
-        }
-
-        if (!u.emailVerified) {
-          console.log("Email not verified, redirecting to verify");
-          router.push("/verify-email");
           return;
         }
 
@@ -98,13 +98,26 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
+      // Update Firestore first
       await updateDoc(doc(db, "users", user.uid), {
+        displayName,
         description,
       });
 
-      await updateProfile(user, { displayName });
+      // Update Firebase Auth profile
+      await updateProfile(user, {
+        displayName: displayName
+      });
+
+      // Show success message
       alert("Profils saglabāts!");
+
+      // Force reload user data to update navbar
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+      }
     } catch (err: any) {
+      console.error("Error saving profile:", err);
       setError("Kļūda saglabājot datus.");
     }
 
@@ -121,6 +134,57 @@ export default function ProfilePage() {
   async function handleEditLesson(lesson: Lesson) {
     setEditingLesson(lesson);
   }
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+
+    try {
+      if (!auth.currentUser || !deletePassword) return;
+
+      // Re-authenticate user before deletion
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser.email!,
+        deletePassword
+      );
+
+      await reauthenticateWithCredential(auth.currentUser, credential);
+
+      // Delete user's data from Firestore first
+      const batch = writeBatch(db);
+
+      // Delete user's bookings
+      const bookingsSnapshot = await getDocs(
+        collection(db, "users", auth.currentUser.uid, "bookings")
+      );
+      bookingsSnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      // Delete user document
+      batch.delete(doc(db, "users", auth.currentUser.uid));
+
+      // Commit Firestore changes
+      await batch.commit();
+
+      // Delete Firebase Auth user
+      await deleteUser(auth.currentUser);
+
+      // Sign out and redirect
+      await signOut(auth);
+      router.push("/");
+    } catch (error: any) {
+      console.error("Delete account error:", error);
+      if (error.code === 'auth/wrong-password') {
+        setDeleteError("Nepareiza parole");
+      } else {
+        setDeleteError("Kļūda dzēšot kontu. Lūdzu mēģiniet vēlreiz.");
+      }
+    }
+
+    setIsDeleteModalOpen(false);
+    setDeletePassword("");
+  };
 
   if (loading) {
     return (
@@ -155,6 +219,7 @@ export default function ProfilePage() {
               <div className="card-body">
                 <h2 className="card-title text-xl mb-4">Profila informācija</h2>
                 {error && <p className="text-error">{error}</p>}
+                
                 <div className="form-control">
                   <label htmlFor="displayName" className="label">
                     <span className="label-text">Vārds</span>
@@ -167,6 +232,7 @@ export default function ProfilePage() {
                     onChange={(e) => setDisplayName(e.target.value)}
                   />
                 </div>
+                
                 <div className="form-control mt-4">
                   <label htmlFor="description" className="label">
                     <span className="label-text">Apraksts</span>
@@ -179,11 +245,14 @@ export default function ProfilePage() {
                     placeholder="Aprakstiet sevi..."
                   />
                 </div>
+
+                {/* Primary Actions */}
                 <div className="card-actions justify-end mt-6">
                   <button 
                     onClick={handleLogout} 
-                    className="btn btn-outline btn-error"
+                    className="btn btn-outline"
                   >
+                    <LogOut className="w-4 h-4 mr-2" />
                     Izrakstīties
                   </button>
                   <button 
@@ -191,9 +260,35 @@ export default function ProfilePage() {
                     className="btn btn-primary"
                     disabled={saving}
                   >
+                    <Save className="w-4 h-4 mr-2" />
                     {saving ? "Saglabā..." : "Saglabāt"}
                   </button>
                 </div>
+
+                {/* Advanced Features Section */}
+                <details className="mt-6">
+                  <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 flex items-center">
+                    <Settings2 className="w-4 h-4 mr-2" />
+                    Papildu iestatījumi
+                  </summary>
+                  <div className="mt-4 pt-4 border-t border-base-300">
+                    <div className="flex items-center justify-between text-error">
+                      <div>
+                        <h3 className="font-semibold">Dzēst kontu</h3>
+                        <p className="text-sm">
+                          Neatgriezeniski dzēst visus jūsu datus
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setIsDeleteModalOpen(true)}
+                        className="btn btn-error btn-outline btn-sm"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Dzēst kontu
+                      </button>
+                    </div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -344,6 +439,57 @@ export default function ProfilePage() {
         onClose={() => setEditingLesson(null)}
         onLessonUpdated={fetchLessons}
       />
+
+      {/* Delete Account Modal */}
+      <dialog className={`modal ${isDeleteModalOpen ? 'modal-open' : ''}`}>
+        <div className="modal-box">
+          <h3 className="font-bold text-lg mb-4">Dzēst kontu</h3>
+          <form onSubmit={handleDeleteAccount}>
+            <p className="text-error mb-4">
+              Uzmanību! Šī darbība ir neatgriezeniska. Visi jūsu dati tiks dzēsti.
+            </p>
+            
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Ievadiet paroli, lai apstiprinātu</span>
+              </label>
+              <input
+                type="password"
+                className="input input-bordered"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {deleteError && (
+              <div className="alert alert-error mb-4">
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <div className="modal-action">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeletePassword("");
+                  setDeleteError("");
+                }}
+              >
+                Atcelt
+              </button>
+              <button type="submit" className="btn btn-error">
+                Dzēst kontu
+              </button>
+            </div>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button onClick={() => setIsDeleteModalOpen(false)}>close</button>
+        </form>
+      </dialog>
     </main>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { db, auth } from "@/lib/firebaseClient";
-import { doc, getDoc, query, where, getDocs, collection, runTransaction } from "firebase/firestore";
+import { doc, getDoc, runTransaction } from "firebase/firestore";
 import TimeSlotPicker from "@/components/TimeSlotPicker";
 import { Lesson, Teacher, WorkHours, BookingData, TimeRange, BookedTimeData } from "@/types/lesson";
 
@@ -24,6 +24,12 @@ interface RawWorkHours {
 
 interface RawDayData {
   timeSlots: TimeRange | TimeRange[];
+}
+
+interface LessonDetailsProps {
+  readonly category: string;
+  readonly subjectId: string;
+  readonly lessonId: string;
 }
 
 async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: Lesson; teacherData: TeacherData}> {
@@ -201,11 +207,11 @@ function getLessonId(params: any): string | null {
   return null;
 }
 
-export default function LessonDetails() {
+export default function LessonDetails({ category, subjectId, lessonId: lessonIdProp }: LessonDetailsProps) {
   const params = useParams();
   const searchParams = useSearchParams();
   const oldTimeSlot = searchParams.get('oldTimeSlot');
-  const lessonId = getLessonId(params);
+  const lessonId = getLessonId(params) || lessonIdProp;
   
   const router = useRouter();
 

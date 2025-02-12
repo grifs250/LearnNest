@@ -6,11 +6,11 @@ export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Public paths that don't require auth
-  const publicPaths = ['/auth', '/verify-email', '/', '/api'];
+  const publicPaths = ['/auth', '/verify-email', '/', '/api', '/lessons'];
 
   // Check if the path is public
   const isPublicPath = publicPaths.some(publicPath => 
-    path.startsWith(publicPath)
+    path.startsWith(publicPath) && !path.includes('/book')
   );
 
   // If it's a public path, allow access
