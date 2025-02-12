@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseClient";
 import { doc, getDoc } from "firebase/firestore";
@@ -11,12 +11,15 @@ import { Menu, X, User as UserIcon } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
+      setLoading(true);
       if (u) {
         setUser(u);
         try {
@@ -34,6 +37,7 @@ export default function Navbar() {
         setUser(null);
         setIsTeacher(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -50,6 +54,15 @@ export default function Navbar() {
     { label: "BUJ", href: "#buj" },
     { label: "Kontakti", href: "#contact" },
   ];
+
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (user) {
+      router.push('/profile');
+    } else {
+      router.push('/auth?mode=login');
+    }
+  };
 
   return (
     <div>
@@ -81,15 +94,24 @@ export default function Navbar() {
               {item.label}
             </SmoothScrollLink>
           ))}
-          {user ? (
-            <Link href="/profile" className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}>
-              <UserIcon size={16} />
-              {user.email}
-            </Link>
-          ) : (
-            <Link href="/auth?mode=login" className="btn btn-sm">
-              Pieslēgties
-            </Link>
+          {!loading && (
+            user ? (
+              <Link 
+                href="/profile" 
+                onClick={handleProfileClick}
+                className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
+              >
+                <UserIcon size={16} />
+                {user.displayName || user.email}
+              </Link>
+            ) : (
+              <Link 
+                href="/auth?mode=login" 
+                className="btn btn-sm"
+              >
+                Pieslēgties
+              </Link>
+            )
           )}
         </div>
       </nav>
@@ -107,23 +129,28 @@ export default function Navbar() {
             </SmoothScrollLink>
           ))}
           <div className="flex justify-center">
-            {user ? (
-              <Link
-                href="/profile"
-                onClick={() => setMobileOpen(false)}
-                className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
-              >
-                <UserIcon size={16} />
-                {user.email}
-              </Link>
-            ) : (
-              <Link
-                href="/auth?mode=login"
-                onClick={() => setMobileOpen(false)}
-                className="btn btn-sm"
-              >
-                Pieslēgties
-              </Link>
+            {!loading && (
+              user ? (
+                <Link 
+                  href="/profile" 
+                  onClick={(e) => {
+                    handleProfileClick(e);
+                    setMobileOpen(false);
+                  }}
+                  className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
+                >
+                  <UserIcon size={16} />
+                  {user.displayName || user.email}
+                </Link>
+              ) : (
+                <Link
+                  href="/auth?mode=login"
+                  onClick={() => setMobileOpen(false)}
+                  className="btn btn-sm"
+                >
+                  Pieslēgties
+                </Link>
+              )
             )}
           </div>
         </div>

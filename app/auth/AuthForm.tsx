@@ -3,8 +3,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebaseClient";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  sendEmailVerification, 
+  updateProfile,
+  AuthError
+} from "firebase/auth";
+import { FirebaseError } from 'firebase/app';
+import { doc, setDoc, getDoc } from "firebase/firestore";
 
 interface AuthFormProps {
   initialMode: string;
@@ -27,22 +34,49 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     setIsSignUp(initialMode !== "login");
   }, [initialRole, initialMode]);
 
+  // Add check for verified parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('verified') === 'true') {
+      setError("E-pasts veiksmīgi apstiprināts! Lūdzu piesakieties.");
+    }
+  }, []);
+
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     try {
+      auth.languageCode = 'lv';  // Set language to Latvian
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCred.user.uid;
+      
+      await sendEmailVerification(userCred.user, {
+        url: `${window.location.origin}/auth/action`,
+      });
 
-      await setDoc(doc(db, "users", uid), {
+      await setDoc(doc(db, "users", userCred.user.uid), {
         displayName,
         email,
         isTeacher: role === "pasniedzējs",
+        emailVerified: false,
       });
 
-      router.push("/profile");
-    } catch (err: any) {
-      setError(err.message);
+      // Update display name
+      await updateProfile(userCred.user, {
+        displayName: displayName
+      });
+
+      router.push("/verify-email");
+    } catch (err) {
+      if ((err as FirebaseError).code) {
+        const errorMessage = {
+          'auth/email-already-in-use': 'Šis e-pasts jau ir reģistrēts',
+          'auth/invalid-email': 'Nederīga e-pasta adrese',
+          'auth/weak-password': 'Parole ir pārāk vāja',
+        }[(err as FirebaseError).code] || (err as FirebaseError).message;
+        setError(errorMessage);
+      } else {
+        setError('Kļūda reģistrējoties');
+      }
     }
   }
 
@@ -50,10 +84,43 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     e.preventDefault();
     setError("");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      auth.languageCode = 'lv';  // Set language to Latvian
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      
+      if (!userCred.user.emailVerified) {
+        await sendEmailVerification(userCred.user, {
+          url: `${window.location.origin}/auth/action`,
+        });
+        router.push("/verify-email");
+        return;
+      }
+
+      // Get user data from Firestore
+      const userDoc = await getDoc(doc(db, "users", userCred.user.uid));
+      if (userDoc.exists()) {
+        // Update local user profile if needed
+        if (userDoc.data().displayName && userDoc.data().displayName !== userCred.user.displayName) {
+          await updateProfile(userCred.user, {
+            displayName: userDoc.data().displayName
+          });
+        }
+      }
+      
       router.push("/profile");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      console.error("Sign in error:", err);
+      if ((err as FirebaseError).code) {
+        const errorMessage = {
+          'auth/user-not-found': 'Nepareizs e-pasts vai parole',
+          'auth/wrong-password': 'Nepareizs e-pasts vai parole',
+          'auth/invalid-email': 'Nederīga e-pasta adrese',
+          'auth/user-disabled': 'Šis konts ir bloķēts',
+          'auth/too-many-requests': 'Pārāk daudz mēģinājumu. Lūdzu, mēģiniet vēlāk',
+        }[(err as FirebaseError).code] || 'Kļūda pieslēdzoties';
+        setError(errorMessage);
+      } else {
+        setError('Kļūda pieslēdzoties');
+      }
     }
   }
 

@@ -49,21 +49,34 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      if (!u) {
-        router.push("/auth/sign-in");
-        return;
-      }
-      setUser(u);
+      try {
+        if (!u) {
+          console.log("No user, redirecting to auth");
+          router.push("/auth?mode=login");
+          return;
+        }
 
-      const snap = await getDoc(doc(db, "users", u.uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        setDisplayName(data.displayName || "");
-        setDescription(data.description || "");
-        setIsTeacher(!!data.isTeacher);
-      }
+        if (!u.emailVerified) {
+          console.log("Email not verified, redirecting to verify");
+          router.push("/verify-email");
+          return;
+        }
 
-      setLoading(false);
+        setUser(u);
+        
+        const snap = await getDoc(doc(db, "users", u.uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          setDisplayName(data.displayName || "");
+          setDescription(data.description || "");
+          setIsTeacher(!!data.isTeacher);
+        }
+      } catch (error) {
+        console.error("Profile page error:", error);
+        setError("Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsub();
@@ -110,7 +123,19 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-center">Ielādē...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="alert alert-error">{error}</div>
+      </div>
+    );
   }
 
   if (!user) return <div>Loading...</div>;
