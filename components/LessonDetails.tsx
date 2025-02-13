@@ -211,7 +211,7 @@ export default function LessonDetails({ category, subjectId, lessonId: lessonIdP
   const params = useParams();
   const searchParams = useSearchParams();
   const oldTimeSlot = searchParams.get('oldTimeSlot');
-  const lessonId = getLessonId(params) || lessonIdProp;
+  const lessonId = getLessonId(params) ?? lessonIdProp;
   
   const router = useRouter();
 
@@ -245,7 +245,7 @@ export default function LessonDetails({ category, subjectId, lessonId: lessonIdP
     async function loadData() {
       try {
         setLoading(true);
-        const { lesson, teacherData } = await fetchLessonAndTeacher(lessonId as string);
+        const { lesson, teacherData } = await fetchLessonAndTeacher(lessonId);
         console.log('Teacher work hours:', teacherData.workHours); // Debug log
         setLesson(lesson);
         setTeacher({

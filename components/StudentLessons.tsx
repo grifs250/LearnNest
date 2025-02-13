@@ -145,7 +145,7 @@ export default function StudentLessons({ studentId }: StudentLessonsProps) {
   async function handleReschedule(lesson: StudentLesson, timeSlot: string) {
     try {
       // Use the full path structure
-      router.push(`/lessons/${lesson.category || 'all'}/${lesson.subject}/${lesson.id}?oldTimeSlot=${timeSlot}`);
+      router.push(`/lessons/${lesson.category ?? 'all'}/${lesson.subject}/${lesson.id}?oldTimeSlot=${timeSlot}`);
     } catch (error) {
       console.error("Error preparing reschedule:", error);
       setError("Failed to prepare reschedule");
@@ -170,8 +170,7 @@ export default function StudentLessons({ studentId }: StudentLessonsProps) {
               onClick={() => router.push('/#subjects')} 
               className="btn btn-primary btn-lg"
             >
-              <span className="mr-2">📚</span>
-              Atrast Nodarbību
+              <span className="mr-2">📚</span>Atrast Nodarbību
             </button>
           </div>
         </div>

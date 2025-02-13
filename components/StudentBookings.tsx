@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { db } from "@/lib/firebaseClient";
-import { collection, getDocs,  updateDoc, doc, deleteDoc, getDoc, writeBatch } from "firebase/firestore";
+import { db, auth } from "@/lib/firebaseClient";
+import { collection, getDocs, doc, getDoc, writeBatch } from "firebase/firestore";
 import { BookingStatus } from "@/types/lesson";
 import PaymentModal from "@/components/PaymentModal";
 import { useRouter } from 'next/navigation';
-import { auth } from "@/lib/firebaseClient";
 import UserInfoModal from './UserInfoModal';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -50,7 +49,6 @@ export default function StudentBookings({ userId }: StudentBookingsProps) {
     const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
     if (!userDoc.exists() || userDoc.data().status !== 'active') {
       alert("Jūsu konts nav aktīvs. Lūdzu apstipriniet savu e-pastu.");
-      return;
     }
 
     // ... rest of booking logic
@@ -387,6 +385,12 @@ export default function StudentBookings({ userId }: StudentBookingsProps) {
             setSelectedTeacherId(null);
           }}
         />
+      )}
+
+      {error && (
+        <div className="alert alert-error">
+          {error}
+        </div>
       )}
     </div>
   );

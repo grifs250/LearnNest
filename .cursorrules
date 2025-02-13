@@ -1,0 +1,151 @@
+# PROJECT OVERVIEW
+- Online learning platform that connects students with teachers for private lessons
+
+# PERSONALITY
+- Educational, frendly, as senior developer
+
+# TECH STACK
+- Next.js 15 with App Router
+- Firebase (Auth, Firestore, Storage)
+- TypeScript
+- TailwindCSS with DaisyUI
+- React Hook Form
+- Zod validation
+
+# ERROR FIXING PROCESS
+step 1: explain the error in simple terms
+step 2: explain the solution in simple terms
+step 3: show how to fix the error
+step 4: give sudjestions for next step if needed
+
+# BUILDING PROCESS
+- npm install
+- npm run dev
+- npm run build
+- npm start
+
+# Our .env variables
+.env.local
+
+# CURRENT FILE STRUCTURE
+├── app
+    ├── api
+        ├── auth
+            ├── verify-email
+            ├── [...nextauth]
+        ├── bookings
+            ├── route.ts
+        ├── calendar
+            ├── create-event
+        ├── verify-profile
+    ├── auth
+        ├── action
+            ├── page.tsx
+        ├── AuthForm.tsx
+        ├── AuthWrapper.tsx
+        ├── page.tsx
+    ├── buj
+        ├── page.tsx
+    ├── dashboard
+        ├── page.tsx
+    ├── lessons
+        ├── meet
+            ├── [lessonId]
+        ├── [category]
+    ├── privacy-policy
+        ├── page.tsx
+    ├── profile
+        ├── calendar
+        ├── lessons
+        ├── payments
+        ├── setup
+        ├── [userId]
+        ├── page.tsx
+    ├── terms-of-service
+        ├── page.tsx
+    ├── verify-email
+        ├── page.tsx
+    ├── favicon.ico
+    ├── globals.css
+    ├── landingContent.tsx
+    ├── layout.tsx
+    ├── page.tsx
+    ├── themeProvider.tsx
+├── components
+    ├── AuthButtons.tsx
+    ├── AvailableVacancies.tsx
+    ├── BookingCalendar.tsx
+    ├── CancelBooking.tsx
+    ├── CourseSections.tsx
+    ├── CreateLessonModal.tsx
+    ├── EditLessonModal.tsx
+    ├── LessonDetails.tsx
+    ├── LessonForm.tsx
+    ├── LessonPage.tsx
+    ├── Navbar.tsx
+    ├── PaymentModal.tsx
+    ├── SmoothScrollLink.tsx
+    ├── StudentBookings.tsx
+    ├── StudentLessons.tsx
+    ├── TeacherBookings.tsx
+    ├── TeacherWorkHours.tsx
+    ├── TimeSlotPicker.tsx
+    ├── UserInfoModal.tsx
+    ├── WorkSchedule.tsx
+├── lib
+    ├── fetchCategories.ts
+    ├── fetchLessons.ts
+    ├── fetchSubjects.ts
+    ├── firebaseAdmin.ts
+    ├── firebaseClient.ts
+    ├── googleCalendar.ts
+    ├── lessons.ts
+├── prisma
+├── public
+    ├── file.svg
+    ├── globe.svg
+    ├── next.svg
+    ├── vercel.svg
+    ├── window.svg
+├── types
+    ├── lesson.ts
+├── .cursorignore
+├── .cursorrules
+├── .env.local
+├── .gitignore
+├── eslint.config.mjs
+├── firestore.rules
+├── middleware.ts
+├── next-env.d.ts
+├── next.config.js
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── postcss.config.mjs
+├── README.md
+├── README1.md
+├── tailwind.config.js
+├── tailwind.config.ts
+├── tsconfig.json
+├── yarn.lock
+
+# GITHUB PUSH PROCESS
+- git add .
+- git commit -m "descriptive message"
+- git push origin main
+
+# IMPORTANT DEVELOPMENT GUIDELINES
+- Test thoroughly file compatibility and ensure all files work together seamlessly
+- Write clean, readable, and well-structured code following DRY principles
+- Follow TypeScript and 13+ Next.js best practices and conventions
+- Ensure all TypeScript types are properly defined and errors are resolved
+- Use meaningful variable names and add appropriate comments
+- Implement proper error handling and logging
+- Follow the project's coding style and patterns
+
+# OTHER CONTEXT
+
+# COMMENTS
+- make sure to ALWAYS include commments in your code
+- do not delete comments unless they are no longer needed
+
