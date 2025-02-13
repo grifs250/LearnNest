@@ -7,11 +7,10 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   sendEmailVerification, 
-  updateProfile,
-  AuthError
 } from "firebase/auth";
 import { FirebaseError } from 'firebase/app';
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
+import { toast } from "react-hot-toast";
 
 interface AuthFormProps {
   initialMode: string;
@@ -20,7 +19,7 @@ interface AuthFormProps {
   updateMode: (mode: string) => void;
 }
 
-export default function AuthForm({ initialMode, initialRole, updateRole, updateMode }: AuthFormProps) {
+export default function AuthForm({ initialMode, initialRole, updateRole, updateMode }: Readonly<AuthFormProps>) {
   const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(initialMode !== "login");
   const [email, setEmail] = useState("");
@@ -49,6 +48,15 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
       // Set language for Firebase Auth
       auth.languageCode = 'lv';
       
+      // Validate password length before attempting registration
+      if (password.length < 6) {
+        setError('Parolei jābūt vismaz 6 simbolus garai');
+        return;
+      }
+
+      // Add loading state
+      const loadingToast = toast.loading('Notiek reģistrācija...');
+      
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       
       // Create user document with pending status
@@ -59,27 +67,38 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
         emailVerified: false,
         status: 'pending',
         createdAt: new Date()
+      }).catch((error) => {
+        console.error('Firestore error:', error);
+        throw new Error('Kļūda saglabājot lietotāja datus');
       });
 
       // Send verification email
       await sendEmailVerification(userCred.user, {
         url: `${window.location.origin}/auth/action?redirect=profile`,
         handleCodeInApp: true
+      }).catch((error) => {
+        console.error('Verification email error:', error);
+        throw new Error('Kļūda nosūtot verifikācijas e-pastu');
       });
 
+      toast.dismiss(loadingToast);
+      toast.success('Reģistrācija veiksmīga!');
       router.push("/verify-email");
     } catch (err) {
-      // Don't log to console in production
+      console.error('Registration error:', err);
+      
       if ((err as FirebaseError).code) {
         const errorMessage = {
           'auth/email-already-in-use': 'Šis e-pasts jau ir reģistrēts',
           'auth/invalid-email': 'Nederīga e-pasta adrese',
-          'auth/weak-password': 'Parole ir pārāk vāja',
+          'auth/weak-password': 'Parole ir pārāk vāja (vismaz 6 simboli)',
           'auth/network-request-failed': 'Savienojuma kļūda. Pārbaudiet interneta pieslēgumu',
-        }[(err as FirebaseError).code] || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
+          'auth/operation-not-allowed': 'Reģistrācija šobrīd nav pieejama',
+          'auth/internal-error': 'Iekšēja sistēmas kļūda. Lūdzu mēģiniet vēlreiz',
+        }[(err as FirebaseError).code] ?? 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
         setError(errorMessage);
       } else {
-        setError('Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
+        setError((err as Error).message || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
       }
     }
   }

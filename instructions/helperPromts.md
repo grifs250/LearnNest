@@ -1,8 +1,13 @@
 The fewer lines of code, the better
+
 Proceed like a Senior Developer // 10x engineer
+
 DO NOT STOP WORKING until
+
 start by writing 3 reasoning paragraphs analysing what the error might be. DO NOT JUMP TO CONCLUSIONS
+
 Answer in short
+
 DO NOT DELETE COMMENTS
 
 # summary of current state before we proceed, i need you to give me a summary of the current state of the project.

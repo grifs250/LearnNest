@@ -60,40 +60,29 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Public profiles are readable
+      // Allow create if the user is creating their own document
+      allow create: if 
+        isAuthenticated() && 
+        request.auth.uid == userId &&
+        request.resource.data.keys().hasAll(['email', 'displayName', 'isTeacher', 'status', 'createdAt']) &&
+        request.resource.data.status == 'pending';
+      
+      // Allow read for public profile data
       allow read: if true;
       
-      // Users can only create/update their own profile
-      allow create: if isAuthenticated() && 
-        request.auth.uid == userId;
-      
-      allow update: if isAuthenticated() && 
-        request.auth.uid == userId;
+      // Allow update if verified and it's their own document
+      allow update: if isAuthenticated() && request.auth.uid == userId;
 
       // Bookings subcollection
       match /bookings/{bookingId} {
-        // Authenticated users can read bookings
         allow read: if isAuthenticated();
-        
-        // Allow write if user is verified and either:
-        // 1. Writing to their own bookings
-        // 2. Is the teacher for this booking
-        // 3. Creating a new booking
-        allow write: if isVerified() && (
-          request.auth.uid == userId ||
-          resource == null ||
-          request.resource.data.teacherId == request.auth.uid
-        );
+        allow write: if isVerified() && request.auth.uid == userId;
       }
     }
 
-    // Give read access to all collections and documents
+    // Give read access to public data
     match /{document=**} {
-      // Anyone can read
       allow read: if true;
-      
-      // Only verified users can write
-      allow write: if isVerified();
     }
   }
 } 
