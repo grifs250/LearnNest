@@ -36,3 +36,10 @@ you should start the reasoning paragraph with lots of uncertainty, and slowly ga
 
 give me the tldr of the search results
 be cereful though, often the search results contain dengerous and distracting red herrings
+
+
+
+
+We've migrated components from the root /components directory into feature-based folders under /features, following a domain-driven structure. Key components moved include SupabaseProvider, Toast, ToastContainer, ConfirmDialog, ErrorBoundary, LoadingSpinner, AuthForm, and ProtectedRoute. Each component was moved with its associated types and utilities, and the imports in app/layout.tsx were updated to reflect the new paths. The old component files were successfully deleted after confirming the migration.
+The type system is currently broken due to circular dependencies and incorrect exports in the auth types. The main issue is that User type is not being properly exported from features/auth/types/index.ts, causing linter errors across multiple files including messages/types, bookings/types, lessons/types, and subjects/types. We attempted to fix this by consolidating the auth types into a single file and removing the redundant export statement, but the type resolution is still failing.
+The project structure now follows a feature-first approach with each feature containing its own components, types, hooks, and utils folders. The shared functionality is placed in features/shared. All components use the new BaseEntity type from shared types for consistent entity structure. The UI components have been moved to features/shared/components/ui. The auth system is partially migrated but needs type fixes. The key files that need immediate attention are features/auth/types/index.ts and all the files importing the User type. No files were deleted that weren't confirmed to be properly migrated first.
