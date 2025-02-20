@@ -1,13 +1,10 @@
-"use server";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb } from './firebase/admin';
+import { Subject } from '@/features/lessons/types';
 
-// ✅ Ensure it's not used in client components
-export async function fetchSubjects() {
-   // Next.js App Router (Ensures server execution)
-  
-  const snapshot = await adminDb.collection("subjects").get();
+export async function fetchSubjects(): Promise<Subject[]> {
+  const snapshot = await adminDb.collection('subjects').get();
   return snapshot.docs.map((doc) => ({
     id: doc.id,
-    ...doc.data(),
-  })) as { id: string; name: string; category: string }[];
-}
+    ...doc.data()
+  })) as Subject[];
+} 

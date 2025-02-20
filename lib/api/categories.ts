@@ -1,18 +1,19 @@
 "use server";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb } from "@/lib/firebase/admin";
+import { Category, Subject } from "@/types";
 
-interface Subject {
+interface SubjectData {
   id: string;
   name: string;
   category: string;
 }
 
-export async function fetchCategories() {
+export async function fetchCategories(): Promise<Category[]> {
   const snapshot = await adminDb.collection("subjects").get();
   const subjects = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
-  })) as Subject[];
+  })) as SubjectData[];
 
   // Group subjects by category
   const groupedSubjects = subjects.reduce((acc, subject) => {
@@ -30,7 +31,7 @@ export async function fetchCategories() {
       categoryId: category
     });
     return acc;
-  }, {} as Record<string, any>);
+  }, {} as Record<string, Category>);
 
   return Object.values(groupedSubjects);
 }
@@ -42,7 +43,6 @@ function getCategoryName(categoryId: string): string {
     music: "Mūzika",
     art: "Māksla",
     sports: "Sports",
-    // Add other categories as needed
   };
   return categoryNames[categoryId] || categoryId;
 } 

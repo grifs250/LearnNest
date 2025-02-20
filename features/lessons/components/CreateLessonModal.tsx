@@ -1,12 +1,12 @@
 "use client";
 
-import { LessonForm } from "@/features/lessons/components";
+import { LessonForm } from "./LessonForm";
 import { toast } from "react-hot-toast";
 
 interface CreateLessonModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onLessonCreated: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onLessonCreated: () => void;
 }
 
 export function CreateLessonModal({ 

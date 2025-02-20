@@ -1,13 +1,14 @@
-import { adminDb } from "@/lib/firebaseAdmin"; // Server-side Firestore
-import CourseSections from "@/components/CourseSections";
+import { adminDb } from "@/lib/firebase/admin";
+import { CourseSections } from "@/features/lessons/components";
 import BujPage from "./buj/page";
 import Link from "next/link";
-import { fetchCategories } from "@/lib/fetchCategories";
-import AuthButtons from "@/components/AuthButtons";
+import { fetchCategories } from "@/lib/fetchSubjects";
+import { AuthButtons } from "@/features/auth/components";
+import { DocumentData } from 'firebase-admin/firestore';
 
 async function fetchCourses(collectionName: string) {
   const snapshot = await adminDb.collection(collectionName).get();
-  return snapshot.docs.map((doc) => ({
+  return snapshot.docs.map((doc: DocumentData) => ({
     id: doc.id,
     ...doc.data(),
   }));

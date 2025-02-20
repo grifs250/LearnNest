@@ -1,40 +1,14 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseClient";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { TeacherDashboard, StudentDashboard, DashboardLoading } from "@/features/dashboard/components";
+import { useDashboard } from "@/features/dashboard/hooks";
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  const [isTeacher, setIsTeacher] = useState(false);
-  const router = useRouter();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push("/auth/sign-in");
-        return;
-      }
-      const docRef = doc(db, "users", user.uid);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        setIsTeacher(!!snap.data().isTeacher);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [router]);
+  const { loading, isTeacher } = useDashboard();
 
   if (loading) {
-    return (
-      <main className="p-8">
-        <p>Loading...</p>
-      </main>
-    );
+    return <DashboardLoading />;
   }
 
   return (

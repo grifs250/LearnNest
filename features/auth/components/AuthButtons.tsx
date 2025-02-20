@@ -1,10 +1,15 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebaseClient";
+import { auth } from "@/lib/firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
+import { AuthMode } from '../types';
+import Link from "next/link";
 
-export default function AuthButtons() {
+interface AuthButtonsProps {
+  readonly mode?: AuthMode;
+}
+
+export function AuthButtons({ mode = 'signup' }: AuthButtonsProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -22,12 +27,18 @@ export default function AuthButtons() {
 
   return (
     <div className="flex flex-col sm:flex-row gap-7 pt-10 justify-center">
-      <a className="btn btn-accent w-full sm:w-auto" href="/auth?role=skolēns">
-        👩‍🎓 Reģistrēties kā Skolēns
-      </a>
-      <a className="btn btn-secondary w-full sm:w-auto" href="/auth?role=pasniedzējs">
-        👨‍🏫 Reģistrēties kā Pasniedzējs
-      </a>
+      <Link 
+        href={`/auth?mode=${mode}&role=skolēns`}
+        className="btn btn-accent w-full sm:w-auto"
+      >
+        👩‍🎓 {mode === 'login' ? 'Ieiet kā Skolēns' : 'Reģistrēties kā Skolēns'}
+      </Link>
+      <Link 
+        href={`/auth?mode=${mode}&role=pasniedzējs`}
+        className="btn btn-secondary w-full sm:w-auto"
+      >
+        👨‍🏫 {mode === 'login' ? 'Ieiet kā Pasniedzējs' : 'Reģistrēties kā Pasniedzējs'}
+      </Link>
     </div>
   );
 } 

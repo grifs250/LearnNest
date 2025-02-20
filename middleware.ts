@@ -1,36 +1,41 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, getApps } from 'firebase-admin/app';
 
-export function middleware(request: NextRequest) {
-  // Get the pathname
+// Initialize Firebase Admin if not already initialized
+if (!getApps().length) {
+  initializeApp();
+}
+
+const auth = getAuth();
+
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get('session')?.value || '';
   const path = request.nextUrl.pathname;
 
   // Public paths that don't require auth
-  const publicPaths = ['/auth', '/verify-email', '/', '/api', '/lessons'];
-
-  // Check if the path is public
-  const isPublicPath = publicPaths.some(publicPath => 
-    path.startsWith(publicPath) && !path.includes('/book')
-  );
-
-  // If it's a public path, allow access
-  if (isPublicPath) {
+  const publicPaths = ['/auth', '/verify-email', '/', '/api/auth', '/lessons'];
+  
+  if (publicPaths.some(p => path.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // For protected routes, we'll let the client-side handle auth
-  return NextResponse.next();
+  try {
+    if (!token) throw new Error('No token');
+    await auth.verifySessionCookie(token, true);
+    return NextResponse.next();
+  } catch (error) {
+    const redirectUrl = new URL('/auth/login', request.url);
+    redirectUrl.searchParams.set('redirect', path);
+    return NextResponse.redirect(redirectUrl);
+  }
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
-  ],
+    '/dashboard/:path*',
+    '/profile/:path*',
+    '/lessons/book/:path*',
+  ]
 }; 

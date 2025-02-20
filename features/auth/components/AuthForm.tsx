@@ -11,27 +11,24 @@ import {
 import { FirebaseError } from 'firebase/app';
 import { doc, setDoc } from "firebase/firestore";
 import { toast } from "react-hot-toast";
+import { AuthMode, UserRole, AuthFormProps } from '../types';
+import { getAuthErrorMessage } from '../utils/auth-helpers';
+import { useAuth } from '../hooks/useAuth';
 
-interface AuthFormProps {
-  initialMode: string;
-  initialRole: string;
-  updateRole: (role: string) => void;
-  updateMode: (mode: string) => void;
-}
-
-export default function AuthForm({ initialMode, initialRole, updateRole, updateMode }: Readonly<AuthFormProps>) {
+export function AuthForm({ mode, initialRole, updateRole, updateMode }: Readonly<AuthFormProps>) {
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [isSignUp, setIsSignUp] = useState(initialMode !== "login");
+  const [isSignUp, setIsSignUp] = useState(mode !== "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState(initialRole);
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setRole(initialRole);
-    setIsSignUp(initialMode !== "login");
-  }, [initialRole, initialMode]);
+    setIsSignUp(mode !== "login");
+  }, [initialRole, mode]);
 
   // Add check for verified parameter
   useEffect(() => {
@@ -40,6 +37,15 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
       setError("E-pasts veiksmīgi apstiprināts! Lūdzu piesakieties.");
     }
   }, []);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !loading) {
+      router.push('/profile');
+    }
+  }, [user, loading, router]);
+
+  if (loading) return null;
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -87,18 +93,10 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     } catch (err) {
       console.error('Registration error:', err);
       
-      if ((err as FirebaseError).code) {
-        const errorMessage = {
-          'auth/email-already-in-use': 'Šis e-pasts jau ir reģistrēts',
-          'auth/invalid-email': 'Nederīga e-pasta adrese',
-          'auth/weak-password': 'Parole ir pārāk vāja (vismaz 6 simboli)',
-          'auth/network-request-failed': 'Savienojuma kļūda. Pārbaudiet interneta pieslēgumu',
-          'auth/operation-not-allowed': 'Reģistrācija šobrīd nav pieejama',
-          'auth/internal-error': 'Iekšēja sistēmas kļūda. Lūdzu mēģiniet vēlreiz',
-        }[(err as FirebaseError).code] ?? 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
-        setError(errorMessage);
+      if (err instanceof FirebaseError) {
+        setError(getAuthErrorMessage(err.code));
       } else {
-        setError((err as Error).message || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
+        setError('Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
       }
     }
   }
@@ -120,17 +118,8 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
       router.push("/profile");
     } catch (err) {
       // Don't log to console in production
-      if ((err as FirebaseError).code) {
-        const errorMessage = {
-          'auth/invalid-credential': 'Nepareizs e-pasts vai parole',
-          'auth/user-not-found': 'Nepareizs e-pasts vai parole',
-          'auth/wrong-password': 'Nepareizs e-pasts vai parole',
-          'auth/invalid-email': 'Nederīga e-pasta adrese',
-          'auth/user-disabled': 'Šis konts ir bloķēts',
-          'auth/too-many-requests': 'Pārāk daudz mēģinājumu. Lūdzu, uzgaidiet brīdi',
-          'auth/network-request-failed': 'Savienojuma kļūda. Pārbaudiet interneta pieslēgumu',
-        }[(err as FirebaseError).code] || 'Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz';
-        setError(errorMessage);
+      if (err instanceof FirebaseError) {
+        setError(getAuthErrorMessage(err.code));
       } else {
         setError('Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz');
       }
@@ -139,13 +128,13 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
 
   // Function to toggle login/signup mode
   function toggleMode() {
-    const newMode = isSignUp ? "login" : "signup";
+    const newMode: AuthMode = isSignUp ? "login" : "signup";
     setIsSignUp(!isSignUp);
     updateMode(newMode);
   }
 
   // Function to handle role change
-  function handleRoleChange(newRole: string) {
+  function handleRoleChange(newRole: UserRole) {
     setRole(newRole);
     updateRole(newRole);
   }
@@ -153,6 +142,11 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
   // Dynamic Background & Button Colors
   const bgColor = isSignUp ? (role === "pasniedzējs" ? "bg-orange-200" : "bg-green-200") : "bg-gray-100";
   const buttonColor = isSignUp ? (role === "pasniedzējs" ? "btn-secondary" : "btn-accent") : "btn-neutral";
+
+  // Use error helper
+  function handleError(err: FirebaseError) {
+    setError(getAuthErrorMessage(err.code));
+  }
 
   return (
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${bgColor}`}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, db } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebase/client";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { fetchSubjects } from "@/lib/fetchSubjects";
 
@@ -15,7 +15,7 @@ interface LessonFormProps {
   onLessonCreated?: () => void;  // Add callback prop
 }
 
-export default function LessonForm({ onLessonCreated }: LessonFormProps) {
+export function LessonForm({ onLessonCreated }: Readonly<LessonFormProps>) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");

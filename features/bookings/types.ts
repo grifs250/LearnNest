@@ -1,3 +1,4 @@
+/** Represents a booking time slot that is available */
 export interface Vacancy {
   id: string;
   subject: string;
@@ -9,13 +10,16 @@ export interface Vacancy {
   canceledAt?: string;
 }
 
+/** Action for booking operations */
 export interface BookingAction {
   vacancyId: string;
   onSuccess?: () => void;
 }
 
+/** Status of a booking */
 export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
 
+/** Represents a booked lesson with its details */
 export interface BookedLesson {
   id: string;
   lessonId: string;
@@ -33,6 +37,7 @@ export interface BookedLesson {
   subjectId?: string;
 }
 
+/** Props for student bookings component */
 export interface StudentBookingsProps {
   readonly userId: string;
 }

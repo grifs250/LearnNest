@@ -1,4 +1,4 @@
-import { auth, db } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -8,7 +8,7 @@ interface BookingCalendarProps {
   subject: string;
 }
 
-export default function BookingCalendar({ lessonId, teacherId, subject }: BookingCalendarProps) {
+export function BookingCalendar({ lessonId, teacherId, subject }: Readonly<BookingCalendarProps>) {
   const router = useRouter();
 
   const handleBooking = async (timeSlot: string) => {

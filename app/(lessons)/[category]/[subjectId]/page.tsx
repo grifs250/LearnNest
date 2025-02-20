@@ -19,8 +19,8 @@ interface LessonCard {
 
 export default function LessonsPage() {
   const params = useParams();
-  const subjectId = typeof params.subjectId === 'string' ? params.subjectId : null;
-  const category = typeof params.category === 'string' ? params.category : null;
+  const subjectId = params.subjectId as string;
+  const category = params.category as string;
   const router = useRouter();
   const [lessons, setLessons] = useState<LessonCard[]>([]);
   const [loading, setLoading] = useState(true);

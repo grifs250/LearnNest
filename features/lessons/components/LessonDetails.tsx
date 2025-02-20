@@ -207,11 +207,11 @@ function getLessonId(params: any): string | null {
   return null;
 }
 
-export default function LessonDetails({ category, subjectId, lessonId: lessonIdProp }: LessonDetailsProps) {
+export function LessonDetails({ category, subjectId, lessonId }: Readonly<LessonDetailsProps>) {
   const params = useParams();
   const searchParams = useSearchParams();
   const oldTimeSlot = searchParams.get('oldTimeSlot');
-  const lessonId = getLessonId(params) ?? lessonIdProp;
+  const lessonIdProp = lessonId;
   
   const router = useRouter();
 

@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { auth } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { BookingStatus, StudentBookingsProps } from "../types";
-import { useStudentBookings } from "../hooks/useStudentBookings";
 import { PaymentModal } from "@/features/payments/components";
 import { UserInfoModal } from "@/shared/components";
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from "react-hot-toast";
+import { useStudentBookings } from '../hooks';
+import { TimeSlotPicker } from '../components';
 
 export function StudentBookings({ userId }: StudentBookingsProps) {
   const router = useRouter();

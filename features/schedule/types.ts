@@ -1,8 +1,10 @@
+/** Represents a time range with start and end times */
 export interface TimeRange {
   start: string;
   end: string;
 }
 
+/** Work hours configuration for each day of the week */
 export interface WorkHours {
   [key: number]: {
     enabled: boolean;

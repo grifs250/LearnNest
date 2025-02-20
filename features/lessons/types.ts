@@ -26,7 +26,7 @@ export interface Lesson {
   description?: string;
   teacherId: string;
   teacherName: string;
-  courseId: string;
+  subjectId: string;
   category?: string;
   price?: number;
   duration?: number;

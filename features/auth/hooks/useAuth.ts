@@ -1,24 +1,41 @@
-import { useState, useEffect } from 'react';
-import { auth, db } from '@/lib/firebase/client';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+"use client";
 
-export function useAuth() {
-  const [user, setUser] = useState(null);
+import { useState, useEffect } from 'react';
+import { User } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase/client';
+import { doc, getDoc } from 'firebase/firestore';
+import { AuthUser, AuthMode } from '../types';
+
+export function useAuth(initialMode: AuthMode = 'login') {
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
-        setUser({ ...user, ...docSnap.data() });
-      } else {
-        setUser(null);
+    return auth.onAuthStateChanged(async (firebaseUser: User | null) => {
+      try {
+        if (firebaseUser) {
+          const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName,
+              emailVerified: firebaseUser.emailVerified,
+              ...userDoc.data(),
+            } as AuthUser);
+          }
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Authentication error');
+        console.error('Auth error:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
   }, []);
 
-  return { user, loading };
+  return { user, loading, error };
 } 

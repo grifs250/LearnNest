@@ -152,7 +152,7 @@ function isTimeSlotAvailable(
   return true;
 }
 
-export default function TimeSlotPicker({ 
+export function TimeSlotPicker({ 
   workHours, 
   lessonLength, 
   onTimeSlotSelect, 
@@ -160,7 +160,7 @@ export default function TimeSlotPicker({
   mode = 'booking',
   bookedTimes = {} as Record<string, BookedTimeData | null>,
   teacherId
-}: TimeSlotPickerProps) {
+}: Readonly<TimeSlotPickerProps>) {
   console.log('TimeSlotPicker workHours:', workHours);
   
   const [selectedDate, setSelectedDate] = useState<string>('');

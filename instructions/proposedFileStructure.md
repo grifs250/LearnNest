@@ -9,8 +9,9 @@
 │   │   │   └── page.tsx
 │   │   ├── 📁 verify-email/
 │   │   │   └── page.tsx
-│   │   ├── layout.tsx
-│   │   └── loading.tsx
+│   │   ├── layout.tsx                # Auth layout with protection
+│   │   ├── loading.tsx               # Auth loading state
+│   │   └── template.tsx              # Auth metadata
 │   │
 │   ├── 📁 (dashboard)/               # Dashboard route group
 │   │   ├── 📁 student/
@@ -26,33 +27,52 @@
 │   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   ├── layout.tsx
-│   │   └── loading.tsx
+│   │   ├── loading.tsx
+│   │   ├── template.tsx
+│   │   └── page.tsx
 │   │
 │   ├── 📁 (lessons)/                 # Lessons route group
 │   │   ├── 📁 [category]/
-│   │   │   └── 📁 [subjectId]/
-│   │   │       └── page.tsx
+│   │   │   ├── 📁 [subjectId]/
+│   │   │   │   ├── 📁 [lessonId]/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   │   ├── loading.tsx
+│   │   │   │   │   ├── error.tsx
+│   │   │   │   │   └── template.tsx
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── loading.tsx
+│   │   │   │   ├── error.tsx
+│   │   │   │   └── template.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── loading.tsx
+│   │   │   ├── error.tsx
+│   │   │   └── template.tsx
 │   │   ├── 📁 meet/
 │   │   │   └── 📁 [lessonId]/
-│   │   │       └── page.tsx
-│   │   ├── layout.tsx
-│   │   └── loading.tsx
+│   │   │       ├── page.tsx
+│   │   │       ├── loading.tsx
+│   │   │       ├── error.tsx
+│   │   │       └── template.tsx
+│   │   ├── layout.tsx                # Lessons layout with provider
+│   │   ├── loading.tsx               # Lessons loading state
+│   │   ├── error.tsx                 # Lessons error boundary
+│   │   └── template.tsx              # Lessons metadata
 │   │
 │   ├── 📁 api/                       # API routes
 │   │   ├── 📁 auth/
-│   │   │   ├── [...nextauth]/
+│   │   │   ├── 📁 [...nextauth]/
 │   │   │   │   └── route.ts
-│   │   │   └── verify-email/
+│   │   │   └── 📁 verify-email/
 │   │   │       └── route.ts
 │   │   ├── 📁 lessons/
-│   │   │   ├── create/
+│   │   │   ├── 📁 create/
 │   │   │   │   └── route.ts
-│   │   │   └── [id]/
+│   │   │   └── 📁 [id]/
 │   │   │       └── route.ts
 │   │   └── 📁 bookings/
-│   │       ├── create/
+│   │       ├── 📁 create/
 │   │       │   └── route.ts
-│   │       └── [id]/
+│   │       └── 📁 [id]/
 │   │           └── route.ts
 │   │
 │   ├── 📁 profile/                   # Profile pages
@@ -63,17 +83,17 @@
 │   ├── 📁 buj/                       # FAQ/Help pages
 │   │   └── page.tsx
 │   │
-│   ├── error.tsx
-│   ├── layout.tsx
-│   ├── loading.tsx
-│   ├── page.tsx
-│   ├── landingContent.tsx
-│   └── themeProvider.tsx
+│   ├── error.tsx                     # Root error boundary
+│   ├── layout.tsx                    # Root layout
+│   ├── loading.tsx                   # Root loading state
+│   ├── page.tsx                      # Landing page
+│   ├── landingContent.tsx            # Landing page content
+│   └── themeProvider.tsx             # Theme context provider
 │
 ├── 📁 features/                      # Feature-specific code
 │   ├── 📁 auth/
 │   │   ├── 📁 components/
-│   │   │   ├── index.ts              # Barrel file for auth components
+│   │   │   ├── index.ts
 │   │   │   ├── AuthForm.tsx
 │   │   │   ├── AuthWrapper.tsx
 │   │   │   ├── AuthButtons.tsx
@@ -89,13 +109,37 @@
 │   ├── 📁 lessons/
 │   │   ├── 📁 components/
 │   │   │   ├── index.ts
-│   │   │   ├── LessonCard.tsx
+│   │   │   ├── CourseSections.tsx
+│   │   │   ├── CreateLessonModal.tsx
+│   │   │   ├── EditLessonModal.tsx
+│   │   │   ├── LessonDetails.tsx
 │   │   │   ├── LessonForm.tsx
-│   │   │   └── LessonDetails.tsx
+│   │   │   ├── StudentLessons.tsx
+│   │   │   └── ErrorBoundary.tsx
 │   │   ├── 📁 hooks/
 │   │   │   ├── index.ts
-│   │   │   └── useLessons.ts
-│   │   └── types.ts
+│   │   │   ├── useAvailableLessons.ts
+│   │   │   ├── useCategory.ts
+│   │   │   ├── useLessonDetails.ts
+│   │   │   ├── useLessons.ts
+│   │   │   └── useStudentLessons.ts
+│   │   ├── 📁 services/
+│   │   │   ├── index.ts
+│   │   │   ├── lessonService.ts
+│   │   │   └── bookingService.ts
+│   │   ├── 📁 types/
+│   │   │   ├── index.ts
+│   │   │   ├── lesson.ts
+│   │   │   ├── booking.ts
+│   │   │   └── category.ts
+│   │   ├── 📁 utils/
+│   │   │   ├── index.ts
+│   │   │   ├── dateHelpers.ts
+│   │   │   ├── validation.ts
+│   │   │   └── lessonHelpers.ts
+│   │   ├── constants.ts
+│   │   ├── config.ts
+│   │   └── index.ts
 │   │
 │   ├── 📁 bookings/
 │   │   ├── 📁 components/
@@ -126,15 +170,7 @@
 │   │   ├── index.ts
 │   │   ├── Navbar.tsx
 │   │   ├── Footer.tsx
-│   │   ├── UserInfoModal.tsx
-│   │   ├── StudentLessons.tsx
-│   │   ├── StudentBookings.tsx
-│   │   ├── TeacherBookings.tsx
-│   │   ├── AvailableVacancies.tsx
-│   │   ├── EditLessonModal.tsx
-│   │   ├── CreateLessonModal.tsx
-│   │   ├── WorkSchedule.tsx
-│   │   └── CourseSections.tsx
+│   │   └── UserInfoModal.tsx
 │   │
 │   ├── 📁 hooks/                    # Common hooks
 │   │   ├── index.ts
@@ -151,20 +187,11 @@
 │       ├── common.ts
 │       └── lesson.ts
 │
-├── 📁 styles/                       # Global styles
-│   ├── globals.css
-│   └── tailwind.css
-│
 ├── 📁 lib/                          # External services
 │   ├── 📁 firebase/
 │   │   ├── index.ts
 │   │   ├── client.ts
 │   │   ├── admin.ts
-│   │   └── config.ts
-│   │
-│   ├── 📁 supabase/                 # Future Supabase integration
-│   │   ├── index.ts
-│   │   ├── client.ts
 │   │   └── config.ts
 │   │
 │   ├── 📁 google/
@@ -173,8 +200,7 @@
 │   │
 │   ├── fetchCategories.ts
 │   ├── fetchLessons.ts
-│   ├── fetchSubjects.ts
-│   └── lessons.ts
+│   └── fetchSubjects.ts
 │
 ├── 📁 config/                       # App configuration
 │   ├── index.ts
@@ -184,9 +210,7 @@
 │
 ├── 📁 public/                       # Static files
 │   ├── 📁 images/
-│   │   └── ...
 │   ├── 📁 icons/
-│   │   └── ...
 │   ├── file.svg
 │   ├── globe.svg
 │   ├── next.svg
@@ -202,15 +226,12 @@
 ├── .env.local
 ├── .cursorignore
 ├── .cursorrules
+├── .gitignore
 ├── next.config.js
 ├── package.json
 ├── postcss.config.js
-├── postcss.config.mjs
 ├── tailwind.config.js
-├── tailwind.config.ts
 ├── tsconfig.json
 ├── README.md
-├── README1.md
 ├── firestore.rules
-├── middleware.ts
-└── next-env.d.ts
+└── middleware.ts

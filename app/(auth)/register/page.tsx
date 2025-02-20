@@ -1,5 +1,6 @@
 import { AuthWrapper } from "@/features/auth/components";
+import { AuthMode } from "@/features/auth/types";
 
 export default function RegisterPage() {
-  return <AuthWrapper />;
+  return <AuthWrapper initialMode={"signup" as AuthMode} />;
 } 

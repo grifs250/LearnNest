@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { Category, CourseSectionsProps, CATEGORY_NAMES } from "@/features/lessons/types";
-import { useAvailableLessons } from "@/features/lessons/hooks";
+import { Category, CourseSectionsProps } from "../types";
+import { useAvailableLessons } from "../hooks";
+import { CATEGORY_NAMES } from "../constants";
 
 export function CourseSections({ categories }: CourseSectionsProps) {
   const { availableSubjects, isLoading } = useAvailableLessons();

@@ -1,11 +1,19 @@
 import { db } from "@/lib/firebase/client";
 import { doc, updateDoc } from "firebase/firestore";
 import { WorkHours } from "../types";
+import { toast } from 'react-hot-toast';
 
 export async function saveSchedule(schedule: WorkHours, userId: string): Promise<void> {
-  await updateDoc(doc(db, "users", userId), {
-    workHours: schedule
-  });
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      workHours: schedule
+    });
+    toast.success('Grafiks saglabāts');
+  } catch (error) {
+    console.error('Error saving schedule:', error);
+    toast.error('Kļūda saglabājot grafiku');
+    throw error;
+  }
 }
 
 export function getNextFourWeeksDates(dayId: string): string[] {

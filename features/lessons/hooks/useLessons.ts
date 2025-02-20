@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { Lesson } from "@/features/lessons/types";
+import { Lesson } from "../types";
+import { lessonService } from "../services/lessonService";
 import { toast } from "react-hot-toast";
 
-export function useLessons(courseId: string) {
+export function useLessons(subjectId: string) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,17 +14,8 @@ export function useLessons(courseId: string) {
     async function fetchLessons() {
       try {
         setLoading(true);
-        const q = query(
-          collection(db, "lessons"), 
-          where("courseId", "==", courseId)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        setLessons(querySnapshot.docs.map((doc) => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        } as Lesson)));
-        
+        const data = await lessonService.fetchLessonsBySubject(subjectId);
+        setLessons(data);
       } catch (err) {
         console.error("Error fetching lessons:", err);
         setError("Failed to load lessons");
@@ -36,7 +26,7 @@ export function useLessons(courseId: string) {
     }
 
     fetchLessons();
-  }, [courseId]);
+  }, [subjectId]);
 
   return { lessons, loading, error };
 } 
