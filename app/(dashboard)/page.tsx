@@ -1,7 +1,9 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { TeacherDashboard, StudentDashboard, DashboardLoading } from "@/features/dashboard/components";
+import { TeacherDashboard as TeacherDashboardComponent } from "@/features/dashboard/components";
+import { StudentDashboard as StudentDashboardComponent } from "@/features/dashboard/components";
+import { DashboardLoading } from "@/features/dashboard/components";
 import { useDashboard } from "@/features/dashboard/hooks";
 
 export default function DashboardPage() {
@@ -13,7 +15,7 @@ export default function DashboardPage() {
 
   return (
     <main className="p-8">
-      {isTeacher ? <TeacherDashboard /> : <StudentDashboard />}
+      {isTeacher ? <TeacherDashboardComponent /> : <StudentDashboardComponent />}
     </main>
   );
 }

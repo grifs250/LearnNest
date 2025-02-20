@@ -4,12 +4,7 @@ import { useState, useEffect } from "react";
 import { auth, db } from "@/lib/firebase/client";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { fetchSubjects } from "@/lib/fetchSubjects";
-
-interface Subject {
-  id: string;
-  name: string;
-  category: string;
-}
+import { Subject } from "@/features/lessons/types";
 
 interface LessonFormProps {
   onLessonCreated?: () => void;  // Add callback prop
@@ -49,7 +44,7 @@ export function LessonForm({ onLessonCreated }: Readonly<LessonFormProps>) {
         teacherId: auth.currentUser.uid,
         teacherName: auth.currentUser.displayName,
         bookedTimes: {},
-        category: selectedSubject.category || 'subjects',
+        category: selectedSubject.categoryId || 'subjects',
         price
       });
 

@@ -1,18 +1,8 @@
-import { adminDb } from "@/lib/firebase/admin";
 import { CourseSections } from "@/features/lessons/components";
 import BujPage from "./buj/page";
 import Link from "next/link";
-import { fetchCategories } from "@/lib/fetchSubjects";
 import { AuthButtons } from "@/features/auth/components";
-import { DocumentData } from 'firebase-admin/firestore';
-
-async function fetchCourses(collectionName: string) {
-  const snapshot = await adminDb.collection(collectionName).get();
-  return snapshot.docs.map((doc: DocumentData) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
-}
+import { fetchCategories } from "@/features/lessons/services/categoryService";
 
 export default async function LandingContent() {
   const categories = await fetchCategories();

@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface SmoothScrollLinkProps {
   href: string;
@@ -9,36 +11,24 @@ interface SmoothScrollLinkProps {
   onClick?: () => void;
 }
 
-export function SmoothScrollLink({ 
-  href, 
-  children, 
-  className, 
-  onClick 
-}: SmoothScrollLinkProps) {
+export default function SmoothScrollLink({ href, children, className, onClick }: SmoothScrollLinkProps) {
+  const router = useRouter();
+
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    const anchor = href.replace("#", "");
-    const el = document.getElementById(anchor);
+    e.preventDefault();
+    if (onClick) onClick();
     
-    if (el) {
-      e.preventDefault();
-      el.scrollIntoView({ 
-        behavior: "smooth",
-        block: "start"
-      });
+    if (href.startsWith('#')) {
+      const element = document.querySelector(href);
+      element?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      router.push(href);
     }
-    
-    onClick?.();
   };
 
   return (
-    <a 
-      href={href} 
-      onClick={handleClick} 
-      className={className}
-      role="button"
-      tabIndex={0}
-    >
+    <Link href={href} onClick={handleClick} className={className}>
       {children}
-    </a>
+    </Link>
   );
 } 

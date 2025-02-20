@@ -1,10 +1,14 @@
-import { adminDb } from './firebase/admin';
 import { Subject } from '@/features/lessons/types';
 
 export async function fetchSubjects(): Promise<Subject[]> {
-  const snapshot = await adminDb.collection('subjects').get();
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data()
-  })) as Subject[];
+  try {
+    const response = await fetch('/api/subjects');
+    if (!response.ok) {
+      throw new Error('Failed to fetch subjects');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    return [];
+  }
 } 

@@ -1,41 +1,59 @@
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getAuth } from 'firebase-admin/auth';
-import { initializeApp, getApps } from 'firebase-admin/app';
 
-// Initialize Firebase Admin if not already initialized
-if (!getApps().length) {
-  initializeApp();
-}
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/profile',
+  '/lessons/meet',
+];
 
-const auth = getAuth();
+const PUBLIC_ROUTES = [
+  '/',
+  '/auth',
+  '/about',
+  '/contact',
+  '/privacy-policy',
+  '/terms-of-service',
+];
 
-export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('session')?.value || '';
-  const path = request.nextUrl.pathname;
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
-  // Public paths that don't require auth
-  const publicPaths = ['/auth', '/verify-email', '/', '/api/auth', '/lessons'];
-  
-  if (publicPaths.some(p => path.startsWith(p))) {
-    return NextResponse.next();
+  // Refresh session if expired
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // Protected routes
+  if (req.nextUrl.pathname.startsWith('/dashboard') ||
+      req.nextUrl.pathname.startsWith('/profile') ||
+      req.nextUrl.pathname.startsWith('/lessons/meet')) {
+    if (!session) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/auth';
+      redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
   }
 
-  try {
-    if (!token) throw new Error('No token');
-    await auth.verifySessionCookie(token, true);
-    return NextResponse.next();
-  } catch (error) {
-    const redirectUrl = new URL('/auth/login', request.url);
-    redirectUrl.searchParams.set('redirect', path);
-    return NextResponse.redirect(redirectUrl);
+  // Auth page redirect if user is already logged in
+  if (req.nextUrl.pathname === '/auth') {
+    if (session) {
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/dashboard';
+      return NextResponse.redirect(redirectUrl);
+    }
   }
+
+  return res;
 }
 
+// Ensure the middleware is run for auth routes
 export const config = {
   matcher: [
     '/dashboard/:path*',
     '/profile/:path*',
-    '/lessons/book/:path*',
-  ]
+    '/lessons/meet/:path*',
+    '/auth',
+  ],
 }; 

@@ -1,11 +1,12 @@
 import { db } from "@/lib/firebase/client";
 import { runTransaction, doc, getDoc } from "firebase/firestore";
-import { BookingData, TimeSlot } from "../types";
+import { BookingData, TimeSlot } from "../types/booking";
+import { LessonStatus } from "../types/shared";
 import { lessonsConfig } from "../config";
 
 export const bookingService = {
   async validateTimeSlot(teacherId: string, timeSlot: TimeSlot): Promise<boolean> {
-    const bookingDate = new Date(timeSlot);
+    const bookingDate = new Date(`${timeSlot.date}T${timeSlot.time}`);
     const now = new Date();
     
     // Check minimum notice period
@@ -48,7 +49,7 @@ export const bookingService = {
       transaction.update(lessonRef, {
         [`bookedTimes.${bookingData.timeSlot}`]: {
           studentId: bookingData.studentId,
-          status: 'pending',
+          status: 'pending' as LessonStatus,
           bookedAt: new Date().toISOString()
         }
       });

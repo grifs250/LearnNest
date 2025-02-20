@@ -17,6 +17,124 @@ export function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
-  // ... rest of the component code remains the same
-  // Just update imports and use the new hook
+  const handleStatusChange = async (bookingId: string, newStatus: BookingStatus) => {
+    try {
+      const batch = writeBatch(db);
+      const bookingRef = doc(db, 'bookings', bookingId);
+      batch.update(bookingRef, { status: newStatus });
+      await batch.commit();
+      await refreshBookings();
+      toast.success('Booking status updated successfully');
+    } catch (err) {
+      console.error('Error updating booking status:', err);
+      toast.error('Failed to update booking status');
+    }
+  };
+
+  if (loading) {
+    return <div className="loading loading-spinner loading-lg"></div>;
+  }
+
+  if (error) {
+    return <div className="text-error">Error loading bookings: {typeof error === 'string' ? error : 'Unknown error'}</div>;
+  }
+
+  const filteredBookings = bookings.filter(booking => booking.status === view);
+
+  return (
+    <div className="space-y-4">
+      <div className="tabs tabs-boxed">
+        <button 
+          className={`tab ${view === 'pending' ? 'tab-active' : ''}`}
+          onClick={() => setView('pending')}
+        >
+          Pending
+        </button>
+        <button 
+          className={`tab ${view === 'accepted' ? 'tab-active' : ''}`}
+          onClick={() => setView('accepted')}
+        >
+          Accepted
+        </button>
+        <button 
+          className={`tab ${view === 'paid' ? 'tab-active' : ''}`}
+          onClick={() => setView('paid')}
+        >
+          Paid
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {filteredBookings.length === 0 ? (
+          <p className="text-center text-gray-500">No {view} bookings found</p>
+        ) : (
+          filteredBookings.map((booking) => (
+            <div key={booking.id} className="card bg-base-200 shadow-xl">
+              <div className="card-body">
+                <div className="flex justify-between items-center">
+                  <h3 className="card-title">
+                    Booking from {booking.studentName}
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        if (booking.studentId) {
+                          setSelectedUserId(booking.studentId);
+                          setIsUserModalOpen(true);
+                        }
+                      }}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </h3>
+                  <div className="badge badge-primary">{booking.status}</div>
+                </div>
+                
+                <p>Date: {new Date(booking.date).toLocaleDateString()}</p>
+                <p>Time: {booking.time}</p>
+                <p>Subject: {booking.subject}</p>
+                
+                <div className="card-actions justify-end mt-4">
+                  {view === 'pending' && (
+                    <>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => handleStatusChange(booking.id, 'accepted')}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        className="btn btn-error"
+                        onClick={() => handleStatusChange(booking.id, 'rejected')}
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {view === 'accepted' && (
+                    <button
+                      className="btn btn-success"
+                      onClick={() => handleStatusChange(booking.id, 'paid')}
+                    >
+                      Mark as Paid
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {selectedUserId && (
+        <UserInfoModal
+          isOpen={isUserModalOpen}
+          onClose={() => {
+            setIsUserModalOpen(false);
+            setSelectedUserId(null);
+          }}
+          userId={selectedUserId}
+        />
+      )}
+    </div>
+  );
 } 

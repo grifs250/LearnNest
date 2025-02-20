@@ -1,229 +1,196 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase/client";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  sendEmailVerification, 
-} from "firebase/auth";
-import { FirebaseError } from 'firebase/app';
-import { doc, setDoc } from "firebase/firestore";
-import { toast } from "react-hot-toast";
-import { AuthMode, UserRole, AuthFormProps } from '../types';
-import { getAuthErrorMessage } from '../utils/auth-helpers';
-import { useAuth } from '../hooks/useAuth';
+import { useState } from 'react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useApiCall } from '@/features/shared/hooks/useApiCall';
+import { signIn, signUp } from '@/lib/api/auth';
+import { signInSchema, signUpSchema } from '../validations';
+import { AuthMode, SignInCredentials, SignUpCredentials } from '../types';
+import { LoadingSpinner } from '@/features/shared/components';
+import { errorTracker } from '@/features/monitoring/utils/error-tracking';
 
-export function AuthForm({ mode, initialRole, updateRole, updateMode }: Readonly<AuthFormProps>) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [isSignUp, setIsSignUp] = useState(mode !== "login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<UserRole>(initialRole);
-  const [error, setError] = useState("");
+interface AuthFormProps {
+  mode: AuthMode;
+  onSuccess?: () => void;
+}
 
-  useEffect(() => {
-    setRole(initialRole);
-    setIsSignUp(mode !== "login");
-  }, [initialRole, mode]);
+export function AuthForm({ mode, onSuccess }: AuthFormProps) {
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<'student' | 'teacher'>('student');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Add check for verified parameter
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('verified') === 'true') {
-      setError("E-pasts veiksmīgi apstiprināts! Lūdzu piesakieties.");
-    }
-  }, []);
+  const {
+    execute: handleAuth,
+    isLoading
+  } = useApiCall();
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (user && !loading) {
-      router.push('/profile');
-    }
-  }, [user, loading, router]);
+  const validateForm = () => {
+    const schema = mode === 'signIn' ? signInSchema : signUpSchema;
+    const data = mode === 'signIn'
+      ? { email, password }
+      : { email, password, fullName, role };
 
-  if (loading) return null;
+    const result = schema.safeParse(data);
 
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    try {
-      // Set language for Firebase Auth
-      auth.languageCode = 'lv';
-      
-      // Validate password length before attempting registration
-      if (password.length < 6) {
-        setError('Parolei jābūt vismaz 6 simbolus garai');
-        return;
-      }
-
-      // Add loading state
-      const loadingToast = toast.loading('Notiek reģistrācija...');
-      
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Create user document with pending status
-      await setDoc(doc(db, "users", userCred.user.uid), {
-        displayName,
-        email,
-        isTeacher: role === "pasniedzējs",
-        emailVerified: false,
-        status: 'pending',
-        createdAt: new Date()
-      }).catch((error) => {
-        console.error('Firestore error:', error);
-        throw new Error('Kļūda saglabājot lietotāja datus');
+    if (!result.success) {
+      const formErrors: Record<string, string> = {};
+      result.error.errors.forEach(error => {
+        formErrors[error.path[0]] = error.message;
       });
-
-      // Send verification email
-      await sendEmailVerification(userCred.user, {
-        url: `${window.location.origin}/auth/action?redirect=profile`,
-        handleCodeInApp: true
-      }).catch((error) => {
-        console.error('Verification email error:', error);
-        throw new Error('Kļūda nosūtot verifikācijas e-pastu');
-      });
-
-      toast.dismiss(loadingToast);
-      toast.success('Reģistrācija veiksmīga!');
-      router.push("/verify-email");
-    } catch (err) {
-      console.error('Registration error:', err);
-      
-      if (err instanceof FirebaseError) {
-        setError(getAuthErrorMessage(err.code));
-      } else {
-        setError('Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz');
-      }
+      setErrors(formErrors);
+      return false;
     }
-  }
 
-  async function handleSignIn(e: React.FormEvent) {
+    setErrors({});
+    return true;
+  };
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    if (isLoading) return;
+
+    if (!validateForm()) return;
+
     try {
-      const userCred = await signInWithEmailAndPassword(auth, email, password);
-      
-      if (!userCred.user.emailVerified) {
-        await sendEmailVerification(userCred.user, {
-          url: `${window.location.origin}/auth/action`,
-        });
-        router.push("/verify-email");
-        return;
-      }
-      
-      router.push("/profile");
-    } catch (err) {
-      // Don't log to console in production
-      if (err instanceof FirebaseError) {
-        setError(getAuthErrorMessage(err.code));
+      if (mode === 'signIn') {
+        const credentials: SignInCredentials = { email, password };
+        await handleAuth(
+          () => signIn(credentials),
+          {
+            successMessage: 'Signed in successfully',
+            errorMessage: 'Failed to sign in'
+          }
+        );
       } else {
-        setError('Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz');
+        const credentials: SignUpCredentials = { email, password, fullName, role };
+        await handleAuth(
+          () => signUp(credentials),
+          {
+            successMessage: 'Account created successfully',
+            errorMessage: 'Failed to create account'
+          }
+        );
       }
+
+      onSuccess?.();
+    } catch (error) {
+      errorTracker.captureError(error as Error, {
+        action: mode === 'signIn' ? 'sign_in' : 'sign_up',
+        metadata: { email }
+      });
     }
-  }
-
-  // Function to toggle login/signup mode
-  function toggleMode() {
-    const newMode: AuthMode = isSignUp ? "login" : "signup";
-    setIsSignUp(!isSignUp);
-    updateMode(newMode);
-  }
-
-  // Function to handle role change
-  function handleRoleChange(newRole: UserRole) {
-    setRole(newRole);
-    updateRole(newRole);
-  }
-
-  // Dynamic Background & Button Colors
-  const bgColor = isSignUp ? (role === "pasniedzējs" ? "bg-orange-200" : "bg-green-200") : "bg-gray-100";
-  const buttonColor = isSignUp ? (role === "pasniedzējs" ? "btn-secondary" : "btn-accent") : "btn-neutral";
-
-  // Use error helper
-  function handleError(err: FirebaseError) {
-    setError(getAuthErrorMessage(err.code));
-  }
+  };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${bgColor}`}>
-      <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="card bg-white shadow-xl p-6 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-4 text-center">{isSignUp ? "Reģistrēties" : "Pieslēgties"}</h1>
+    <form onSubmit={onSubmit} className="space-y-6">
+      {mode === 'signUp' && (
+        <div>
+          <label
+            htmlFor="fullName"
+            className="block text-sm font-medium text-gray-700"
+          >
+            Full Name
+          </label>
+          <input
+            id="fullName"
+            type="text"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
+          />
+          {errors.fullName && (
+            <p className="mt-1 text-sm text-red-600">{errors.fullName}</p>
+          )}
+        </div>
+      )}
 
-        {error && <p className="text-red-500">{error}</p>}
-
-        {isSignUp && (
-          <>
-            <div className="form-control mb-4">
-              <label className="label font-semibold">Vārds</label>
-              <input
-                type="text"
-                className="input input-bordered"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Role Selection */}
-            <div className="form-control mb-4">
-              <label className="label font-semibold">Loma</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`btn w-1/2 ${role === "skolēns" ? "btn-accent" : "btn-outline"}`}
-                  onClick={() => handleRoleChange("skolēns")}
-                >
-                  Skolēns
-                </button>
-                <button
-                  type="button"
-                  className={`btn w-1/2 ${role === "pasniedzējs" ? "btn-secondary" : "btn-outline"}`}
-                  onClick={() => handleRoleChange("pasniedzējs")}
-                >
-                  Pasniedzējs
-                </button>
-              </div>
-            </div>
-          </>
+      <div>
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Email
+        </label>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
+        />
+        {errors.email && (
+          <p className="mt-1 text-sm text-red-600">{errors.email}</p>
         )}
+      </div>
 
-        <div className="form-control mb-4">
-          <label className="label font-semibold">E-pasts</label>
-          <input
-            type="email"
-            className="input input-bordered"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+      <div>
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Password
+        </label>
+        <input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
+        />
+        {errors.password && (
+          <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+        )}
+      </div>
+
+      {mode === 'signUp' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            I want to
+          </label>
+          <div className="mt-1 space-x-4">
+            <label className="inline-flex items-center">
+              <input
+                type="radio"
+                value="student"
+                checked={role === 'student'}
+                onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}
+                className="form-radio text-primary focus:ring-primary"
+              />
+              <span className="ml-2">Learn</span>
+            </label>
+            <label className="inline-flex items-center">
+              <input
+                type="radio"
+                value="teacher"
+                checked={role === 'teacher'}
+                onChange={(e) => setRole(e.target.value as 'student' | 'teacher')}
+                className="form-radio text-primary focus:ring-primary"
+              />
+              <span className="ml-2">Teach</span>
+            </label>
+          </div>
+          {errors.role && (
+            <p className="mt-1 text-sm text-red-600">{errors.role}</p>
+          )}
         </div>
+      )}
 
-        <div className="form-control mb-4">
-          <label className="label font-semibold">Parole</label>
-          <input
-            type="password"
-            className="input input-bordered"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-
-        <button type="submit" className={`btn w-full ${buttonColor}`}>
-          {isSignUp ? "Reģistrēties" : "Pieslēgties"}
-        </button>
-
-        <p className="mt-4 text-center">
-          {isSignUp ? "Jau ir konts?" : "Nav konta?"}{" "}
-          <button type="button" className="text-blue-500 underline" onClick={toggleMode}>
-            {isSignUp ? "Pieslēgties" : "Reģistrēties"}
-          </button>
-        </p>
-      </form>
-    </div>
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+      >
+        {isLoading ? (
+          <LoadingSpinner size="sm" />
+        ) : mode === 'signIn' ? (
+          'Sign In'
+        ) : (
+          'Create Account'
+        )}
+      </button>
+    </form>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import React from 'react';
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
@@ -11,15 +11,10 @@ interface AuthLayoutProps {
   readonly children: React.ReactNode;
 }
 
-export const metadata = {
-  title: 'Authentication',
-  description: 'Login or register to access your account'
-};
-
 export default function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       // If user is already authenticated and verified, redirect to dashboard
       if (user?.emailVerified) {
@@ -34,8 +29,8 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <Suspense fallback={<AuthLoading />}>
-      <div className="min-h-screen flex items-center justify-center">
-        {children}
+      <div className="min-h-screen flex items-center justify-center bg-base-200 p-4">
+        <div className="max-w-md w-full">{children}</div>
       </div>
     </Suspense>
   );

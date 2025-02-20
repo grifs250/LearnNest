@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth, db } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
-import SmoothScrollLink from "@/components/SmoothScrollLink";
+import SmoothScrollLink from "@/shared/components/ui/SmoothScrollLink";
 import { Menu, X, User as UserIcon } from "lucide-react";
 
 export default function Navbar() {

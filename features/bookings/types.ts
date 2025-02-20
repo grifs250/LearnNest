@@ -17,7 +17,7 @@ export interface BookingAction {
 }
 
 /** Status of a booking */
-export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
+export type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'paid';
 
 /** Represents a booked lesson with its details */
 export interface BookedLesson {
@@ -39,7 +39,7 @@ export interface BookedLesson {
 
 /** Props for student bookings component */
 export interface StudentBookingsProps {
-  readonly userId: string;
+  userId: string;
 }
 
 export interface BookingRequest {
@@ -59,7 +59,7 @@ export interface BookingRequest {
 }
 
 export interface TeacherBookingsProps {
-  readonly teacherId: string;
+  teacherId: string;
 }
 
 export interface BookedTimeData {
@@ -73,4 +73,17 @@ export interface LessonData {
   bookedTimes: {
     [timeSlot: string]: BookedTimeData;
   };
+}
+
+export interface Booking {
+  id: string;
+  studentId: string;
+  teacherId: string;
+  lessonId: string;
+  subject: string;
+  teacherName: string;
+  studentName: string;
+  date: string;
+  time: string;
+  status: BookingStatus;
 } 

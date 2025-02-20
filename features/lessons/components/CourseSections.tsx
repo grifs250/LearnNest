@@ -4,9 +4,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { Category, CourseSectionsProps } from "../types";
+import { Category } from "../types/category";
 import { useAvailableLessons } from "../hooks";
-import { CATEGORY_NAMES } from "../constants";
+
+interface CourseSectionsProps {
+  categories: Category[];
+}
+
+const CATEGORY_NAMES: Record<string, string> = {
+  languages: "Valodas",
+  sciences: "Zinātnes",
+  arts: "Māksla",
+  music: "Mūzika",
+  sports: "Sports",
+  other: "Citi priekšmeti"
+};
 
 export function CourseSections({ categories }: CourseSectionsProps) {
   const { availableSubjects, isLoading } = useAvailableLessons();
@@ -15,6 +27,14 @@ export function CourseSections({ categories }: CourseSectionsProps) {
     return (
       <div className="py-16 px-8 flex justify-center">
         <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    );
+  }
+
+  if (!categories?.length) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Nav pieejamu kategoriju</p>
       </div>
     );
   }

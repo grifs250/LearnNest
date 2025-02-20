@@ -1,4 +1,4 @@
-export * from './Button';
-export * from './Input';
-export * from './Modal';
-export * from './SmoothScrollLink'; 
+export { Button } from './Button';
+export { Input } from './Input';
+export { Modal } from './Modal';
+export { default as SmoothScrollLink } from './SmoothScrollLink'; 

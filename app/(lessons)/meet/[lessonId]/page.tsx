@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { db, auth } from '@/lib/firebaseClient';
+import { auth, db } from '@/lib/firebase/client';
 import { doc, getDoc } from 'firebase/firestore';
 
 export default function LessonMeetPage() {
