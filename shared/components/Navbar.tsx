@@ -50,11 +50,12 @@ export default function Navbar() {
     return () => unsubscribe();
   }, []);
 
-  const profileButtonClass = isTeacher === null 
-    ? "btn-neutral" 
-    : isTeacher 
-      ? "btn-secondary" 
-      : "btn-accent";
+  const getProfileButtonClass = () => {
+    if (isTeacher === null) return "btn-neutral";
+    return isTeacher ? "btn-secondary" : "btn-accent";
+  };
+
+  const profileButtonClass = getProfileButtonClass();
 
   const navItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },

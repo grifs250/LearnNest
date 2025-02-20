@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebase/client";
 import { 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 

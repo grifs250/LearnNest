@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import AuthForm from "./AuthForm";
+import AuthForm from "../../features/auth/components/AuthForm";
 
 export default function AuthWrapper() {
   return (
