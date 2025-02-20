@@ -2,24 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebaseClient';
+import { db } from '@/lib/firebase/client';
+import { UserInfo, UserInfoModalProps } from '@/shared/types/user';
+import { toast } from 'react-hot-toast';
 
-interface UserInfoModalProps {
-  userId: string;
-  isOpen: boolean;
-  onClose: () => void;
-}
-
-interface UserInfo {
-  displayName: string;
-  email: string;
-  description?: string;
-  isTeacher: boolean;
-  status: string;
-  createdAt: string;
-}
-
-export default function UserInfoModal({ userId, isOpen, onClose }: UserInfoModalProps) {
+export function UserInfoModal({ userId, isOpen, onClose }: UserInfoModalProps) {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +15,7 @@ export default function UserInfoModal({ userId, isOpen, onClose }: UserInfoModal
       if (!userId) return;
       
       try {
+        setLoading(true);
         const userDoc = await getDoc(doc(db, "users", userId));
         if (userDoc.exists()) {
           setUserInfo({
@@ -41,6 +29,7 @@ export default function UserInfoModal({ userId, isOpen, onClose }: UserInfoModal
         }
       } catch (error) {
         console.error("Error fetching user info:", error);
+        toast.error("Neizdevās ielādēt lietotāja informāciju");
       } finally {
         setLoading(false);
       }

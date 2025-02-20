@@ -2,14 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseClient";
+import { auth, db } from "@/lib/firebase/client";
 import { onAuthStateChanged, signOut, updateProfile, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, writeBatch } from "firebase/firestore";
-import WorkSchedule from "@/components/WorkSchedule"; 
-import TeacherBookings from "@/components/TeacherBookings";
-import StudentBookings from "@/components/StudentBookings";
-import CreateLessonModal from "@/components/CreateLessonModal";
-import EditLessonModal from "@/components/EditLessonModal";
+import { WorkSchedule } from "@/features/schedule/components";
+import { TeacherBookings } from "@/features/bookings/components";
+import { StudentBookings } from "@/features/bookings/components";
+import { CreateLessonModal, EditLessonModal } from "@/features/lessons/components";
 import { Lesson } from "@/types/lesson";
 import { FirebaseError } from "firebase/app";
 import { LogOut, Save, Settings2, Trash2 } from "lucide-react";

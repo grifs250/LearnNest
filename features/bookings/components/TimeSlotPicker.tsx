@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { db } from "@/lib/firebaseClient";
+import { db } from "@/lib/firebase/client";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { WorkHours, BookedTimeData, TimeRange } from '@/types/lesson';
+import { WorkHours, TimeRange } from '@/features/schedule/types';
+import { BookedTimeData } from '@/features/bookings/types';
 
 interface TimeSlotPickerProps {
   readonly workHours: WorkHours;

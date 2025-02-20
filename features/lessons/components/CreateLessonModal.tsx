@@ -1,5 +1,7 @@
 "use client";
-import LessonForm from "@/components/LessonForm";
+
+import { LessonForm } from "@/features/lessons/components";
+import { toast } from "react-hot-toast";
 
 interface CreateLessonModalProps {
   isOpen: boolean;
@@ -7,17 +9,24 @@ interface CreateLessonModalProps {
   onLessonCreated: () => void;
 }
 
-export default function CreateLessonModal({ isOpen, onClose, onLessonCreated }: CreateLessonModalProps) {
+export function CreateLessonModal({ 
+  isOpen, 
+  onClose, 
+  onLessonCreated 
+}: CreateLessonModalProps) {
   if (!isOpen) return null;
+
+  const handleSuccess = () => {
+    onLessonCreated();
+    onClose();
+    toast.success("Nodarbība izveidota veiksmīgi!");
+  };
 
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-2xl">
         <h3 className="font-bold text-lg mb-4">Izveidot jaunu nodarbību</h3>
-        <LessonForm onLessonCreated={() => {
-          onLessonCreated();
-          onClose();
-        }} />
+        <LessonForm onLessonCreated={handleSuccess} />
         <div className="modal-action">
           <button className="btn" onClick={onClose}>Aizvērt</button>
         </div>

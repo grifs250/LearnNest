@@ -1,8 +1,10 @@
 "use client";
+
 import { useState, useEffect } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebaseClient';
-import { Lesson } from '@/types/lesson';
+import { db } from '@/lib/firebase/client';
+import { toast } from 'react-hot-toast';
+import { Lesson } from '@/features/lessons/types';
 
 interface EditLessonModalProps {
   readonly lesson: Lesson | null;
@@ -11,7 +13,12 @@ interface EditLessonModalProps {
   readonly onLessonUpdated: () => void;
 }
 
-export default function EditLessonModal({ lesson, isOpen, onClose, onLessonUpdated }: EditLessonModalProps) {
+export function EditLessonModal({ 
+  lesson, 
+  isOpen, 
+  onClose, 
+  onLessonUpdated 
+}: EditLessonModalProps) {
   const [description, setDescription] = useState(lesson?.description ?? '');
   const [saving, setSaving] = useState(false);
 
@@ -41,9 +48,10 @@ export default function EditLessonModal({ lesson, isOpen, onClose, onLessonUpdat
       
       onLessonUpdated();
       onClose();
+      toast.success("Nodarbība atjaunināta veiksmīgi!");
     } catch (error) {
       console.error("Error updating lesson:", error);
-      alert("Failed to update lesson");
+      toast.error("Neizdevās atjaunināt nodarbību");
     } finally {
       setSaving(false);
     }
@@ -68,11 +76,27 @@ export default function EditLessonModal({ lesson, isOpen, onClose, onLessonUpdat
             />
           </div>
           <div className="modal-action">
-            <button type="button" className="btn" onClick={onClose}>
+            <button 
+              type="button" 
+              className="btn" 
+              onClick={onClose}
+              disabled={saving}
+            >
               Atcelt
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Saglabā..." : "Saglabāt"}
+            <button 
+              type="submit" 
+              className="btn btn-primary" 
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <span className="loading loading-spinner loading-sm"></span>
+                  Saglabā...
+                </>
+              ) : (
+                "Saglabāt"
+              )}
             </button>
           </div>
         </form>

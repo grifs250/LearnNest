@@ -1,5 +1,11 @@
-import AuthWrapper from "./AuthWrapper";
+import { Suspense } from "react";
+import { AuthWrapper } from "@/features/auth/components";
+import AuthLoading from "./loading";
 
 export default function AuthPage() {
-  return <AuthWrapper />;
+  return (
+    <Suspense fallback={<AuthLoading />}>
+      <AuthWrapper />
+    </Suspense>
+  );
 }

@@ -2,13 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { applyActionCode, signInWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "@/lib/firebaseClient";
-import { FirebaseError } from "firebase/app";
+import { applyActionCode } from "firebase/auth";
+import { auth, db } from "@/lib/firebase/client";
 import { doc, updateDoc } from "firebase/firestore";
-import { Suspense } from "react";
 
-function ActionContent() {
+export function EmailVerification() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -20,10 +18,8 @@ function ActionContent() {
     async function verifyEmail() {
       if (mode === 'verifyEmail' && oobCode) {
         try {
-          // Verify the email
           await applyActionCode(auth, oobCode);
-
-          // Update Firestore if user is authenticated
+          
           if (auth.currentUser) {
             await updateDoc(doc(db, "users", auth.currentUser.uid), {
               emailVerified: true,
@@ -32,7 +28,6 @@ function ActionContent() {
             });
           }
 
-          // Force reload user
           await auth.currentUser?.reload();
 
           if (redirect === 'profile') {
@@ -59,13 +54,5 @@ function ActionContent() {
         <p className="text-lg">E-pasts tiek apstiprināts...</p>
       </div>
     </div>
-  );
-}
-
-export default function ActionPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ActionContent />
-    </Suspense>
   );
 } 

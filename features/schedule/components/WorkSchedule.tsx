@@ -1,33 +1,46 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db, auth } from "@/lib/firebaseClient";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { WorkHours, TimeRange, } from "@/types/lesson";
+import { auth } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { WorkScheduleProps, TimeSlotRowProps, WorkHours, TimeRange, DAYS } from "../types";
+import { saveSchedule } from "../utils/scheduleHelpers";
+import { toast } from "react-hot-toast";
 
-const DAYS = [
-  { id: 0, name: 'Svētdiena' },
-  { id: 1, name: 'Pirmdiena' },
-  { id: 2, name: 'Otrdiena' },
-  { id: 3, name: 'Trešdiena' },
-  { id: 4, name: 'Ceturtdiena' },
-  { id: 5, name: 'Piektdiena' },
-  { id: 6, name: 'Sestdiena' }
-];
-
-interface WorkScheduleProps {
-  readonly initialWorkHours?: WorkHours;
+function TimeSlotRow({ slot, dayId, index, canDelete, onTimeChange, onRemove }: TimeSlotRowProps) {
+  return (
+    <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        <span>No:</span>
+        <input
+          type="time"
+          value={slot.start}
+          onChange={(e) => onTimeChange(dayId, index, 'start', e.target.value)}
+          className="input input-bordered input-sm"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <span>Līdz:</span>
+        <input
+          type="time"
+          value={slot.end}
+          onChange={(e) => onTimeChange(dayId, index, 'end', e.target.value)}
+          className="input input-bordered input-sm"
+        />
+      </div>
+      {canDelete && (
+        <button
+          onClick={() => onRemove(dayId, index)}
+          className="btn btn-sm btn-error"
+        >
+          Dzēst
+        </button>
+      )}
+    </div>
+  );
 }
 
-async function saveSchedule(schedule: WorkHours, userId: string): Promise<void> {
-  console.log('Saving schedule:', schedule);
-  
-  await updateDoc(doc(db, "users", userId), {
-    workHours: schedule
-  });
-}
-
-export default function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {}) {
+export function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {}) {
   const [schedule, setSchedule] = useState<WorkHours>(() => {
     const defaultSchedule: WorkHours = {};
     DAYS.forEach(day => {
@@ -46,11 +59,16 @@ export default function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {
       const user = auth.currentUser;
       if (!user) return;
 
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists() && docSnap.data().workHours) {
-        setSchedule(docSnap.data().workHours);
+      try {
+        const docRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(docRef);
+        
+        if (docSnap.exists() && docSnap.data().workHours) {
+          setSchedule(docSnap.data().workHours);
+        }
+      } catch (error) {
+        console.error("Error loading schedule:", error);
+        toast.error("Neizdevās ielādēt grafiku");
       }
     }
     loadSchedule();
@@ -100,17 +118,21 @@ export default function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {
 
   const handleSave = async () => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) {
+      toast.error("Nav pieejams lietotājs");
+      return;
+    }
 
     setSaving(true);
     try {
       await saveSchedule(schedule, user.uid);
-      alert("Darba grafiks saglabāts!");
+      toast.success("Darba grafiks saglabāts!");
     } catch (error) {
       console.error("Error saving schedule:", error);
-      alert("Kļūda saglabājot grafiku");
+      toast.error("Kļūda saglabājot grafiku");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   return (
@@ -163,71 +185,15 @@ export default function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {
         disabled={saving}
         className="btn btn-primary w-full"
       >
-        {saving ? "Saglabā..." : "Saglabāt grafiku"}
+        {saving ? (
+          <>
+            <span className="loading loading-spinner loading-sm"></span>
+            Saglabā...
+          </>
+        ) : (
+          "Saglabāt grafiku"
+        )}
       </button>
     </div>
   );
-}
-
-interface TimeSlotRowProps {
-  readonly slot: TimeRange;
-  readonly dayId: number;
-  readonly index: number;
-  readonly canDelete: boolean;
-  readonly onTimeChange: (dayId: number, index: number, field: keyof TimeRange, value: string) => void;
-  readonly onRemove: (dayId: number, index: number) => void;
-}
-
-function TimeSlotRow({ slot, dayId, index, canDelete, onTimeChange, onRemove }: TimeSlotRowProps) {
-  return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <span>No:</span>
-        <input
-          type="time"
-          value={slot.start}
-          onChange={(e) => onTimeChange(dayId, index, 'start', e.target.value)}
-          className="input input-bordered input-sm"
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <span>Līdz:</span>
-        <input
-          type="time"
-          value={slot.end}
-          onChange={(e) => onTimeChange(dayId, index, 'end', e.target.value)}
-          className="input input-bordered input-sm"
-        />
-      </div>
-      {canDelete && (
-        <button
-          onClick={() => onRemove(dayId, index)}
-          className="btn btn-sm btn-error"
-        >
-          Dzēst
-        </button>
-      )}
-    </div>
-  );
-}
-
-// Helper function to get next 4 weeks of dates for a given day
-function getNextFourWeeksDates(dayId: string): string[] {
-  const targetDay = parseInt(dayId, 10); // Convert string ID to number
-  if (isNaN(targetDay) || targetDay < 0 || targetDay > 6) return [];
-  
-  const today = new Date();
-  const dates: string[] = [];
-
-  // Find the next occurrence of the target day
-  let date = new Date(today);
-  date.setDate(date.getDate() + (targetDay + 7 - date.getDay()) % 7);
-
-  // Get 4 weeks of dates
-  for (let i = 0; i < 4; i++) {
-    dates.push(date.toISOString().split('T')[0]);
-    date.setDate(date.getDate() + 7);
-  }
-
-  return dates;
-}
+} 

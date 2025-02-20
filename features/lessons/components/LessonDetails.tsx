@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { db, auth } from "@/lib/firebaseClient";
+import { db, auth } from "@/lib/firebase/client";
 import { doc, getDoc, runTransaction } from "firebase/firestore";
-import TimeSlotPicker from "@/components/TimeSlotPicker";
+import { TimeSlotPicker } from "@/features/bookings/components";
 import { Lesson, Teacher, WorkHours, BookingData, TimeRange, BookedTimeData } from "@/types/lesson";
 
 interface TeacherData {

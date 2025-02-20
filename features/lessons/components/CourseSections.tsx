@@ -1,45 +1,22 @@
 "use client";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebaseClient";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { Category, CourseSectionsProps, CATEGORY_NAMES } from "@/features/lessons/types";
+import { useAvailableLessons } from "@/features/lessons/hooks";
 
-type Subject = {
-  id: string;
-  name: string;
-  categoryId: string;
-};
+export function CourseSections({ categories }: CourseSectionsProps) {
+  const { availableSubjects, isLoading } = useAvailableLessons();
 
-type Category = {
-  id: string;
-  name: string;
-  subjects: Subject[];
-};
-
-interface CourseSectionsProps {
-  readonly categories: Category[];
-}
-
-const CATEGORY_NAMES: Record<string, string> = {
-  'subjects': 'Mācību priekšmeti',
-  'languages': 'Valodu kursi',
-  'itCourses': 'IT kursi'
-};
-
-export default function CourseSections({ categories }: CourseSectionsProps) {
-  const [subjectsWithLessons, setSubjectsWithLessons] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const lessonsRef = collection(db, "lessons");
-    const unsubscribe = onSnapshot(lessonsRef, (snapshot) => {
-      const subjectsWithLessonsSet = new Set(
-        snapshot.docs.map(doc => doc.data().subjectId)
-      );
-      setSubjectsWithLessons(subjectsWithLessonsSet);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="py-16 px-8 flex justify-center">
+        <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="py-16 px-8 space-y-16">
@@ -50,7 +27,7 @@ export default function CourseSections({ categories }: CourseSectionsProps) {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {category.subjects.map((subject) => (
-              subjectsWithLessons.has(subject.id) ? (
+              availableSubjects.has(subject.id) ? (
                 <Link 
                   key={subject.id} 
                   href={`/lessons/${category.id}/${subject.id}`} 
@@ -84,4 +61,4 @@ export default function CourseSections({ categories }: CourseSectionsProps) {
       ))}
     </div>
   );
-}
+} 

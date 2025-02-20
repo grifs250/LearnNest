@@ -23,11 +23,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@features/*": ["./src/features/*"],
-      "@shared/*": ["./src/shared/*"],
-      "@lib/*": ["./src/lib/*"],
-      "@types/*": ["./src/types/*"]
+      "@/*": ["./*"],
+      "@features/*": ["./features/*"],
+      "@lib/*": ["./lib/*"]
     },
     "forceConsistentCasingInFileNames": true
   },
