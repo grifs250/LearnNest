@@ -14,11 +14,11 @@ export interface User {
   role: UserRole;
   createdAt: string;
   updatedAt: string;
-  profile?: UserProfile;
+  profile?: Profile;
   metadata?: Record<string, any>;
 }
 
-export interface UserProfile extends Metadata {
+export interface Profile extends Metadata {
   id: string;
   userId: string;
   fullName: string;
@@ -34,7 +34,7 @@ export interface UserProfile extends Metadata {
 // Auth state
 export interface AuthState {
   user: User | null;
-  profile: UserProfile | null;
+  profile: Profile | null;
   isLoading: boolean;
   isAuthenticated: boolean;
 }
@@ -78,7 +78,4 @@ export interface AuthSession {
   refreshToken: string;
   expiresAt: number;
   user: User;
-}
-
-// Re-export all types from auth.ts
-export * from './auth'; 
+} 
