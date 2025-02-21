@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS subjects (
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT valid_slug CHECK (slug ~* '^[a-z0-9-]+$')
+  CONSTRAINT valid_slug CHECK (slug ~* '^[a-z0-9-]+$'),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL
 );
 
 -- Create teacher_subjects table (many-to-many)
@@ -156,6 +157,21 @@ CREATE TABLE IF NOT EXISTS notifications (
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create categories table
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default categories
+INSERT INTO categories (id, name, description) VALUES
+  (uuid_generate_v4(), 'Mācību priekšmeti', 'Various subjects for learning'),
+  (uuid_generate_v4(), 'Valodas', 'Language courses'),
+  (uuid_generate_v4(), 'IT kursi', 'Information Technology courses');
 
 -- Additional indexes for better query performance
 DO $$ BEGIN

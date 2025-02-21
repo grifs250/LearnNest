@@ -2,13 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from "@/lib/firebase/client";
-import { writeBatch, doc } from "firebase/firestore";
-import { TeacherBookingsProps, BookingStatus } from "../types";
 import { useTeacherBookings } from "../hooks/useTeacherBookings";
-import { UserInfoModal } from "@/shared/components";
+import { UserInfoModal } from '@/features/shared/components/UserInfoModal';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from "react-hot-toast";
+import { updateBooking } from '@/lib/supabase/db';
+import { TeacherBookingsProps, BookingStatus } from "../types";
 
 export function TeacherBookings({ teacherId }: TeacherBookingsProps) {
   const router = useRouter();
@@ -19,10 +18,7 @@ export function TeacherBookings({ teacherId }: TeacherBookingsProps) {
 
   const handleStatusChange = async (bookingId: string, newStatus: BookingStatus) => {
     try {
-      const batch = writeBatch(db);
-      const bookingRef = doc(db, 'bookings', bookingId);
-      batch.update(bookingRef, { status: newStatus });
-      await batch.commit();
+      await updateBooking(bookingId, { status: newStatus });
       await refreshBookings();
       toast.success('Booking status updated successfully');
     } catch (err) {

@@ -2,12 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from "@/lib/firebase/client";
-import { writeBatch, doc } from "firebase/firestore";
 import { StudentBookingsProps, BookingStatus } from "../types";
 import { useStudentBookings } from "../hooks/useStudentBookings";
-import { Button } from "@/shared/components/ui";
 import { toast } from "react-hot-toast";
+import { updateBooking } from '@/lib/supabase/db';
 
 export function StudentBookings({ userId }: StudentBookingsProps) {
   const router = useRouter();
@@ -16,10 +14,7 @@ export function StudentBookings({ userId }: StudentBookingsProps) {
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const batch = writeBatch(db);
-      const bookingRef = doc(db, 'bookings', bookingId);
-      batch.update(bookingRef, { status: 'cancelled' as BookingStatus });
-      await batch.commit();
+      await updateBooking(bookingId, { status: 'cancelled' });
       await refreshBookings();
       toast.success('Booking cancelled successfully');
     } catch (err) {
@@ -79,19 +74,19 @@ export function StudentBookings({ userId }: StudentBookingsProps) {
                 
                 {view === 'upcoming' && booking.status !== 'cancelled' && (
                   <div className="card-actions justify-end mt-4">
-                    <Button
-                      variant="error"
+                    <button
+                      className="btn btn-error"
                       onClick={() => handleCancelBooking(booking.id)}
                     >
                       Cancel Booking
-                    </Button>
+                    </button>
                     {booking.status === 'accepted' && (
-                      <Button
-                        variant="primary"
+                      <button
+                        className="btn btn-primary"
                         onClick={() => router.push(`/lessons/meet/${booking.lessonId}`)}
                       >
                         Join Lesson
-                      </Button>
+                      </button>
                     )}
                   </div>
                 )}

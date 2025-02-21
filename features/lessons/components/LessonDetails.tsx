@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { db, auth } from "@/lib/firebase/client";
-import { doc, getDoc, runTransaction } from "firebase/firestore";
+import { supabase } from "@/lib/supabase/db";
 import { TimeSlotPicker } from "@/features/bookings/components";
 import { Lesson, Teacher, WorkHours, BookingData, TimeRange, BookedTimeData } from "@/types/lesson";
 
@@ -33,23 +32,23 @@ interface LessonDetailsProps {
 }
 
 async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: Lesson; teacherData: TeacherData}> {
-  const lessonRef = doc(db, "lessons", lessonId);
-  const lessonSnap = await getDoc(lessonRef);
-  
-  if (!lessonSnap.exists()) {
-    throw new Error("Lesson not found");
-  }
+  const { data, error } = await supabase
+    .from('lessons')
+    .select('*')
+    .eq('id', lessonId)
+    .single();
 
-  const lessonData = lessonSnap.data();
-  const teacherRef = doc(db, "users", lessonData.teacherId);
-  const teacherSnap = await getDoc(teacherRef);
-  
-  if (!teacherSnap.exists()) {
-    throw new Error("Teacher not found");
-  }
+  if (error) throw error;
 
-  const teacherData = teacherSnap.data() as TeacherData;
-  const rawWorkHours = Object.entries(teacherData?.workHours ?? {}).reduce((acc, [key, value]: [string, any]) => ({
+  const teacherRef = supabase
+    .from('users')
+    .select('*')
+    .eq('id', data.teacherId)
+    .single();
+
+  const teacherData = await teacherRef;
+
+  const rawWorkHours = Object.entries(teacherData?.data?.workHours ?? {}).reduce((acc, [key, value]: [string, any]) => ({
     ...acc,
     [key]: { timeSlots: value.timeSlots }
   }), {} as { [key: string]: { timeSlots: TimeRange | TimeRange[] } });
@@ -70,20 +69,20 @@ async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: Lesson;
 
   return {
     lesson: {
-      id: lessonSnap.id,
-      subject: lessonData.subject,
-      subjectId: lessonData.subjectId,
-      description: lessonData.description,
-      teacherId: lessonData.teacherId,
-      teacherName: lessonData.teacherName,
-      lessonLength: lessonData.lessonLength,
-      bookedTimes: lessonData.bookedTimes ?? {},
-      availableTimes: lessonData.availableTimes ?? [],
-      category: lessonData.category,
-      price: lessonData.price ?? 0
+      id: data.id,
+      subject: data.subject,
+      subjectId: data.subjectId,
+      description: data.description,
+      teacherId: data.teacherId,
+      teacherName: data.teacherName,
+      lessonLength: data.lessonLength,
+      bookedTimes: data.bookedTimes ?? {},
+      availableTimes: data.availableTimes ?? [],
+      category: data.category,
+      price: data.price ?? 0
     } as Lesson,
     teacherData: {
-      ...teacherData,
+      ...teacherData.data,
       workHours: formattedWorkHours
     }
   };
@@ -95,87 +94,36 @@ async function createBooking(
   userData: { displayName?: string } | undefined, 
   oldTimeSlot: string | null = null
 ): Promise<void> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error("No authenticated user");
+  const { data, error } = await supabase.auth.getUser();
+  const user = data.user;
+  if (error || !user) throw new Error("No authenticated user");
 
-  await runTransaction(db, async (transaction) => {
-    // 1. Get fresh teacher data
-    const teacherRef = doc(db, "users", lesson.teacherId);
-    const teacherDoc = await transaction.get(teacherRef);
-    const teacherData = teacherDoc.data();
+  const bookingData: BookingData = {
+    lessonId: lesson.id,
+    subject: lesson.subject,
+    teacherId: lesson.teacherId,
+    teacherName: lesson.teacherName,
+    studentId: user.id,
+    studentName: userData?.displayName ?? 'Unknown Student',
+    timeSlot,
+    status: 'pending',
+    bookedAt: new Date().toISOString(),
+    lessonLength: lesson.lessonLength,
+    price: lesson.price,
+    category: lesson.category,
+    subjectId: lesson.subjectId,
+    id: '',
+    date: '',
+    time: ''
+  };
 
-    // 2. Check if timeSlot is within teacher's work hours
-    const bookingDate = new Date(timeSlot);
-    const dayOfWeek = bookingDate.getDay();
-    const bookingTime = bookingDate.toTimeString().slice(0, 5);
-    const daySchedule = teacherData?.workHours?.[dayOfWeek];
-    const isWithinWorkHours = daySchedule?.enabled && daySchedule?.timeSlots.some((timeRange: TimeRange) => 
-      bookingTime >= timeRange.start && 
-      bookingTime <= timeRange.end
-    );
+  const { data: bookingInsertData, error: bookingInsertError } = await supabase
+    .from('bookings')
+    .insert([bookingData])
+    .eq('lessonId', lesson.id)
+    .eq('timeSlot', timeSlot);
 
-    if (!isWithinWorkHours) {
-      throw new Error("Selected time is outside teacher's work hours");
-    }
-
-    // 3. Get fresh lesson data
-    const lessonRef = doc(db, "lessons", lesson.id);
-    const lessonDoc = await transaction.get(lessonRef);
-    
-    if (!lessonDoc.exists()) {
-      throw new Error("Lesson not found");
-    }
-
-    const currentBookings = lessonDoc.data()?.bookedTimes ?? {};
-    if (currentBookings[timeSlot] && currentBookings[timeSlot]?.status !== 'rejected') {
-      throw new Error("Time slot is no longer available");
-    }
-
-    // Handle rescheduling first if there's an oldTimeSlot
-    if (oldTimeSlot) {
-      transaction.update(lessonRef, {
-        [`bookedTimes.${oldTimeSlot}`]: null
-      });
-      transaction.delete(doc(db, "users", lesson.teacherId, "bookings", `${lesson.id}_${oldTimeSlot}`));
-      transaction.delete(doc(db, "users", currentUser.uid, "bookings", `${lesson.id}_${oldTimeSlot}`));
-    }
-
-    const bookingData: BookingData = {
-      lessonId: lesson.id,
-      subject: lesson.subject,
-      teacherId: lesson.teacherId,
-      teacherName: lesson.teacherName,
-      studentId: currentUser.uid,
-      studentName: userData?.displayName ?? 'Unknown Student',
-      timeSlot,
-      status: 'pending',
-      bookedAt: new Date().toISOString(),
-      lessonLength: lesson.lessonLength,
-      price: lesson.price,
-      category: lesson.category,
-      subjectId: lesson.subjectId
-    };
-
-    // Update all relevant documents in one transaction
-    transaction.update(lessonRef, {
-      [`bookedTimes.${timeSlot}`]: {
-        studentId: currentUser.uid,
-        studentName: userData?.displayName ?? 'Unknown Student',
-        status: 'pending',
-        bookedAt: new Date().toISOString()
-      }
-    });
-
-    transaction.set(
-      doc(db, "users", lesson.teacherId, "bookings", `${lesson.id}_${timeSlot}`),
-      bookingData
-    );
-
-    transaction.set(
-      doc(db, "users", currentUser.uid, "bookings", `${lesson.id}_${timeSlot}`),
-      bookingData
-    );
-  });
+  if (bookingInsertError) throw bookingInsertError;
 }
 
 function isTimeSlotAvailable(
@@ -221,30 +169,13 @@ export function LessonDetails({ category, subjectId, lessonId }: Readonly<Lesson
   const [loading, setLoading] = useState(true);
   const [isTeacher, setIsTeacher] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        const userData = userDoc.data();
-        setIsTeacher(userData?.isTeacher === true);
-      } else {
-        setIsTeacher(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!lessonId) {
-      router.push('/404');
-      return;
-    }
-    
-    async function loadData() {
+    const fetchLesson = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
         const { lesson, teacherData } = await fetchLessonAndTeacher(lessonId);
         console.log('Teacher work hours:', teacherData.workHours); // Debug log
         setLesson(lesson);
@@ -256,15 +187,16 @@ export function LessonDetails({ category, subjectId, lessonId }: Readonly<Lesson
           experience: teacherData.experience ?? '',
           workHours: teacherData.workHours ?? {}
         });
-      } catch (error) {
-        console.error("Error loading data:", error);
+      } catch (err) {
+        console.error('Error fetching lesson:', err);
+        setError('Failed to load lesson');
         router.push('/404');
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    loadData();
+    fetchLesson();
   }, [lessonId, router]);
 
   useEffect(() => {
@@ -281,7 +213,7 @@ export function LessonDetails({ category, subjectId, lessonId }: Readonly<Lesson
   const handleBook = async (timeSlot: string) => {
     setIsBooking(true);
     try {
-      if (!auth.currentUser) {
+      if (!supabase.auth.user()) {
         alert("Lūdzu piesakieties, lai rezervētu nodarbību");
         return;
       }
@@ -291,9 +223,7 @@ export function LessonDetails({ category, subjectId, lessonId }: Readonly<Lesson
         return;
       }
 
-      const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-      const userData = userDoc.data();
-      await createBooking(lesson, timeSlot, userData, oldTimeSlot);
+      await createBooking(lesson, timeSlot, {}, oldTimeSlot);
       
       if (oldTimeSlot) {
         alert("Nodarbība veiksmīgi pārplānota!");
@@ -314,8 +244,8 @@ export function LessonDetails({ category, subjectId, lessonId }: Readonly<Lesson
     }
   };
 
-  if (!lessonId) return <div className="p-8 text-center">Ielādē...</div>;
   if (loading) return <div className="p-8 text-center">Ielādē...</div>;
+  if (error) return <div className="p-8 text-center">{error}</div>;
   if (!lesson || !teacher) return <div className="p-8 text-center">Nodarbība nav atrasta</div>;
 
   return (

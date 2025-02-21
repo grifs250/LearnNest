@@ -5,4 +5,8 @@ export * from './ui/ToastContainer';
 export * from './ui/ConfirmDialog';
 
 // Re-export types
-export type { ToastType } from './ui/Toast'; 
+export type { ToastType } from './ui/Toast';
+
+export * from './UserInfoModal';
+export * from './Navbar';
+export * from './Footer'; 

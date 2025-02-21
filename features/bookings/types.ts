@@ -1,3 +1,5 @@
+// import { User } from '@/features/auth/types';
+
 /** Represents a booking time slot that is available */
 export interface Vacancy {
   id: string;

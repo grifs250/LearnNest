@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebase/client";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { Lesson } from "@/types/lesson";
+import { supabase } from '@/lib/supabase/db';
 
 // First, let's ensure our Lesson type has the required fields
 interface LessonCard {
@@ -19,7 +17,7 @@ interface LessonCard {
 
 export default function LessonsPage() {
   const params = useParams();
-  const subjectId = params.subjectId as string;
+  const subject_id = params.subjectId as string;
   const category = params.category as string;
   const router = useRouter();
   const [lessons, setLessons] = useState<LessonCard[]>([]);
@@ -27,50 +25,31 @@ export default function LessonsPage() {
   const [subjectName, setSubjectName] = useState("");
 
   useEffect(() => {
-    if (!subjectId) {
+    if (!subject_id) {
       router.push('/404');
       return;
     }
     
     async function fetchData() {
       try {
-        if (!subjectId) return;
+        if (!subject_id) return;
         
         // First fetch the subject name
-        const subjectDoc = await getDoc(doc(db, "subjects", subjectId));
-        if (subjectDoc.exists()) {
-          setSubjectName(subjectDoc.data().name);
-        }
+        const { data: subjectDoc, error } = await supabase
+          .from('subjects')
+          .select('*')
+          .eq('id', subject_id)
+          .single();
+        if (error) throw error;
+        setSubjectName(subjectDoc.name);
 
         // Then fetch lessons
-        const q = query(
-          collection(db, "lessons"),
-          where("subjectId", "==", subjectId)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        // Get all lessons with teacher data
-        const lessonPromises = querySnapshot.docs.map(async (docSnap) => {
-          const data = docSnap.data();
-          console.log('Lesson data:', data);
-          
-          // Fetch teacher data
-          const teacherDoc = await getDoc(doc(db, "users", data.teacherId));
-          const teacherData = teacherDoc.exists() ? teacherDoc.data() : null;
-          
-          return {
-            id: docSnap.id,
-            subject: data.subject,
-            description: data.description,
-            teacherId: data.teacherId,
-            teacherName: teacherData?.displayName || 'Unknown Teacher',
-            lessonLength: data.lessonLength,
-            price: data.price
-          } as LessonCard;
-        });
-
-        const lessonsWithTeachers = await Promise.all(lessonPromises);
-        setLessons(lessonsWithTeachers);
+        const { data: lessons, error: lessonsError } = await supabase
+          .from('lessons')
+          .select('*')
+          .eq('subject_id', subject_id);
+        if (lessonsError) throw lessonsError;
+        setLessons(lessons);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -78,7 +57,7 @@ export default function LessonsPage() {
       }
     }
     fetchData();
-  }, [subjectId, router]);
+  }, [subject_id, router]);
 
   if (loading) {
     return <div className="p-8 text-center">
@@ -186,7 +165,7 @@ export default function LessonsPage() {
               {/* Action Button */}
               <div className="card-actions justify-end">
                 <button 
-                  onClick={() => router.push(`/lessons/${category}/${subjectId}/${lesson.id}`)}
+                  onClick={() => router.push(`/lessons/${category}/${subject_id}/${lesson.id}`)}
                   className="btn btn-primary btn-block"
                 >
                   Skatīt vairāk

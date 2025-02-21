@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Category } from "../types";
-import { db } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from '@/lib/supabase/db';
 
 export function useCategory(categoryId: string) {
   const [data, setData] = useState<Category | null>(null);
@@ -14,14 +13,14 @@ export function useCategory(categoryId: string) {
     async function fetchCategory() {
       try {
         setLoading(true);
-        const docRef = doc(db, "categories", categoryId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setData({ id: docSnap.id, ...docSnap.data() } as Category);
-        } else {
-          setError("Category not found");
-        }
+        const { data, error } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('id', categoryId)
+          .single();
+
+        if (error) throw error;
+        setData(data);
       } catch (err) {
         console.error("Error fetching category:", err);
         setError("Failed to load category");
@@ -36,4 +35,20 @@ export function useCategory(categoryId: string) {
   }, [categoryId]);
 
   return { data, loading, error };
+}
+
+export async function getCategoryById(categoryId: string): Promise<Category | null> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', categoryId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching category:', error);
+    throw error;
+  }
 } 

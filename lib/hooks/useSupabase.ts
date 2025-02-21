@@ -1,7 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
 import type { Database } from '@/types/supabase.types'
-import type { User } from '@supabase/supabase-js'
+import type { User } from '@/features/auth/types'
 
 export function useSupabase() {
   const [user, setUser] = useState<User | null>(null)
@@ -38,5 +38,22 @@ export function useSupabase() {
     }
   }, [])
 
-  return { supabase, user, loading }
-} 
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  return { supabase, user, profile: user?.profile ?? null, loading, signOut }
+}
+
+// export type User = {
+//   id: string;
+//   email: string;
+//   emailVerified: boolean;
+//   fullName: string;
+//   role: UserRole;
+//   createdAt: string;
+//   updatedAt: string;
+//   profile?: Profile;
+//   metadata?: Record<string, any>;
+// }; 

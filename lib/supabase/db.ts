@@ -1,12 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabaseConfig } from './config';
 import type { 
-  Lesson,
-  BookingData,
-  Teacher,
-  Student,
+  Lesson 
+} from '@/features/lessons/types';
+import type { 
+  Booking,
+  Vacancy 
+} from '@/features/bookings/types';
+import type {
   WorkHours,
-} from '@/shared/types';
+  TimeRange
+} from '@/features/schedule/types';
 
 const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
 
@@ -64,17 +68,17 @@ export async function deleteLesson(id: string) {
 }
 
 // Bookings
-export async function getBookings(userId: string) {
+export async function getBookings(teacherId: string) {
   const { data, error } = await supabase
     .from('bookings')
     .select('*')
-    .or(`student_id.eq.${userId},teacher_id.eq.${userId}`);
+    .eq('teacher_id', teacherId);
 
   if (error) throw error;
-  return data as BookingData[];
+  return data;
 }
 
-export async function createBooking(booking: Omit<BookingData, 'id'>) {
+export async function createBooking(booking: Omit<Booking, 'id'>) {
   const { data, error } = await supabase
     .from('bookings')
     .insert(booking)
@@ -82,10 +86,10 @@ export async function createBooking(booking: Omit<BookingData, 'id'>) {
     .single();
 
   if (error) throw error;
-  return data as BookingData;
+  return data as Booking;
 }
 
-export async function updateBooking(id: string, booking: Partial<BookingData>) {
+export async function updateBooking(id: string, booking: Partial<Booking>) {
   const { data, error } = await supabase
     .from('bookings')
     .update(booking)
@@ -94,7 +98,7 @@ export async function updateBooking(id: string, booking: Partial<BookingData>) {
     .single();
 
   if (error) throw error;
-  return data as BookingData;
+  return data as Booking;
 }
 
 // Teachers
@@ -105,7 +109,7 @@ export async function getTeachers() {
     .eq('role', 'teacher');
 
   if (error) throw error;
-  return data as Teacher[];
+  return data; // Adjusted to return data directly
 }
 
 export async function getTeacherById(id: string) {
@@ -117,7 +121,7 @@ export async function getTeacherById(id: string) {
     .single();
 
   if (error) throw error;
-  return data as Teacher;
+  return data; // Adjusted to return data directly
 }
 
 // Students
@@ -128,7 +132,7 @@ export async function getStudents() {
     .eq('role', 'student');
 
   if (error) throw error;
-  return data as Student[];
+  return data; // Adjusted to return data directly
 }
 
 export async function getStudentById(id: string) {
@@ -140,7 +144,7 @@ export async function getStudentById(id: string) {
     .single();
 
   if (error) throw error;
-  return data as Student;
+  return data; // Adjusted to return data directly
 }
 
 // Work Hours
@@ -151,16 +155,18 @@ export async function getTeacherWorkHours(teacherId: string) {
     .eq('teacher_id', teacherId);
 
   if (error) throw error;
-  return data as WorkHours[];
+  return data; // Adjusted to return data directly
 }
 
-export async function updateWorkHours(teacherId: string, workHours: WorkHours[]) {
+export async function updateWorkHours(teacherId: string, workHours: Array<{ enabled: boolean; timeSlots: TimeRange[] }>) {
   const { error } = await supabase
     .from('work_hours')
     .upsert(
-      workHours.map(hours => ({
-        ...hours,
+      workHours.map((schedule, index) => ({
         teacher_id: teacherId,
+        day_of_week: index,
+        enabled: schedule.enabled,
+        time_slots: schedule.timeSlots
       }))
     );
 
@@ -174,7 +180,7 @@ export async function getCategories() {
     .select('*');
 
   if (error) throw error;
-  return data;
+  return data; // Adjusted to return data directly
 }
 
 export async function getSubjects(categoryId?: string) {
@@ -187,5 +193,26 @@ export async function getSubjects(categoryId?: string) {
   const { data, error } = await query;
 
   if (error) throw error;
-  return data;
-} 
+  return data; // Adjusted to return data directly
+}
+
+export async function getVacancies() {
+  const { data, error } = await supabase
+    .from('vacancies')
+    .select('*');
+
+  if (error) throw error;
+  return data; // Adjusted to return data directly
+}
+
+export async function updateVacancy(vacancyId: string, updates: Partial<Vacancy>) {
+  const { data, error } = await supabase
+    .from('vacancies')
+    .update(updates)
+    .eq('id', vacancyId);
+
+  if (error) throw error;
+  return data; // Adjusted to return data directly
+}
+
+export { supabase }; // Exporting the Supabase client

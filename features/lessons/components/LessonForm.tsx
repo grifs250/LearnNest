@@ -1,30 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, db } from "@/lib/firebase/client";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { supabase } from "@/lib/supabase/db";
 import { fetchSubjects } from "@/lib/fetchSubjects";
 import { Subject } from "@/features/lessons/types";
 
-interface LessonFormProps {
-  onLessonCreated?: () => void;  // Add callback prop
-}
-
-export function LessonForm({ onLessonCreated }: Readonly<LessonFormProps>) {
+export function LessonForm() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [lessonLength, setLessonLength] = useState(45); // Default 45 min
   const [saving, setSaving] = useState(false);
   const [price, setPrice] = useState<number | ''>('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadSubjects() {
-      const subjectsData = await fetchSubjects();
-      subjectsData.sort((a, b) => a.name.localeCompare(b.name, 'lv'));
-      setSubjects(subjectsData);
-    }
-    loadSubjects();
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('subjects')
+          .select('*');
+
+        if (error) throw error;
+
+        setSubjects(data);
+      } catch (err) {
+        console.error('Error fetching subjects:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,14 +62,14 @@ export function LessonForm({ onLessonCreated }: Readonly<LessonFormProps>) {
       setDescription("");
       setLessonLength(45);
       setPrice('');
-      // Notify parent component
-      onLessonCreated?.();
     } catch (error) {
       console.error("Kļūda veidojot nodarbību:", error);
       alert("Neizdevās izveidot nodarbību.");
     }
     setSaving(false);
   }
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <form onSubmit={handleSubmit} className="p-6 bg-white shadow-lg rounded-lg max-w-lg mx-auto space-y-4">

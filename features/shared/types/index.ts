@@ -1,3 +1,5 @@
+// import { User } from '@/features/auth/types';
+
 export * from './common';
 
 export interface Metadata {

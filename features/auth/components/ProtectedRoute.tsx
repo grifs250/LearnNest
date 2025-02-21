@@ -1,36 +1,74 @@
 'use client';
 
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { UserRole } from '@/features/auth/types';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { LoadingSpinner } from '@/features/shared/components';
+import { supabase } from '@/lib/supabase/db';
+import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: UserRole[];
-  redirectTo?: string;
+  requiredRole?: 'student' | 'teacher' | 'admin';
 }
 
-export function ProtectedRoute({
-  children,
-  allowedRoles,
-  redirectTo = '/auth',
-}: ProtectedRouteProps) {
-  const { isAuthenticated, profile, isLoading } = useAuth();
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        router.push(redirectTo);
-      } else if (allowedRoles && profile) {
-        if (!allowedRoles.includes(profile.role)) {
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          router.push('/auth');
+          return;
+        }
+
+        if (requiredRole) {
+          const { data: user } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!user || user.role !== requiredRole) {
+            router.push('/dashboard');
+            return;
+          }
+        }
+
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/auth');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        router.push('/auth');
+      } else if (event === 'SIGNED_IN' && requiredRole) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', session!.user.id)
+          .single();
+
+        if (!user || user.role !== requiredRole) {
           router.push('/dashboard');
         }
       }
-    }
-  }, [isAuthenticated, profile, isLoading, allowedRoles, redirectTo, router]);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router, requiredRole]);
 
   if (isLoading) {
     return (
@@ -41,10 +79,6 @@ export function ProtectedRoute({
   }
 
   if (!isAuthenticated) {
-    return null;
-  }
-
-  if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
     return null;
   }
 

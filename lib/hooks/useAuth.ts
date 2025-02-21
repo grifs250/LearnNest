@@ -1,10 +1,13 @@
 'use client';
 
-import { useSupabase } from '@/components/providers/SupabaseProvider';
+import { SupabaseProvider } from '@/features/shared/providers/SupabaseProvider';
 import { UserRole } from '@/types/supabase';
+import type { User } from '@supabase/supabase-js';
+import { useSupabase } from '@/lib/hooks/useSupabase';
+import { Profile } from '@/features/auth/types';
 
 export function useAuth() {
-  const { user, profile, isLoading, signOut } = useSupabase();
+  const { user, profile, loading, signOut } = useSupabase();
 
   const isAuthenticated = !!user;
   const isTeacher = profile?.role === 'teacher';
@@ -18,7 +21,7 @@ export function useAuth() {
   return {
     user,
     profile,
-    isLoading,
+    loading,
     isAuthenticated,
     isTeacher,
     isStudent,

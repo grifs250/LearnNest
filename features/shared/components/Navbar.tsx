@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth, db } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from '@/lib/supabase/db';
 import Link from "next/link";
-import SmoothScrollLink from "@/shared/components/ui/SmoothScrollLink";
+import SmoothScrollLink from "./ui/SmoothScrollLink";
 import { Menu, X, User as UserIcon } from "lucide-react";
+import { User } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -19,36 +18,59 @@ export default function Navbar() {
   const [displayName, setDisplayName] = useState<string>('');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setLoading(true);
-      try {
-        if (u) {
-          setUser(u);
-          const snap = await getDoc(doc(db, "users", u.uid));
-          if (snap.exists()) {
-            const userData = snap.data();
-            setIsTeacher(userData.isTeacher);
-            setDisplayName(userData.displayName || '');
-          } else {
-            setIsTeacher(false);
-            setDisplayName('');
-          }
-        } else {
-          setUser(null);
-          setIsTeacher(null);
-          setDisplayName('');
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-        setIsTeacher(false);
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchUserData(session.user.id);
+      } else {
+        setIsTeacher(null);
         setDisplayName('');
-      } finally {
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchUserData(session.user.id);
+      } else {
+        setIsTeacher(null);
+        setDisplayName('');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const fetchUserData = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+
+      if (profile) {
+        setIsTeacher(profile.role === 'teacher');
+        setDisplayName(profile.display_name || '');
+      } else {
+        setIsTeacher(false);
+        setDisplayName('');
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setIsTeacher(false);
+      setDisplayName('');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getProfileButtonClass = () => {
     if (isTeacher === null) return "btn-neutral";

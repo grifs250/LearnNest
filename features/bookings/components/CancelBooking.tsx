@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { db } from "@/lib/firebase/client";
-import { doc, updateDoc } from "firebase/firestore";
+import { updateVacancy } from '@/lib/supabase/db';
 import { toast } from "react-hot-toast";
 
 interface CancelBookingProps {
@@ -16,12 +15,7 @@ export function CancelBooking({ vacancyId, onCancelSuccess }: CancelBookingProps
   async function handleCancel() {
     try {
       setIsLoading(true);
-      const vacancyRef = doc(db, "vacancies", vacancyId);
-      
-      await updateDoc(vacancyRef, { 
-        bookedBy: null,
-        canceledAt: new Date().toISOString()
-      });
+      await updateVacancy(vacancyId, { bookedBy: null, canceledAt: new Date().toISOString() });
 
       toast.success("Rezervācija atcelta");
       onCancelSuccess?.();

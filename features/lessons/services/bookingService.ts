@@ -1,70 +1,135 @@
-import { db } from "@/lib/firebase/client";
-import { runTransaction, doc, getDoc } from "firebase/firestore";
-import { BookingData, TimeSlot } from "../types/booking";
-import { LessonStatus } from "../types/shared";
-import { lessonsConfig } from "../config";
+import { supabase } from '@/lib/supabase/db';
+import { Booking } from '@/types/supabase';
 
-export const bookingService = {
-  async validateTimeSlot(teacherId: string, timeSlot: TimeSlot): Promise<boolean> {
-    const bookingDate = new Date(`${timeSlot.date}T${timeSlot.time}`);
-    const now = new Date();
-    
-    // Check minimum notice period
-    const hoursDifference = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    if (hoursDifference < lessonsConfig.minBookingNotice) {
-      throw new Error("Booking must be made at least 24 hours in advance");
-    }
+export async function getBooking(bookingId: string): Promise<Booking> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      *,
+      schedule:schedule_id (
+        *,
+        lesson:lesson_id (
+          *,
+          teacher:teacher_id (
+            *,
+            profile:profiles (
+              full_name,
+              avatar_url
+            )
+          )
+        )
+      ),
+      review:reviews (*)
+    `)
+    .eq('id', bookingId)
+    .single();
 
-    // Check maximum advance booking
-    if (hoursDifference > lessonsConfig.maxBookingAdvance * 24) {
-      throw new Error("Cannot book more than 30 days in advance");
-    }
+  if (error) throw error;
+  return data;
+}
 
-    // Check teacher availability
-    const teacherRef = doc(db, "users", teacherId);
-    const teacherSnap = await getDoc(teacherRef);
-    if (!teacherSnap.exists()) return false;
+export async function createBooking(
+  scheduleId: string,
+  studentId: string
+): Promise<Booking> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .insert({
+      schedule_id: scheduleId,
+      student_id: studentId,
+      status: 'pending',
+    })
+    .select()
+    .single();
 
-    const teacherData = teacherSnap.data();
-    const workHours = teacherData.workHours?.[bookingDate.getDay()];
-    
-    return !!workHours?.enabled;
-  },
+  if (error) throw error;
+  return data;
+}
 
-  async createBooking(bookingData: BookingData): Promise<void> {
-    await runTransaction(db, async (transaction) => {
-      const lessonRef = doc(db, "lessons", bookingData.lessonId);
-      const lessonDoc = await transaction.get(lessonRef);
-      
-      if (!lessonDoc.exists()) {
-        throw new Error("Lesson not found");
-      }
+export async function cancelBooking(bookingId: string): Promise<Booking> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId)
+    .select()
+    .single();
 
-      const lessonData = lessonDoc.data();
-      if (lessonData.bookedTimes?.[bookingData.timeSlot]) {
-        throw new Error("Time slot already booked");
-      }
+  if (error) throw error;
+  return data;
+}
 
-      // Update lesson document
-      transaction.update(lessonRef, {
-        [`bookedTimes.${bookingData.timeSlot}`]: {
-          studentId: bookingData.studentId,
-          status: 'pending' as LessonStatus,
-          bookedAt: new Date().toISOString()
-        }
-      });
+export async function getStudentBookings(studentId: string): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      *,
+      schedule:schedule_id (
+        *,
+        lesson:lesson_id (
+          *,
+          teacher:teacher_id (
+            *,
+            profile:profiles (
+              full_name,
+              avatar_url
+            )
+          )
+        )
+      ),
+      review:reviews (*)
+    `)
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false });
 
-      // Create booking records for both teacher and student
-      const teacherBookingRef = doc(db, "users", lessonData.teacherId, "bookings", `${bookingData.lessonId}_${bookingData.timeSlot}`);
-      const studentBookingRef = doc(db, "users", bookingData.studentId, "bookings", `${bookingData.lessonId}_${bookingData.timeSlot}`);
+  if (error) throw error;
+  return data;
+}
 
-      transaction.set(teacherBookingRef, bookingData);
-      transaction.set(studentBookingRef, bookingData);
-    });
-  },
+export async function getTeacherBookings(teacherId: string): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select(`
+      *,
+      schedule:schedule_id (
+        *,
+        lesson:lesson_id (
+          *,
+          teacher:teacher_id (
+            *,
+            profile:profiles (
+              full_name,
+              avatar_url
+            )
+          )
+        )
+      ),
+      student:student_id (
+        *,
+        profile:profiles (
+          full_name,
+          avatar_url
+        )
+      ),
+      review:reviews (*)
+    `)
+    .eq('schedule.lesson.teacher_id', teacherId)
+    .order('created_at', { ascending: false });
 
-  async cancelBooking(bookingId: string): Promise<void> {
-    // Add cancellation logic here
-    throw new Error("Not implemented");
-  }
-}; 
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBookingStatus(
+  bookingId: string,
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+): Promise<Booking> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .update({ status })
+    .eq('id', bookingId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+} 

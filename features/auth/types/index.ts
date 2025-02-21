@@ -6,7 +6,7 @@ export type AuthMode = 'signIn' | 'signUp';
 export type AuthProvider = 'email' | 'google' | 'github';
 
 // Core user interfaces
-export interface User {
+export type User = {
   id: string;
   email: string;
   emailVerified: boolean;
@@ -16,7 +16,7 @@ export interface User {
   updatedAt: string;
   profile?: Profile;
   metadata?: Record<string, any>;
-}
+};
 
 export interface Profile extends Metadata {
   id: string;

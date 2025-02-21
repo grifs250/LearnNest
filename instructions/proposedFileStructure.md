@@ -60,7 +60,7 @@
 │   │
 │   ├── 📁 api/                       # API routes
 │   │   ├── 📁 auth/
-│   │   │   ├── 📁 [...nextauth]/
+│   │   │   ├── 📁 [...nextauth]/     # NextAuth.js routes
 │   │   │   │   └── route.ts
 │   │   │   └── 📁 verify-email/
 │   │   │       └── route.ts
@@ -188,10 +188,15 @@
 │       └── lesson.ts
 │
 ├── 📁 lib/                          # External services
-│   ├── 📁 firebase/
+│   ├── 📁 firebase/                 # Firebase related files (to be removed)
 │   │   ├── index.ts
 │   │   ├── client.ts
 │   │   ├── admin.ts
+│   │   └── config.ts
+│   │
+│   ├── 📁 supabase/                 # Supabase related files
+│   │   ├── index.ts
+│   │   ├── client.ts
 │   │   └── config.ts
 │   │
 │   ├── 📁 google/
@@ -233,5 +238,5 @@
 ├── tailwind.config.js
 ├── tsconfig.json
 ├── README.md
-├── firestore.rules
+├── firestore.rules                   # To be removed if transitioning to Supabase
 └── middleware.ts

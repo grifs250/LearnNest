@@ -5,8 +5,8 @@ import { useApiError } from '@/lib/hooks/useApiError';
 import { useEffect, useState } from 'react';
 import { Lesson, Booking } from '@/types/supabase';
 import { getTeacherLessons, getTeacherBookings } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/shared/components/ui/ErrorBoundary';
 
 function TeacherDashboardContent() {
   const { user } = useAuth();
@@ -76,12 +76,12 @@ function TeacherDashboardContent() {
                 <p className="text-gray-600">{lesson.description}</p>
                 <div className="mt-2">
                   <span className="text-sm text-gray-500">
-                    Duration: {lesson.duration} minutes
+                    Duration: {lesson.duration_minutes} minutes
                   </span>
                 </div>
                 <div className="mt-2">
                   <span className="text-sm text-gray-500">
-                    Price: ${lesson.price}
+                    Price: ${lesson.price_per_hour}/hour
                   </span>
                 </div>
               </div>

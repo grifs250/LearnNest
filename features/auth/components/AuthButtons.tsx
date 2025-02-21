@@ -1,26 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase/client";
-import { onAuthStateChanged } from "firebase/auth";
 import { AuthMode } from '../types';
 import Link from "next/link";
+import { useSupabase } from '@/lib/supabase';
 
 interface AuthButtonsProps {
   readonly mode?: AuthMode;
 }
 
 export function AuthButtons({ mode = 'signup' }: AuthButtonsProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsLoggedIn(!!user);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  const { user, loading } = useSupabase();
+  const isLoggedIn = !!user;
 
   if (loading) return null;
   if (isLoggedIn) return null;

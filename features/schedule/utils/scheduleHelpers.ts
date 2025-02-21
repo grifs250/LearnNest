@@ -1,16 +1,17 @@
-import { db } from "@/lib/firebase/client";
-import { doc, updateDoc } from "firebase/firestore";
+// import { db } from "@/lib/firebase/client";
+// import { doc, updateDoc } from "firebase/firestore";
+import { supabase } from '@/lib/supabase/db';
 import { WorkHours } from "../types";
 import { toast } from 'react-hot-toast';
 
 export async function saveSchedule(schedule: WorkHours, userId: string): Promise<void> {
   try {
-    await updateDoc(doc(db, "users", userId), {
-      workHours: schedule
-    });
+    // await updateDoc(doc(db, "users", userId), {
+    //   workHours: schedule
+    // });
     toast.success('Grafiks saglabāts');
   } catch (error) {
-    console.error('Error saving schedule:', error);
+    // console.error('Error saving schedule:', error);
     toast.error('Kļūda saglabājot grafiku');
     throw error;
   }

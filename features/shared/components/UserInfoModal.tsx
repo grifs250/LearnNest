@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
-import { UserInfo, UserInfoModalProps } from '@/shared/types/user';
+import { supabase } from '@/lib/supabase/db';
+import { UserInfo, UserInfoModalProps } from '@/features/shared/types/user';
 import { toast } from 'react-hot-toast';
 
 export function UserInfoModal({ userId, isOpen, onClose }: UserInfoModalProps) {
@@ -16,15 +15,22 @@ export function UserInfoModal({ userId, isOpen, onClose }: UserInfoModalProps) {
       
       try {
         setLoading(true);
-        const userDoc = await getDoc(doc(db, "users", userId));
-        if (userDoc.exists()) {
+        const { data: userDoc, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) throw error;
+
+        if (userDoc) {
           setUserInfo({
-            displayName: userDoc.data().displayName || 'Nav norādīts',
-            email: userDoc.data().email || 'Nav norādīts',
-            description: userDoc.data().description || 'Nav apraksta',
-            isTeacher: userDoc.data().isTeacher || false,
-            status: userDoc.data().status || 'inactive',
-            createdAt: userDoc.data().createdAt?.toDate?.().toLocaleDateString('lv-LV') || 'Nav norādīts'
+            displayName: userDoc.display_name || 'Nav norādīts',
+            email: userDoc.email || 'Nav norādīts',
+            description: userDoc.description || 'Nav apraksta',
+            isTeacher: userDoc.role === 'teacher',
+            status: userDoc.status || 'inactive',
+            createdAt: userDoc.created_at ? new Date(userDoc.created_at).toLocaleDateString('lv-LV') : 'Nav norādīts'
           });
         }
       } catch (error) {

@@ -1,3 +1,4 @@
+// Remove the Database import since we now have our own definition
 import type { Database } from './supabase.types';
 
 // Re-export Database type
@@ -8,17 +9,16 @@ export type Json = string | number | boolean | null | { [key: string]: Json } | 
 export type Timestamp = string;
 
 // Enums
-export type UserRole = Database['public']['Enums']['user_role'];
-export type BookingStatus = Database['public']['Enums']['booking_status'];
-export type PaymentStatus = Database['public']['Enums']['payment_status'];
+export type UserRole = 'student' | 'teacher' | 'admin';
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 
 // Tables
 export type Tables = Database['public']['Tables'];
 
 // Row Types
 export type ProfileRow = Tables['profiles']['Row'];
-export type TeacherProfileRow = Tables['teacher_profiles']['Row'];
-export type StudentProfileRow = Tables['student_profiles']['Row'];
+export type UserRow = Tables['users']['Row'];
 export type SubjectRow = Tables['subjects']['Row'];
 export type TeacherSubjectRow = Tables['teacher_subjects']['Row'];
 export type LessonRow = Tables['lessons']['Row'];
@@ -30,8 +30,7 @@ export type NotificationRow = Tables['notifications']['Row'];
 
 // Insert Types
 export type ProfileInsert = Tables['profiles']['Insert'];
-export type TeacherProfileInsert = Tables['teacher_profiles']['Insert'];
-export type StudentProfileInsert = Tables['student_profiles']['Insert'];
+export type UserInsert = Tables['users']['Insert'];
 export type SubjectInsert = Tables['subjects']['Insert'];
 export type TeacherSubjectInsert = Tables['teacher_subjects']['Insert'];
 export type LessonInsert = Tables['lessons']['Insert'];
@@ -43,8 +42,7 @@ export type NotificationInsert = Tables['notifications']['Insert'];
 
 // Update Types
 export type ProfileUpdate = Tables['profiles']['Update'];
-export type TeacherProfileUpdate = Tables['teacher_profiles']['Update'];
-export type StudentProfileUpdate = Tables['student_profiles']['Update'];
+export type UserUpdate = Tables['users']['Update'];
 export type SubjectUpdate = Tables['subjects']['Update'];
 export type TeacherSubjectUpdate = Tables['teacher_subjects']['Update'];
 export type LessonUpdate = Tables['lessons']['Update'];
@@ -55,37 +53,40 @@ export type MessageUpdate = Tables['messages']['Update'];
 export type NotificationUpdate = Tables['notifications']['Update'];
 
 // Extended Types with Relations
-export interface Profile extends Omit<ProfileRow, 'metadata'> {
-  metadata?: Json;
-  teacher_profile?: TeacherProfile;
-  student_profile?: StudentProfile;
+export interface Profile extends ProfileRow {
+  user?: User;
 }
 
-export interface TeacherProfile extends TeacherProfileRow {
+export interface User extends UserRow {
   profile?: Profile;
-  subjects?: TeacherSubject[];
+  teacher_subjects?: TeacherSubject[];
   lessons?: Lesson[];
 }
 
-export interface StudentProfile extends StudentProfileRow {
-  profile?: Profile;
-  bookings?: Booking[];
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Subject extends SubjectRow {
+  category_id?: string; // Reference to the category
+  category?: Category; // Optional relationship to the category
   parent?: Subject;
   children?: Subject[];
-  teachers?: TeacherSubject[];
+  teacher_subjects?: TeacherSubject[];
   lessons?: Lesson[];
 }
 
 export interface TeacherSubject extends TeacherSubjectRow {
-  teacher?: TeacherProfile;
+  teacher?: User;
   subject?: Subject;
 }
 
 export interface Lesson extends LessonRow {
-  teacher?: TeacherProfile;
+  teacher?: User;
   subject?: Subject;
   schedules?: LessonSchedule[];
 }
@@ -96,7 +97,7 @@ export interface LessonSchedule extends LessonScheduleRow {
 }
 
 export interface Booking extends BookingRow {
-  student?: StudentProfile;
+  student?: User;
   schedule?: LessonSchedule;
   review?: Review;
   messages?: Message[];
@@ -104,17 +105,16 @@ export interface Booking extends BookingRow {
 
 export interface Review extends ReviewRow {
   booking?: Booking;
-  student?: StudentProfile;
-  teacher?: TeacherProfile;
+  student?: User;
 }
 
 export interface Message extends MessageRow {
   booking?: Booking;
-  sender?: Profile;
+  sender?: User;
 }
 
 export interface Notification extends NotificationRow {
-  user?: Profile;
+  user?: User;
 }
 
 // Common interfaces
@@ -134,4 +134,15 @@ export interface TeacherAvailability {
     date: Timestamp;
     ranges?: TimeRange[];
   }[];
+}
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  avatar_url?: string;
+  bio?: string;
+  role: 'student' | 'teacher' | 'admin';
+  created_at: string;
+  updated_at: string;
 } 

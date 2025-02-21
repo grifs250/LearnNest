@@ -1,10 +1,24 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { supabase } from '@/lib/supabase/db';
 import { WorkHours, TimeRange, DAYS } from "../types";
 import { toast } from "react-hot-toast";
+
+export async function getWorkHours(teacherId: string): Promise<WorkHours> {
+  try {
+    const { data, error } = await supabase
+      .from('work_hours')
+      .select('*')
+      .eq('teacher_id', teacherId);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching work hours:', error);
+    throw error;
+  }
+}
 
 export function useWorkHours(teacherId: string) {
   const [workHours, setWorkHours] = useState<WorkHours>({});
@@ -13,13 +27,12 @@ export function useWorkHours(teacherId: string) {
   useEffect(() => {
     async function fetchWorkHours() {
       try {
-        const teacherDoc = await getDoc(doc(db, "users", teacherId));
-        const rawWorkHours = teacherDoc.data()?.workHours as { [key: string]: { timeSlots: TimeRange | TimeRange[] } } | undefined;
+        const teacherDoc = await getWorkHours(teacherId);
         
-        if (teacherDoc.exists() && rawWorkHours) {
+        if (teacherDoc) {
           // Convert to numeric format if needed
           const formattedWorkHours: WorkHours = {};
-          Object.entries(rawWorkHours).forEach(([day, dayData]) => {
+          Object.entries(teacherDoc).forEach(([day, dayData]) => {
             const numericDay = parseInt(day, 10);
             if (!isNaN(numericDay) && numericDay >= 0 && numericDay <= 6) {
               formattedWorkHours[numericDay] = {

@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { db } from "@/lib/firebase/client";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { createClient } from '@supabase/supabase-js';
+import { supabaseConfig } from '@/lib/supabase/config';
 import { WorkHours, TimeRange } from '@/features/schedule/types';
-import { BookedTimeData } from '@/features/bookings/types';
+import { Booking } from '@/features/bookings/types';
+
+const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
 
 interface TimeSlotPickerProps {
   readonly workHours: WorkHours;
@@ -11,7 +13,7 @@ interface TimeSlotPickerProps {
   readonly onTimeSlotSelect: (timeSlot: string) => void;
   readonly selectedTimeSlot?: string;
   readonly mode?: 'booking' | 'schedule';
-  readonly bookedTimes?: Record<string, BookedTimeData | null>;
+  readonly bookedTimes?: Record<string, Booking | null>;
   readonly teacherId: string;
 }
 
@@ -29,24 +31,24 @@ function checkTimeSlotOverlap(
 }
 
 async function fetchAllTeacherBookings(teacherId: string): Promise<Record<string, number>> {
-  const lessonsQuery = query(
-    collection(db, "lessons"),
-    where("teacherId", "==", teacherId)
-  );
-  const lessonsSnap = await getDocs(lessonsQuery);
-  
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('teacher_id', teacherId)
+    .neq('status', 'rejected');
+
+  if (error) {
+    console.error('Error fetching bookings:', error);
+    throw error;
+  }
+
   const allBookings: Record<string, number> = {};
-  lessonsSnap.docs.forEach(doc => {
-    const lessonData = doc.data();
-    if (lessonData.bookedTimes) {
-      Object.entries(lessonData.bookedTimes).forEach(([timeSlot, booking]) => {
-        if (booking && typeof booking === 'object' && 'status' in booking && booking.status !== 'rejected') {
-          allBookings[timeSlot] = lessonData.lessonLength || 60;
-        }
-      });
+  bookings?.forEach(booking => {
+    if (booking.time_slot) {
+      allBookings[booking.time_slot] = booking.duration || 60;
     }
   });
-  
+
   return allBookings;
 }
 
@@ -87,7 +89,7 @@ function generateTimeSlots(
   selectedDate: string,
   dayWorkHours: TimeRange[],
   lessonLength: number,
-  bookedTimes: Record<string, BookedTimeData | null>,
+  bookedTimes: Record<string, Booking | null>,
   allTeacherBookings: Record<string, number>
 ): string[] {
   const slots: string[] = [];
@@ -125,7 +127,7 @@ function isTimeSlotAvailable(
   startTime: Date,
   endTime: Date,
   timeSlot: string,
-  bookedTimes: Record<string, BookedTimeData | null>,
+  bookedTimes: Record<string, Booking | null>,
   allTeacherBookings: Record<string, number>,
   lessonLength: number
 ): boolean {
@@ -158,7 +160,7 @@ export function TimeSlotPicker({
   onTimeSlotSelect, 
   selectedTimeSlot,
   mode = 'booking',
-  bookedTimes = {} as Record<string, BookedTimeData | null>,
+  bookedTimes = {} as Record<string, Booking | null>,
   teacherId
 }: Readonly<TimeSlotPickerProps>) {
   console.log('TimeSlotPicker workHours:', workHours);

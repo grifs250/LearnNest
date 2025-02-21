@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { applyActionCode } from "firebase/auth";
-import { auth, db } from "@/lib/firebase/client";
-import { doc, updateDoc } from "firebase/firestore";
-import { useToast } from '@/shared/hooks/useToast';
+import { useSupabase } from '@/lib/supabase';
+import { useToast } from '@/features/shared/hooks/useToast';
 
 export function EmailVerification() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { showError, showSuccess } = useToast();
+  const { error, success } = useToast();
   const [loading, setLoading] = useState(true);
+  const { user } = useSupabase();
 
   useEffect(() => {
     const mode = searchParams.get('mode');
@@ -21,18 +20,7 @@ export function EmailVerification() {
     async function verifyEmail() {
       if (mode === 'verifyEmail' && oobCode) {
         try {
-          await applyActionCode(auth, oobCode);
-          
-          if (auth.currentUser) {
-            await updateDoc(doc(db, "users", auth.currentUser.uid), {
-              emailVerified: true,
-              status: 'active',
-              verifiedAt: new Date()
-            });
-          }
-
-          await auth.currentUser?.reload();
-          showSuccess('E-pasts veiksmīgi apstiprināts!');
+          success('E-pasts veiksmīgi apstiprināts!');
 
           if (redirect === 'profile') {
             router.push('/profile');
@@ -41,7 +29,7 @@ export function EmailVerification() {
           }
         } catch (err) {
           console.error('Verification error:', err);
-          showError('Verifikācijas kļūda. Lūdzu mēģiniet vēlreiz.');
+          error('Verifikācijas kļūda. Lūdzu mēģiniet vēlreiz.');
           router.push('/auth?mode=login&error=verification-failed');
         } finally {
           setLoading(false);
@@ -52,7 +40,7 @@ export function EmailVerification() {
     }
 
     verifyEmail();
-  }, [searchParams, router, showSuccess, showError]);
+  }, [searchParams, router, success, error]);
 
   if (!loading) return null;
 

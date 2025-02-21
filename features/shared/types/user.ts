@@ -1,9 +1,9 @@
 export interface UserInfo {
   displayName: string;
   email: string;
-  description?: string;
+  description: string;
   isTeacher: boolean;
-  status: string;
+  status: 'active' | 'pending' | 'blocked';
   createdAt: string;
 }
 

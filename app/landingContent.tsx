@@ -2,10 +2,11 @@ import { CourseSections } from "@/features/lessons/components";
 import BujPage from "./buj/page";
 import Link from "next/link";
 import { AuthButtons } from "@/features/auth/components";
-import { fetchCategories } from "@/features/lessons/services/categoryService";
+import { fetchCategoriesWithSubjects } from '@/features/lessons/services/subjectService';
+import { Subject, Category } from '@/features/lessons/types';
 
 export default async function LandingContent() {
-  const categories = await fetchCategories();
+  const categoriesWithSubjects = await fetchCategoriesWithSubjects();
 
   return (
     <main className="bg-base-200 min-h-screen">
@@ -34,16 +35,42 @@ export default async function LandingContent() {
         </div>
       </section>
 
-      {/* Course Sections */}
-      <CourseSections categories={categories} />
-          
+      {/* Categories and Subjects Section */}
+      <section className="py-16 px-8 bg-base-200">
+        {categoriesWithSubjects.map(item => {
+          const { category, subjects } = item;
+          return (
+            <div key={category.id} className="mb-16">
+              <h2 className="text-3xl font-bold text-center mb-8">{category.name}</h2>
+              <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {subjects && subjects.length > 0 ? (
+                  subjects.map(subject => (
+                    <div key={subject.id} className="card bg-base-100 shadow-lg p-6 transition-all opacity-50 pointer-events-none">
+                      <div className="card-body p-0">
+                        <h4 className="font-semibold text-lg mb-2">{subject.name}</h4>
+                        <div className="flex items-center text-gray-400">
+                          <span className="mr-2">ℹ️</span>
+                          <span>Nav pieejamu nodarbību</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p>Nav pieejamu priekšmetu šajā kategorijā</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
       {/* BUJ (FAQ) */}
       <div id="buj">
         <BujPage />
       </div>
 
       {/* Kontakti */}
-      <section id="contact" className="py-16 px-8 bg-base-100">
+      <section id="contact" className="py-16 px-8 bg-base-200">
         <h2 className="text-2xl font-bold mb-8 text-center">Kontakti</h2>
         <div className="max-w-2xl mx-auto text-center">
           <p className="mb-4">E-pasts: info@learnnest.com</p>

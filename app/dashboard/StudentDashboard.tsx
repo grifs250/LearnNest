@@ -5,11 +5,19 @@ import { useApiCall } from '@/lib/hooks/useApiCall';
 import { useState, useEffect } from 'react';
 import { Booking } from '@/types/supabase';
 import { getStudentBookings, cancelBooking } from '@/lib/api';
-import LoadingSpinner from '@/components/LoadingSpinner';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import ReviewModal from '@/components/ReviewModal';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
+import { ErrorBoundary } from '@/shared/components/ui/ErrorBoundary';
+import { ReviewModal } from '@/features/reviews/components/ReviewModal';
+import { ConfirmDialog } from '@/shared/components/ui/ConfirmDialog';
 import { errorTracker } from '@/lib/utils/errorTracking';
+
+export default function StudentDashboard() {
+  return (
+    <ErrorBoundary>
+      <StudentDashboardContent />
+    </ErrorBoundary>
+  );
+}
 
 function StudentDashboardContent() {
   const { user } = useAuth();
@@ -224,7 +232,10 @@ function StudentDashboardContent() {
       {/* Review Modal */}
       {selectedBooking && (
         <ReviewModal
-          booking={selectedBooking}
+          lessonId={selectedBooking.schedule?.lesson_id || ''}
+          teacherId={selectedBooking.schedule?.lesson?.teacher_id || ''}
+          studentId={selectedBooking.student_id}
+          bookingId={selectedBooking.id}
           isOpen={isReviewModalOpen}
           onClose={() => {
             setIsReviewModalOpen(false);
@@ -251,13 +262,5 @@ function StudentDashboardContent() {
         />
       )}
     </div>
-  );
-}
-
-export default function StudentDashboard() {
-  return (
-    <ErrorBoundary>
-      <StudentDashboardContent />
-    </ErrorBoundary>
   );
 } 

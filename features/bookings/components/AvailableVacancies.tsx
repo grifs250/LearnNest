@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { db, auth } from "@/lib/firebase/client";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { getVacancies } from '@/lib/supabase/db';
 import { Vacancy } from "@/features/bookings/types";
 import { toast } from "react-hot-toast";
 
@@ -16,22 +15,13 @@ export function AvailableVacancies() {
     async function fetchVacancies() {
       try {
         setLoading(true);
-        const vacanciesRef = collection(db, "vacancies");
-        const snapshot = await getDocs(vacanciesRef);
-        
-        const availableVacancies = snapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          } as Vacancy))
-          .filter(vacancy => !vacancy.bookedBy);
-
+        const availableVacancies = await getVacancies();
         setVacancies(availableVacancies);
         setError(null);
       } catch (err) {
-        console.error("Error fetching vacancies:", err);
-        setError("Failed to load available vacancies");
-        toast.error("Failed to load available vacancies");
+        console.error('Error fetching vacancies:', err);
+        setError('Failed to load available vacancies');
+        toast.error('Failed to load available vacancies');
       } finally {
         setLoading(false);
       }
@@ -42,27 +32,19 @@ export function AvailableVacancies() {
 
   // Book a vacancy
   const handleBookVacancy = async (vacancyId: string) => {
-    if (!auth.currentUser) {
-      toast.error("Please login to book a vacancy");
+    if (!user) {
+      toast.error('Please login to book a vacancy');
       return;
     }
 
     try {
-      const vacancyRef = doc(db, "vacancies", vacancyId);
-      await updateDoc(vacancyRef, {
-        bookedBy: auth.currentUser.uid,
-        bookedAt: new Date().toISOString()
-      });
-
+      // Update the vacancy in Supabase
+      await updateVacancy(vacancyId, { bookedBy: user.id, bookedAt: new Date().toISOString() });
       // Update local state
-      setVacancies(prevVacancies => 
-        prevVacancies.filter(v => v.id !== vacancyId)
-      );
-
-      toast.success("Successfully booked the vacancy!");
+      setVacancies(prevVacancies => prevVacancies.filter(v => v.id !== vacancyId));
     } catch (err) {
-      console.error("Error booking vacancy:", err);
-      toast.error("Failed to book the vacancy");
+      console.error('Error booking vacancy:', err);
+      toast.error('Failed to book vacancy');
     }
   };
 

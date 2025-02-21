@@ -56,4 +56,20 @@ export interface BookingSummary {
   pendingBookings: number;
   totalRevenue: number;
   averageRating: number;
+}
+
+export interface Vacancy extends BaseEntity {
+  title: string;
+  description: string;
+  bookedBy?: string;
+  bookedAt?: string;
+  // Add any other relevant fields
+}
+
+export interface BookingData extends BaseEntity {
+  studentId: string;
+  scheduleId: string;
+  status: BookingStatus;
+  notes?: string;
+  metadata?: Record<string, any>;
 } 

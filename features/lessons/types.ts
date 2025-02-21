@@ -1,7 +1,14 @@
+// import { User } from '@/features/auth/types';
+
 export interface Subject {
   id: string;
   name: string;
-  categoryId: string;
+  slug: string;
+  description?: string;
+  parent_id?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Category {
@@ -65,10 +72,11 @@ export interface LessonData {
   teacherId: string;
   teacherName: string;
   category: string;
-  subjectId: string;
+  subject_id: string;
   bookedTimes: {
     [timeSlot: string]: BookedTimeData;
   };
+  studentId?: string;
 }
 
 export interface StudentLessonsProps {

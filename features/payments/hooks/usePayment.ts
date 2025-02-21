@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { doc, runTransaction } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
 import { toast } from 'react-hot-toast';
 import { Payment } from '../types';
+import { supabase } from '@/lib/supabase/db';
 
 export function usePayment() {
   const [processing, setProcessing] = useState(false);
@@ -15,20 +14,10 @@ export function usePayment() {
     setError(null);
 
     try {
-      await runTransaction(db, async (transaction) => {
-        // Get student's booking
-        const studentBookingRef = doc(db, "users", userId, "bookings", `${lessonId}_${timeSlot}`);
-        const studentBookingDoc = await transaction.get(studentBookingRef);
-        
-        if (!studentBookingDoc.exists()) {
-          throw new Error("Rezervācija nav atrasta");
-        }
-
-        const bookingData = studentBookingDoc.data();
-
-        // Create payment record
-        const paymentRef = doc(db, "payments", `${lessonId}_${timeSlot}`);
-        transaction.set(paymentRef, {
+      // Implement payment processing logic using Supabase
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({
           id: `${lessonId}_${timeSlot}`,
           lessonId,
           userId,
@@ -37,27 +26,33 @@ export function usePayment() {
           createdAt: new Date()
         } as Payment);
 
-        // Update bookings
-        transaction.update(studentBookingRef, { status: 'paid' });
-        transaction.update(doc(db, "lessons", lessonId), {
-          [`bookedTimes.${timeSlot}.status`]: 'paid'
-        });
-        transaction.update(
-          doc(db, "users", bookingData.teacherId, "bookings", `${lessonId}_${timeSlot}`),
-          { status: 'paid' }
-        );
-      });
+      if (error) throw error;
 
       toast.success('Maksājums veiksmīgi apstrādāts');
-      return true;
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Maksājuma kļūda');
       toast.error('Kļūda apstrādājot maksājumu');
-      return false;
+      return null;
     } finally {
       setProcessing(false);
     }
   };
 
   return { processPayment, processing, error };
+}
+
+export async function processPayment(paymentData: any) {
+  try {
+    // Implement payment processing logic using Supabase
+    const { data, error } = await supabase
+      .from('payments')
+      .insert(paymentData);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error processing payment:', error);
+    throw error;
+  }
 } 

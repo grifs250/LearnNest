@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { db } from "@/lib/firebase/client";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { StudentLesson, TeacherData, LessonData } from "../types";
+import { supabase } from '@/lib/supabase/db';
+import { StudentLesson, TeacherData, LessonData, BookedTimeData } from "../types";
+import { Tables } from '@/types/supabase.types';
 import { toast } from "react-hot-toast";
 
 export function useStudentLessons(studentId: string) {
@@ -15,37 +15,40 @@ export function useStudentLessons(studentId: string) {
     setLoading(true);
     setError(null);
     try {
-      const lessonsQuery = query(
-        collection(db, "lessons"),
-        where("bookedTimes", "!=", null)
-      );
-      const lessonsSnap = await getDocs(lessonsQuery);
-      
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('student_id', studentId);
+
+      if (error) throw error;
+
       const lessonsList: StudentLesson[] = [];
       
-      for (const docSnap of lessonsSnap.docs) {
-        const data = docSnap.data() as LessonData;
-        const bookedTimes = data.bookedTimes ?? {};
+      for (const lesson of (data as Tables['lessons']['Row'][])) {
+        const bookedTimes = lesson.bookedTimes ?? {} as Record<string, BookedTimeData>;
         
         for (const [timeSlot, booking] of Object.entries(bookedTimes)) {
-          if (booking?.studentId === studentId) {
+          const bookingData = booking as BookedTimeData;
+          if (bookingData.studentId === studentId) {
             const [date, time] = timeSlot.split('T');
             
-            // Fetch teacher data
-            const teacherDoc = await getDoc(doc(db, "users", data.teacherId));
-            const teacherData = teacherDoc.data() as TeacherData;
+            const { data: teacherData } = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', lesson.teacherId)
+              .single();
             
             lessonsList.push({
-              id: docSnap.id,
-              subject: data.subject,
-              teacherName: data.teacherName,
-              teacherId: data.teacherId,
+              id: lesson.id,
+              subject: lesson.subject,
+              teacherName: lesson.teacherName,
+              teacherId: lesson.teacherId,
               date,
               time,
-              status: booking.status ?? 'pending',
+              status: bookingData.status ?? 'pending',
               availableTimes: Object.keys(teacherData?.workHours ?? {}),
-              category: data.category ?? 'subjects',
-              subjectId: data.subjectId
+              category: lesson.category ?? 'subjects',
+              subjectId: lesson.subjectId
             });
           }
         }
@@ -72,4 +75,29 @@ export function useStudentLessons(studentId: string) {
     error,
     refreshLessons: fetchLessons
   };
+}
+
+export async function getStudentLessons(studentId: string): Promise<StudentLesson[]> {
+  try {
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('student_id', studentId);
+
+    if (error) throw error;
+    return (data as Tables['lessons']['Row'][]).map(lesson => ({
+      id: lesson.id,
+      subject: lesson.subject,
+      teacherName: lesson.teacherName,
+      teacherId: lesson.teacherId,
+      date: '',
+      time: '',
+      status: 'pending',
+      category: lesson.category,
+      subjectId: lesson.subjectId
+    }));
+  } catch (error) {
+    console.error('Error fetching student lessons:', error);
+    throw error;
+  }
 } 
