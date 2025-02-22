@@ -5,13 +5,18 @@ import { AuthButtons } from "@/features/auth/components";
 import { fetchCategoriesWithSubjects } from '@/features/lessons/services/subjectService';
 import { Subject, Category } from '@/features/lessons/types';
 
-export default async function LandingContent() {
+// Define the props interface for LandingContent
+interface LandingContentProps {
+  subjects: Subject[];
+}
+
+export default async function LandingContent({ subjects }: LandingContentProps) {
   const categoriesWithSubjects = await fetchCategoriesWithSubjects();
 
   return (
-    <main className="bg-base-200 min-h-screen">
+    <main className="bg-base-200 min-h-screen pt-16">
       {/* Hero Section */}
-      <section className="hero bg-primary text-primary-content p-24 text-center flex flex-col items-center gap-4">
+      <section className="hero bg-primary text-primary-content py-16 px-8 text-center flex flex-col items-center gap-4">
         <h1 className="text-4xl font-bold mb-4">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>
         <AuthButtons />
       </section>
