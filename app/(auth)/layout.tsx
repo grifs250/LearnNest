@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        router.push('/dashboard');
+        router.push('/profile');
       }
     });
 

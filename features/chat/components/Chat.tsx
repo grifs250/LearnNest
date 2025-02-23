@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase/db';
-import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
+import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
 
 interface Message {
   id: string;

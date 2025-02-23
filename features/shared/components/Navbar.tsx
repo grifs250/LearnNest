@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { supabase } from '@/lib/supabase/db';
+import { Session, User } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 import Link from "next/link";
-import SmoothScrollLink from "./ui/SmoothScrollLink";
+import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X, User as UserIcon } from "lucide-react";
-import { User } from '@supabase/supabase-js';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -17,67 +17,49 @@ export default function Navbar() {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string>('');
 
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      } else {
-        setIsTeacher(null);
-        setDisplayName('');
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchUserData(session.user.id);
+      setLoading(true);
+      if (session) {
+        setUser(session.user);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error("Error fetching user data:", error.message || error);
+          if (error.message?.includes('no rows')) {
+            router.push('/profile/setup');
+          }
+          setIsTeacher(false);
+          setDisplayName('');
+        } else {
+          setIsTeacher(profile.role === 'teacher');
+          setDisplayName(profile.display_name || profile.full_name || '');
+        }
       } else {
+        setUser(null);
         setIsTeacher(null);
         setDisplayName('');
       }
+      setLoading(false);
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserData = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-
-      if (profile) {
-        setIsTeacher(profile.role === 'teacher');
-        setDisplayName(profile.display_name || '');
-      } else {
-        setIsTeacher(false);
-        setDisplayName('');
-      }
-    } catch (error) {
-      console.error("Error fetching user data:", error);
-      setIsTeacher(false);
-      setDisplayName('');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getProfileButtonClass = () => {
-    if (isTeacher === null) return "btn-neutral";
-    return isTeacher ? "btn-secondary" : "btn-accent";
-  };
-
-  const profileButtonClass = getProfileButtonClass();
+  const profileButtonClass = isTeacher === null 
+    ? "btn-neutral" 
+    : isTeacher 
+      ? "btn-secondary" 
+      : "btn-accent";
 
   const navItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
@@ -93,7 +75,7 @@ export default function Navbar() {
     if (user) {
       router.push('/profile');
     } else {
-      router.push('/auth?mode=login');
+      router.push('/login');
     }
   };
 
@@ -102,7 +84,7 @@ export default function Navbar() {
       <nav className="navbar bg-primary text-primary-content">
         <div className="flex-1 mr-10">
           <Link href="/" className="btn btn-ghost normal-case text-xl">
-            📚 LearnNest
+            📚 MāciesTe
           </Link>
         </div>
 
@@ -139,7 +121,7 @@ export default function Navbar() {
               </Link>
             ) : (
               <Link 
-                href="/auth?mode=login" 
+                href="/login"
                 className="btn btn-sm"
               >
                 Pieslēgties
@@ -177,7 +159,7 @@ export default function Navbar() {
                 </Link>
               ) : (
                 <Link
-                  href="/auth?mode=login"
+                  href="/login"
                   onClick={() => setMobileOpen(false)}
                   className="btn btn-sm"
                 >

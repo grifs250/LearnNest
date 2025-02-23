@@ -1,8 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabaseConfig } from './config';
-import type { User } from '@/shared/types';
+import type { User } from './types';
 
-const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function signUp(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -30,9 +33,30 @@ export async function signOut() {
 }
 
 export async function getUser() {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) throw error;
-  return user;
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Error fetching session:', sessionError);
+      return null;
+    }
+
+    if (!session) {
+      return null;
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('Error fetching user:', userError);
+      return null;
+    }
+    
+    return user;
+  } catch (error) {
+    console.error('Unexpected error fetching user:', error);
+    return null;
+  }
 }
 
 export async function getUserProfile(userId: string) {

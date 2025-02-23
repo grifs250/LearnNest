@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/db';
-import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
+import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { UserProfile } from '@/types/supabase';
 
@@ -17,20 +17,27 @@ export default function ProfilePage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          router.push('/auth');
+          router.push('/login');
           return;
         }
 
         const { data: userProfile, error } = await supabase
           .from('profiles')
-          .select('*, user:users!inner(*)')
+          .select('*, users!inner(*)')
           .eq('user_id', session.user.id)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching profile:', error.message || error);
+          if (error.message?.includes('no rows')) {
+            router.push('/profile/setup');
+            return;
+          }
+          throw error;
+        }
 
-        if (!userProfile) {
-          router.push('/profile/setup');
+        if (!userProfile || !userProfile.user.email_confirmed_at) {
+          router.push('/verify-email');
           return;
         }
 
@@ -57,7 +64,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -91,7 +98,7 @@ export default function ProfilePage() {
 
             {profile.bio && (
               <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-2">About</h2>
+                <h2 className="text-lg font-semibold mb-2">Par mani</h2>
                 <p className="text-base-content/70">{profile.bio}</p>
               </div>
             )}
@@ -101,14 +108,14 @@ export default function ProfilePage() {
                 onClick={() => router.push('/profile/edit')}
                 className="btn btn-primary"
               >
-                Edit Profile
+                Rediģēt profilu
               </button>
               {profile.role === 'teacher' && (
                 <button
                   onClick={() => router.push('/profile/calendar')}
                   className="btn btn-outline"
                 >
-                  Manage Calendar
+                  Pārvaldīt kalendāru
                 </button>
               )}
             </div>
@@ -118,22 +125,22 @@ export default function ProfilePage() {
           {profile.role === 'teacher' ? (
             <div className="mt-8 grid gap-8">
               <section>
-                <h2 className="text-xl font-semibold mb-4">My Lessons</h2>
+                <h2 className="text-xl font-semibold mb-4">Manas nodarbības</h2>
                 {/* Add TeacherLessons component here */}
               </section>
               <section>
-                <h2 className="text-xl font-semibold mb-4">Reviews</h2>
+                <h2 className="text-xl font-semibold mb-4">Atsauksmes</h2>
                 {/* Add TeacherReviews component here */}
               </section>
             </div>
           ) : (
             <div className="mt-8 grid gap-8">
               <section>
-                <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
+                <h2 className="text-xl font-semibold mb-4">Mani rezervējumi</h2>
                 {/* Add StudentBookings component here */}
               </section>
               <section>
-                <h2 className="text-xl font-semibold mb-4">Favorite Teachers</h2>
+                <h2 className="text-xl font-semibold mb-4">Mīļākie pasniedzēji</h2>
                 {/* Add FavoriteTeachers component here */}
               </section>
             </div>

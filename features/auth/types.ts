@@ -1,11 +1,12 @@
-export type AuthMode = 'login' | 'signup' | 'verify';
+export type AuthMode = 'login' | 'signup';
 export type UserRole = 'skolēns' | 'pasniedzējs';
 
 export interface AuthFormProps {
-  mode: AuthMode;
+  initialMode: AuthMode;
   initialRole: UserRole;
-  updateRole: (role: UserRole) => void;
-  updateMode: (mode: AuthMode) => void;
+  updateRole: (role: string) => void;
+  updateMode: (mode: string) => void;
+  mode: AuthMode;
 }
 
 export interface AuthUser {
@@ -19,6 +20,8 @@ export interface AuthUser {
 }
 
 export interface AuthState {
+  mode: AuthMode;
+  role: UserRole;
   user: AuthUser | null;
   loading: boolean;
   error: string | null;

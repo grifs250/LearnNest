@@ -2,15 +2,19 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Define protected routes that require authentication
 const PROTECTED_ROUTES = [
-  '/dashboard',
   '/profile',
+  '/dashboard',
   '/lessons/meet',
 ];
 
+// Define public routes that don't require authentication
 const PUBLIC_ROUTES = [
   '/',
-  '/auth',
+  '/login',
+  '/register',
+  '/verify-email',
   '/about',
   '/contact',
   '/privacy-policy',
@@ -21,39 +25,30 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
   const supabase = createMiddlewareClient({ req, res });
 
+  // Log cookies for debugging
+  console.log('Cookies:', req.cookies);
+
   // Refresh session if expired
   const { data: { session } } = await supabase.auth.getSession();
 
-  // Protected routes
-  if (req.nextUrl.pathname.startsWith('/dashboard') ||
-      req.nextUrl.pathname.startsWith('/profile') ||
-      req.nextUrl.pathname.startsWith('/lessons/meet')) {
+  // If accessing a protected route and not authenticated
+  if (req.nextUrl.pathname.startsWith('/profile')) {
     if (!session) {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/auth';
-      redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname);
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(new URL('/login', req.url));
     }
   }
 
-  // Auth page redirect if user is already logged in
-  if (req.nextUrl.pathname === '/auth') {
+  // If accessing login/register while authenticated
+  if (req.nextUrl.pathname.startsWith('/login') || req.nextUrl.pathname.startsWith('/register')) {
     if (session) {
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/dashboard';
-      return NextResponse.redirect(redirectUrl);
+      return NextResponse.redirect(new URL('/profile', req.url));
     }
   }
 
   return res;
 }
 
-// Ensure the middleware is run for auth routes
+// Configure which routes use this middleware
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/profile/:path*',
-    '/lessons/meet/:path*',
-    '/auth',
-  ],
+  matcher: ['/profile/:path*', '/login', '/register']
 }; 

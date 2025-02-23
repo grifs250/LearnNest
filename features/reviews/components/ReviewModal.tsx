@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/Dialog';
-import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/features/shared/components/ui/Dialog';
+import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
 import { supabase } from '@/lib/supabase/db';
 import { toast } from 'react-hot-toast';
 

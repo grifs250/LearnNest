@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 import { supabaseConfig } from './config';
 import type { 
   Lesson 
@@ -12,7 +12,10 @@ import type {
   TimeRange
 } from '@/features/schedule/types';
 
-const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 // Lessons
 export async function getLessons() {
@@ -214,5 +217,3 @@ export async function updateVacancy(vacancyId: string, updates: Partial<Vacancy>
   if (error) throw error;
   return data; // Adjusted to return data directly
 }
-
-export { supabase }; // Exporting the Supabase client

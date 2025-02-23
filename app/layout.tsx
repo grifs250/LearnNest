@@ -2,9 +2,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "./themeProvider";
-import { SupabaseProvider } from "@/features/shared/providers/SupabaseProvider";
+import SupabaseProvider from "@/lib/providers/SupabaseProvider";
 import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
+import Navbar from "@/features/shared/components/Navbar";
+import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -19,15 +21,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="lv">
       <body className={inter.className}>
         <SupabaseProvider>
           <ThemeProvider>
             <ErrorBoundary>
-              {children}
+              <Navbar />
+              <main className="min-h-screen">
+                {children}
+              </main>
               <ToastContainer />
             </ErrorBoundary>
           </ThemeProvider>
+          <Toaster position="top-center" />
         </SupabaseProvider>
       </body>
     </html>

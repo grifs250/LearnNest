@@ -14,7 +14,7 @@ export default async function LandingContent({ subjects }: LandingContentProps) 
   const categoriesWithSubjects = await fetchCategoriesWithSubjects();
 
   return (
-    <main className="bg-base-200 min-h-screen pt-16">
+    <main className="bg-base-200 min-h-screen">
       {/* Hero Section */}
       <section className="hero bg-primary text-primary-content py-16 px-8 text-center flex flex-col items-center gap-4">
         <h1 className="text-4xl font-bold mb-4">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>

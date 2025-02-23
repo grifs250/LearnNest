@@ -1,25 +1,53 @@
 import { useEffect, useState } from 'react';
-import { getUser } from './auth';
-import type { User } from '@/features/auth/types';
+import { createBrowserClient } from '@supabase/ssr';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+import type { User } from '@supabase/supabase-js';
 
-export function useSupabase() {
+export const useSupabase = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
-    const fetchUser = async () => {
+    // Initialize auth state
+    const initializeAuth = async () => {
       try {
-        const userData = await getUser();
-        setUser(userData);
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error('Error initializing auth:', error);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
-  }, []);
+    initializeAuth();
 
-  return { user, loading };
-} 
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+      
+      if (event === 'SIGNED_IN') {
+        router.refresh();
+        toast.success('Veiksmīgi pieslēdzies!');
+      }
+      if (event === 'SIGNED_OUT') {
+        router.refresh();
+        toast.success('Veiksmīgi atslēdzies!');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
+
+  return { supabase, user, loading };
+}; 
