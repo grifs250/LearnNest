@@ -27,6 +27,7 @@ export async function middleware(req: NextRequest) {
 
   // Log cookies for debugging
   console.log('Cookies:', req.cookies);
+  console.log('Raw Cookies:', req.cookies);
 
   // Refresh session if expired
   const { data: { session } } = await supabase.auth.getSession();

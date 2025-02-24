@@ -29,6 +29,16 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Email validation regex
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+  // Password strength validation
+  const isPasswordStrong = (password: string) => {
+    // Requires at least 6 characters, one uppercase letter, and one number
+    const strongPasswordRegex = /^(?=.*[A-Z])(?=.*\d).{6,}$/;
+    return strongPasswordRegex.test(password);
+  };
+
   useEffect(() => {
     console.log('Initial Mode:', initialMode);
     console.log('Initial Role:', initialRole);
@@ -50,16 +60,27 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     setIsSubmitting(true);
     
     try {
-      // Validate password length
-      if (password.length < 6) {
-        setError('Parolei jābūt vismaz 6 simbolus garai');
+      // Validate required fields
+      if (!displayName) {
+        setError('Vārds ir obligāts');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!emailRegex.test(email)) {
+        setError('Lūdzu, ievadiet derīgu e-pasta adresi');
+        setIsSubmitting(false);
+        return;
+      }
+      if (!isPasswordStrong(password)) {
+        setError('Parolei jābūt vismaz 6 simbolus garai, ar vienu lielo burtu un vienu ciparu');
         setIsSubmitting(false);
         return;
       }
 
       const loadingToast = toast.loading('Reģistrācija notiek...');
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      console.log('Starting signup process...');
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -75,16 +96,30 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        console.error('Signup error:', signUpError);
+        throw signUpError;
+      }
 
-      toast.dismiss(loadingToast);
-      toast.success('Reģistrācija veiksmīga!');
-      router.push("/verify-email");
+      if (!signUpData.user) {
+        console.error('No user data after signup');
+        throw new Error('User data is not available after sign-up.');
+      }
+
+      console.log('User signed up successfully:', {
+        userId: signUpData.user.id,
+        email: signUpData.user.email,
+        role: signUpData.user.user_metadata?.role
+      });
+
+      // Redirect to profile page after successful signup
+      router.push("/profile");
     } catch (err) {
+      console.error('Registration error:', err);
       const errorMessage = (err as AuthError).message || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
       setError(errorMessage);
-      toast.error(errorMessage);
     } finally {
+      console.log('isSubmitting after signup:', isSubmitting);
       setIsSubmitting(false);
     }
   }
@@ -93,10 +128,9 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     e.preventDefault();
     setError("");
     setIsSubmitting(true);
+    let loadingToast = toast.loading('Notiek pieslēgšanās...');
     
     try {
-      const loadingToast = toast.loading('Notiek pieslēgšanās...');
-
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -104,19 +138,39 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
 
       if (signInError) throw signInError;
 
-      toast.dismiss(loadingToast);
-      
       if (!data.user?.email_confirmed_at) {
+        toast.dismiss(loadingToast);
         router.push("/verify-email");
         return;
       }
 
+      // Create or update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || '',
+          role: data.user.user_metadata?.role || 'student',
+          is_active: true,
+          metadata: {
+            registration_completed: true
+          }
+        }, { 
+          onConflict: 'id'
+        });
+
+      if (profileError) throw profileError;
+
+      toast.dismiss(loadingToast);
       toast.success('Veiksmīga pieslēgšanās!');
       router.push("/profile");
     } catch (err) {
+      toast.dismiss(loadingToast);
       const errorMessage = (err as AuthError).message || 'Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz';
       setError(errorMessage);
       toast.error(errorMessage);
+      console.error('Error during sign-in:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -163,6 +217,8 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 required
+                aria-required="true"
+                aria-label="Vārds"
               />
             </div>
 
@@ -197,6 +253,8 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            aria-required="true"
+            aria-label="E-pasts"
           />
         </div>
 
@@ -208,6 +266,8 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            aria-required="true"
+            aria-label="Parole"
           />
         </div>
 

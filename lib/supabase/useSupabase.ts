@@ -18,10 +18,15 @@ export const useSupabase = () => {
     // Initialize auth state
     const initializeAuth = async () => {
       try {
+        console.log('Initializing auth...');
+        console.log('Fetching session...');
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
+        console.log('Session fetched:', session);
+        console.log('User state after initialization:', user);
+        console.log('Loading state:', loading);
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('Error initializing auth:', (error as any).message || error);
         setUser(null);
       } finally {
         setLoading(false);

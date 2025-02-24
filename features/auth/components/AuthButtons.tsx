@@ -2,15 +2,43 @@
 import { useEffect, useState } from "react";
 import { AuthMode } from '../types';
 import Link from "next/link";
-import { useSupabase } from '@/lib/supabase';
+import { useSupabase } from '@/lib/providers/SupabaseProvider';
+import { User } from '@supabase/supabase-js';
 
 interface AuthButtonsProps {
   readonly mode?: AuthMode;
 }
 
 export function AuthButtons({ mode = 'signup' }: AuthButtonsProps) {
-  const { user, loading } = useSupabase();
-  const isLoggedIn = !!user;
+  const { supabase } = useSupabase();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user || null);
+        console.log('Session retrieved:', session);
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      console.log('Auth state changed:', session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
 
   if (loading) {
     return (
@@ -27,7 +55,7 @@ export function AuthButtons({ mode = 'signup' }: AuthButtonsProps) {
     );
   }
 
-  if (isLoggedIn) return null;
+  if (user) return null;
 
   return (
     <div className="flex flex-col sm:flex-row gap-7 pt-10 justify-center">

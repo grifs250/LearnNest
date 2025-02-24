@@ -481,4 +481,16 @@ DO $$ BEGIN
     CREATE POLICY "Users can manage own notifications" ON notifications
       FOR ALL USING (user_id = auth.uid());
   END IF;
-END $$; 
+
+  -- Allow users to insert their own profile
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can insert own profile') THEN
+    CREATE POLICY "Users can insert own profile" ON profiles
+      FOR INSERT WITH CHECK (auth.uid() = id);
+  END IF;
+END $$;
+
+-- Allow users to insert their own profile
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id); 

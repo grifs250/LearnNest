@@ -2,47 +2,79 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Session, User } from '@supabase/supabase-js';
-import { createBrowserClient } from '@supabase/ssr';
+import { User } from '@supabase/supabase-js';
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X, User as UserIcon } from "lucide-react";
+import { useSupabase } from '@/lib/providers/SupabaseProvider';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { supabase } = useSupabase();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string>('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setLoading(true);
-      if (session) {
-        setUser(session.user);
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
+    // Get initial session
+    const getInitialSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching user data:", error.message || error);
-          if (error.message?.includes('no rows')) {
+          if (error) throw error;
+
+          if (!profile) {
+            console.log('No profile found, redirecting to profile setup');
             router.push('/profile/setup');
+          } else {
+            setIsTeacher(profile.role === 'teacher');
+            setDisplayName(profile.full_name || '');
           }
+        }
+      } catch (error) {
+        console.error("Error getting session:", error);
+        setIsTeacher(false);
+        setDisplayName('');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (error) throw error;
+
+          if (!profile) {
+            router.push('/profile/setup');
+          } else {
+            setIsTeacher(profile.role === 'teacher');
+            setDisplayName(profile.full_name || '');
+          }
+        } catch (error) {
+          console.error("Error fetching profile:", error);
           setIsTeacher(false);
           setDisplayName('');
-        } else {
-          setIsTeacher(profile.role === 'teacher');
-          setDisplayName(profile.display_name || profile.full_name || '');
         }
       } else {
         setUser(null);
@@ -53,13 +85,13 @@ export default function Navbar() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [supabase, router]);
 
   const profileButtonClass = isTeacher === null 
     ? "btn-neutral" 
     : isTeacher 
-      ? "btn-secondary" 
-      : "btn-accent";
+      ? "btn-secondary hover:btn-secondary-focus" 
+      : "btn-accent hover:btn-accent-focus";
 
   const navItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
@@ -122,7 +154,7 @@ export default function Navbar() {
             ) : (
               <Link 
                 href="/login"
-                className="btn btn-sm"
+                className="btn btn-sm border-t-neutral-400 hover:btn-ghost-focus"
               >
                 Pieslēgties
               </Link>
@@ -161,7 +193,7 @@ export default function Navbar() {
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="btn btn-sm"
+                  className="btn btn-sm btn-ghost hover:btn-ghost-focus"
                 >
                   Pieslēgties
                 </Link>
