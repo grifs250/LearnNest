@@ -4,8 +4,8 @@ export type UserRole = 'skolēns' | 'pasniedzējs';
 export interface AuthFormProps {
   initialMode: AuthMode;
   initialRole: UserRole;
-  updateRole: (role: string) => void;
-  updateMode: (mode: string) => void;
+  updateRole: (role: 'skolēns' | 'pasniedzējs') => void;
+  updateMode: (mode: AuthMode) => void;
   mode: AuthMode;
 }
 

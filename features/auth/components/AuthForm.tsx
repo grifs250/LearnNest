@@ -9,14 +9,15 @@ import { toast } from "react-hot-toast";
 import { useSupabase } from '@/lib/providers/SupabaseProvider';
 
 interface AuthFormProps {
-  initialMode: AuthMode;
-  initialRole: UserRole;
-  updateRole: (role: string) => void;
-  updateMode: (mode: string) => void;
-  mode: AuthMode;
+  readonly initialMode: AuthMode;
+  readonly initialRole: UserRole;
+  readonly updateRole: (role: 'skolēns' | 'pasniedzējs') => void;
+  readonly updateMode: (mode: AuthMode) => void;
+  readonly mode: AuthMode;
+  readonly onSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
-export default function AuthForm({ initialMode, initialRole, updateRole, updateMode, mode }: AuthFormProps) {
+export default function AuthForm({ initialMode, initialRole, updateRole, updateMode, mode, onSubmit }: AuthFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { supabase } = useSupabase();
@@ -25,9 +26,10 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<UserRole>(initialRole);
+  const [role, setRole] = useState<UserRole | null>(initialRole as UserRole || null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // Email validation regex
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -39,12 +41,25 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     return strongPasswordRegex.test(password);
   };
 
+  // Set initial role based on URL when component mounts
   useEffect(() => {
-    console.log('Initial Mode:', initialMode);
-    console.log('Initial Role:', initialRole);
-    setIsSignUp(initialMode === "signup");
-    setRole(initialRole);
-  }, [initialMode, initialRole]);
+    if (!isSignUp) {
+      setRole(null);
+    } else {
+      const queryRole = searchParams.get('role');
+      if (queryRole === 'teacher') {
+        setRole('pasniedzējs');
+      } else if (queryRole === 'student') {
+        setRole('skolēns');
+      } else if (initialRole) {
+        setRole(initialRole as UserRole);
+      } else {
+        setRole(null);
+      }
+    }
+    // Use a short timeout to prevent flickering
+    setTimeout(() => setIsInitializing(false), 100);
+  }, [isSignUp, searchParams, initialRole]);
 
   // Add check for verified parameter
   useEffect(() => {
@@ -54,72 +69,74 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     }
   }, [searchParams]);
 
+  // Form submission handler
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isSignUp) {
+      await handleSignUp(e);
+    } else {
+      await handleSignIn(e);
+    }
+  };
+
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
+    console.log('Sign-up form submitted');
     setError("");
     setIsSubmitting(true);
-    
+
+    // Validate role
+    if (!role) {
+      setError('Lūdzu izvēlieties lomu (Skolēns vai Pasniedzējs)');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Validate required fields
+    if (!displayName) {
+      setError('Vārds ir obligāts');
+      setIsSubmitting(false);
+      return;
+    }
+    if (!emailRegex.test(email)) {
+      setError('Lūdzu, ievadiet derīgu e-pasta adresi');
+      setIsSubmitting(false);
+      return;
+    }
+    if (!isPasswordStrong(password)) {
+      setError('Parolei jābūt vismaz 6 simbolus garai, ar vienu lielo burtu un vienu ciparu');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // Validate required fields
-      if (!displayName) {
-        setError('Vārds ir obligāts');
-        setIsSubmitting(false);
-        return;
-      }
-      if (!emailRegex.test(email)) {
-        setError('Lūdzu, ievadiet derīgu e-pasta adresi');
-        setIsSubmitting(false);
-        return;
-      }
-      if (!isPasswordStrong(password)) {
-        setError('Parolei jābūt vismaz 6 simbolus garai, ar vienu lielo burtu un vienu ciparu');
-        setIsSubmitting(false);
-        return;
-      }
-
-      const loadingToast = toast.loading('Reģistrācija notiek...');
-
-      console.log('Starting signup process...');
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: displayName,
-            role: role === "pasniedzējs" ? "teacher" : "student",
-            is_active: true,
-            metadata: {
-              registration_completed: false
-            }
-          },
-          emailRedirectTo: `${window.location.origin}/profile`,
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: displayName,
+          role,
+        }),
       });
 
-      if (signUpError) {
-        console.error('Signup error:', signUpError);
-        throw signUpError;
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to register');
       }
 
-      if (!signUpData.user) {
-        console.error('No user data after signup');
-        throw new Error('User data is not available after sign-up.');
-      }
-
-      console.log('User signed up successfully:', {
-        userId: signUpData.user.id,
-        email: signUpData.user.email,
-        role: signUpData.user.user_metadata?.role
-      });
-
-      // Redirect to profile page after successful signup
-      router.push("/profile");
+      toast.success('Reģistrācija veiksmīga! Lūdzu pārbaudiet savu e-pastu.');
+      router.push('/verify-email');
     } catch (err) {
-      console.error('Registration error:', err);
-      const errorMessage = (err as AuthError).message || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
+      const errorMessage = (err as Error).message || 'Kļūda reģistrējoties. Lūdzu, mēģiniet vēlreiz';
       setError(errorMessage);
+      console.error('Sign-up error:', errorMessage);
     } finally {
-      console.log('isSubmitting after signup:', isSubmitting);
       setIsSubmitting(false);
     }
   }
@@ -129,7 +146,14 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     setError("");
     setIsSubmitting(true);
     let loadingToast = toast.loading('Notiek pieslēgšanās...');
-    
+
+    // Validate email and password before attempting sign-in
+    if (!email || !password) {
+        setError('Lūdzu, ievadiet e-pastu un paroli');
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -144,27 +168,56 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
         return;
       }
 
+      // Log the authentication token
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Authentication token:', session);
+
+      // Redirect to profile page immediately after successful sign-in
+      console.log('Redirecting to profile page...');
+      router.push("/profile");
+
       // Create or update profile
-      const { error: profileError } = await supabase
+      const profileDataToUpsert = {
+        id: data.user.id,
+        email: data.user.email,
+        full_name: data.user.user_metadata?.full_name || '',
+        role: data.user.user_metadata?.role || 'student',
+        is_active: true,
+        metadata: {
+          registration_completed: true
+        }
+      };
+
+      console.log('Upserting profile data:', profileDataToUpsert);
+
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || '',
-          role: data.user.user_metadata?.role || 'student',
-          is_active: true,
-          metadata: {
-            registration_completed: true
-          }
-        }, { 
+        .upsert(profileDataToUpsert, { 
           onConflict: 'id'
         });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw profileError;
+      } else {
+        console.log('Profile data after upsert:', profileData);
+      }
+
+      // Retrieve the profile data again after upsert
+      const { data: updatedProfileData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profileDataToUpsert.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching updated profile data:', fetchError);
+      } else {
+        console.log('Updated profile data:', updatedProfileData);
+      }
 
       toast.dismiss(loadingToast);
       toast.success('Veiksmīga pieslēgšanās!');
-      router.push("/profile");
     } catch (err) {
       toast.dismiss(loadingToast);
       const errorMessage = (err as AuthError).message || 'Kļūda pieslēdzoties. Lūdzu, mēģiniet vēlreiz';
@@ -176,19 +229,34 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     }
   }
 
-  function toggleMode() {
+  const handleRoleChange = (newRole: UserRole) => {
+    setRole(newRole);
+    updateRole(newRole);
+    // Only update URL if in signup mode
+    if (isSignUp) {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('role', newRole === 'pasniedzējs' ? 'teacher' : 'student');
+      window.history.pushState({}, '', newUrl);
+    }
+  };
+
+  const toggleMode = () => {
     const newMode = isSignUp ? "login" : "signup";
     setIsSignUp(!isSignUp);
     updateMode(newMode);
-    router.push(`/${isSignUp ? 'login' : 'register'}?role=${role}`);
-  }
+    
+    // Clear role when switching to login
+    if (newMode === "login") {
+      setRole(null);
+      router.push('/login');
+    } else {
+      // When switching to signup, redirect to register with current role if exists
+      const roleParam = role ? `?role=${role === 'pasniedzējs' ? 'teacher' : 'student'}` : '';
+      router.push(`/register${roleParam}`);
+    }
+  };
 
-  function handleRoleChange(newRole: UserRole) {
-    setRole(newRole);
-    updateRole(newRole);
-  }
-
-  // Dynamic Background & Button Colors based on role
+  // Dynamic Background & Button Colors based on role and mode
   const bgColor = isSignUp 
     ? (role === "pasniedzējs" ? "bg-secondary/10" : "bg-accent/10") 
     : "bg-base-200";
@@ -196,9 +264,10 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
     ? (role === "pasniedzējs" ? "btn-secondary" : "btn-accent") 
     : "btn-primary";
 
+  // Render the form based on the role and mode
   return (
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${bgColor}`}>
-      <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="card bg-base-100 shadow-xl p-6 w-full max-w-md">
+      <form onSubmit={handleSubmit} className="card bg-base-100 shadow-xl p-6 w-full max-w-md">
         <h1 className="text-2xl font-bold mb-4 text-center">{isSignUp ? "Reģistrēties" : "Pieslēgties"}</h1>
 
         {error && (
@@ -207,96 +276,102 @@ export default function AuthForm({ initialMode, initialRole, updateRole, updateM
           </div>
         )}
 
-        {isSignUp && (
-          <>
-            <div className="form-control mb-4">
-              <label className="label font-semibold">Vārds</label>
-              <input
-                type="text"
-                className="input input-bordered"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-                aria-required="true"
-                aria-label="Vārds"
-              />
-            </div>
-
-            {/* Role Selection */}
-            <div className="form-control mb-4">
-              <label className="label font-semibold">Loma</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`btn w-1/2 ${role === "skolēns" ? "btn-accent" : "btn-outline"}`}
-                  onClick={() => handleRoleChange("skolēns")}
-                >
-                  👩‍🎓 Skolēns
-                </button>
-                <button
-                  type="button"
-                  className={`btn w-1/2 ${role === "pasniedzējs" ? "btn-secondary" : "btn-outline"}`}
-                  onClick={() => handleRoleChange("pasniedzējs")}
-                >
-                  👨‍🏫 Pasniedzējs
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="form-control mb-4">
-          <label className="label font-semibold">E-pasts</label>
-          <input
-            type="email"
-            className="input input-bordered"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            aria-required="true"
-            aria-label="E-pasts"
-          />
-        </div>
-
-        <div className="form-control mb-4">
-          <label className="label font-semibold">Parole</label>
-          <input
-            type="password"
-            className="input input-bordered"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            aria-required="true"
-            aria-label="Parole"
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          className={`btn w-full ${buttonColor}`}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
+        <div className={`space-y-4 transition-opacity duration-200 ${isInitializing ? 'opacity-50' : 'opacity-100'}`}>
+          {isSignUp && (
             <>
-              <span className="loading loading-spinner"></span>
-              {isSignUp ? "Notiek reģistrācija..." : "Notiek pieslēgšanās..."}
-            </>
-          ) : (
-            isSignUp ? "Reģistrēties" : "Pieslēgties"
-          )}
-        </button>
+              <div className="form-control mb-4">
+                <label className="label font-semibold">Vārds</label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  aria-required="true"
+                  aria-label="Vārds"
+                  disabled={isInitializing}
+                />
+              </div>
 
-        <p className="mt-4 text-center">
-          {isSignUp ? "Jau ir konts?" : "Nav konta?"}{" "}
+              <div className="form-control mb-4">
+                <label className="label font-semibold">Loma</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={`btn w-1/2 ${role === "skolēns" ? "btn-accent" : "btn-outline"}`}
+                    onClick={() => handleRoleChange("skolēns")}
+                    disabled={isInitializing}
+                  >
+                    👩‍🎓 Skolēns
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn w-1/2 ${role === "pasniedzējs" ? "btn-secondary" : "btn-outline"}`}
+                    onClick={() => handleRoleChange("pasniedzējs")}
+                    disabled={isInitializing}
+                  >
+                    👨‍🏫 Pasniedzējs
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="form-control mb-4">
+            <label className="label font-semibold">E-pasts</label>
+            <input
+              type="email"
+              className="input input-bordered"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              aria-required="true"
+              aria-label="E-pasts"
+              disabled={isInitializing}
+            />
+          </div>
+
+          <div className="form-control mb-4">
+            <label className="label font-semibold">Parole</label>
+            <input
+              type="password"
+              className="input input-bordered"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              aria-required="true"
+              aria-label="Parole"
+              disabled={isInitializing}
+            />
+          </div>
+
           <button 
-            type="button" 
-            className="text-blue-500 underline" 
-            onClick={toggleMode}
-            disabled={isSubmitting}
+            type="submit" 
+            className={`btn w-full ${buttonColor}`}
+            disabled={isSubmitting || isInitializing}
           >
-            {isSignUp ? "Pieslēgties" : "Reģistrēties"}
+            {isSubmitting ? (
+              <>
+                <span className="loading loading-spinner"></span>
+                {isSignUp ? "Notiek reģistrācija..." : "Notiek pieslēgšanās..."}
+              </>
+            ) : (
+              isSignUp ? "Reģistrēties" : "Pieslēgties"
+            )}
           </button>
-        </p>
+
+          <p className="mt-4 text-center">
+            {isSignUp ? "Jau ir konts?" : "Nav konta?"}{" "}
+            <button 
+              type="button" 
+              className="text-blue-500 underline" 
+              onClick={toggleMode}
+              disabled={isSubmitting || isInitializing}
+            >
+              {isSignUp ? "Pieslēgties" : "Reģistrēties"}
+            </button>
+          </p>
+        </div>
       </form>
     </div>
   );

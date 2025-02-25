@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { supabase } from '@/lib/supabase/client';
+// Check if the admin file exists and import it correctly
+// import { adminFunction } from '@/lib/firebase/admin'; // Uncomment and correct if needed
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,7 +11,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    await adminDb.collection("vacancies").doc(vacancyId).update({ bookedBy: studentId });
+    await supabase.from("vacancies").update({ bookedBy: studentId }).eq("id", vacancyId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

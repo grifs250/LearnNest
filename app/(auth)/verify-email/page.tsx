@@ -1,30 +1,60 @@
 "use client";
 
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSupabase } from '@/lib/providers/SupabaseProvider';
 
-export default function VerifyEmailPage() {
+export default function VerifyEmail() {
+  const router = useRouter();
+  const { supabase } = useSupabase();
+  const [email, setEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user.email_confirmed_at) {
+        router.push('/profile/setup');
+      } else {
+        setEmail(session?.user.email ?? null);
+      }
+    };
+
+    checkSession();
+  }, [router, supabase.auth]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-base-200">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Pārbaudiet savu e-pastu
-          </h2>
-          <p className="text-gray-600 mb-8">
-            Mēs nosūtījām jums e-pastu ar verifikācijas saiti. Lūdzu, pārbaudiet savu e-pastu un noklikšķiniet uz saites, lai apstiprinātu savu kontu.
-          </p>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-500">
-              Nesaņēmāt e-pastu? Pārbaudiet savu mēstuļu mapi.
+      <div className="card bg-base-100 shadow-xl p-8 max-w-md w-full text-center">
+        <h1 className="text-2xl font-bold mb-6">Pārbaudiet savu e-pastu</h1>
+        {email ? (
+          <>
+            <p className="mb-4">
+              Mēs nosūtījām verifikācijas e-pastu uz:
+              <br />
+              <span className="font-semibold">{email}</span>
             </p>
-            <Link 
-              href="/login" 
-              className="text-primary hover:text-primary-focus underline"
+            <p className="mb-6">
+              Lūdzu, atveriet e-pastu un noklikšķiniet uz verifikācijas saites, lai pabeigtu reģistrāciju.
+            </p>
+            <div className="divider">VAI</div>
+            <button
+              className="btn btn-outline mt-4"
+              onClick={async () => {
+                const { error } = await supabase.auth.resend({
+                  type: 'signup',
+                  email: email,
+                });
+                if (!error) {
+                  alert('Verifikācijas e-pasts nosūtīts atkārtoti!');
+                }
+              }}
             >
-              Atgriezties uz pieteikšanās lapu
-            </Link>
-          </div>
-        </div>
+              Sūtīt e-pastu vēlreiz
+            </button>
+          </>
+        ) : (
+          <p>Ielādē...</p>
+        )}
       </div>
     </div>
   );

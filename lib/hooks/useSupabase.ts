@@ -1,10 +1,10 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
 import type { Database } from '@/types/supabase.types'
-import type { User } from '@/features/auth/types'
+import type { AuthUser } from '@/features/auth/types'
 
 export function useSupabase() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   const supabase = createBrowserClient<Database>(
@@ -16,7 +16,7 @@ export function useSupabase() {
     const getUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        setUser(user)
+        setUser(user ? { uid: user.id, email: user.email || null, displayName: user.user_metadata?.full_name || null, emailVerified: !!user.email_confirmed_at, isTeacher: user.user_metadata?.role === 'teacher', status: 'active', createdAt: new Date(user.created_at) } : null)
       } catch (error) {
         console.error('Error getting user:', error)
       } finally {
@@ -29,8 +29,16 @@ export function useSupabase() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+      setUser(session?.user ? {
+        uid: session.user.id,
+        email: session.user.email || null,
+        displayName: session.user.user_metadata?.full_name || null,
+        emailVerified: !!session.user.email_confirmed_at,
+        isTeacher: session.user.user_metadata?.role === 'teacher',
+        status: 'active',
+        createdAt: new Date(session.user.created_at)
+      } : null);
+      setLoading(false);
     })
 
     return () => {
@@ -43,7 +51,8 @@ export function useSupabase() {
     setUser(null);
   };
 
-  return { supabase, user, profile: user?.profile ?? null, loading, signOut }
+  // Return user without profile reference
+  return { supabase, user, loading, signOut };
 }
 
 // export type User = {

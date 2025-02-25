@@ -53,13 +53,14 @@ export const createMiddlewareClient = (
 
 export async function middleware(req: NextRequest) {
   console.log('Middleware - Starting execution');
+
+  // Log all cookies for debugging
+  console.log('Middleware - All Cookies:', req.cookies.getAll());
+
   const res = NextResponse.next();
   const supabase = createMiddlewareClient(req, res);
 
   try {
-    // Log all cookies for debugging
-    console.log('Middleware - All Cookies:', req.cookies.getAll());
-
     const { data: { session }, error } = await supabase.auth.getSession();
     
     console.log('Middleware - Session Details:', {

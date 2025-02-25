@@ -27,23 +27,26 @@ export async function middleware(req: NextRequest) {
 
   // Log cookies for debugging
   console.log('Cookies:', req.cookies);
-  console.log('Raw Cookies:', req.cookies);
 
   // Refresh session if expired
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  // Log session details for debugging
+  console.log('Session:', session);
+  if (error) {
+    console.error('Error getting session:', error);
+  }
 
   // If accessing a protected route and not authenticated
-  if (req.nextUrl.pathname.startsWith('/profile')) {
+  if (PROTECTED_ROUTES.some(route => req.nextUrl.pathname.startsWith(route))) {
     if (!session) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
   }
 
   // If accessing login/register while authenticated
-  if (req.nextUrl.pathname.startsWith('/login') || req.nextUrl.pathname.startsWith('/register')) {
-    if (session) {
-      return NextResponse.redirect(new URL('/profile', req.url));
-    }
+  if (PUBLIC_ROUTES.some(route => req.nextUrl.pathname.startsWith(route)) && session) {
+    return NextResponse.redirect(new URL('/profile', req.url));
   }
 
   return res;
@@ -51,5 +54,5 @@ export async function middleware(req: NextRequest) {
 
 // Configure which routes use this middleware
 export const config = {
-  matcher: ['/profile/:path*', '/login', '/register']
+  matcher: ['/profile/:path*', '/dashboard/:path*', '/lessons/:path*', '/login', '/register']
 }; 
