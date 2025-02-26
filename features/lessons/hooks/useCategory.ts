@@ -11,6 +11,12 @@ export function useCategory(categoryId: string) {
 
   useEffect(() => {
     async function fetchCategory() {
+      if (!categoryId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)) {
+        setError("Invalid category ID");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         const { data, error } = await supabase
@@ -29,9 +35,7 @@ export function useCategory(categoryId: string) {
       }
     }
 
-    if (categoryId) {
-      fetchCategory();
-    }
+    fetchCategory();
   }, [categoryId]);
 
   return { data, loading, error };

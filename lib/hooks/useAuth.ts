@@ -1,26 +1,44 @@
 'use client';
 
-import { SupabaseProvider } from '@/features/shared/providers/SupabaseProvider';
-import { UserRole } from '@/types/supabase';
-import type { User } from '@supabase/supabase-js';
-import { useSupabase } from '@/lib/hooks/useSupabase';
-import { Profile } from '@/features/auth/types';
+import { createBrowserClient } from '@supabase/ssr'
+import { useEffect, useState } from 'react'
+import { Session } from '@supabase/supabase-js'
+import { useSupabase } from '@/lib/hooks/useSupabase'
+import { AuthUser, UserRole } from '@/features/auth/types'
 
 export function useAuth() {
-  const { user, profile, loading, signOut } = useSupabase();
+  const [isLoading, setIsLoading] = useState(true)
+  const [session, setSession] = useState<Session | null>(null)
+  const { user, loading, signOut } = useSupabase()
 
-  const isAuthenticated = !!user;
-  const isTeacher = profile?.role === 'teacher';
-  const isStudent = profile?.role === 'student';
-  const isAdmin = profile?.role === 'admin';
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      setIsLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase.auth])
+
+  const isAuthenticated = !!user
+  const isTeacher = (user as AuthUser)?.user_metadata?.role === 'teacher'
+  const isStudent = (user as AuthUser)?.user_metadata?.role === 'student'
+  const isAdmin = (user as AuthUser)?.user_metadata?.role === 'admin'
 
   const checkRole = (role: UserRole) => {
-    return profile?.role === role;
-  };
+    return (user as AuthUser)?.user_metadata?.role === role
+  }
 
   return {
+    isLoading,
+    session,
+    supabase,
     user,
-    profile,
     loading,
     isAuthenticated,
     isTeacher,
@@ -28,5 +46,5 @@ export function useAuth() {
     isAdmin,
     checkRole,
     signOut,
-  };
+  }
 } 

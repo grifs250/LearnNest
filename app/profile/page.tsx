@@ -2,66 +2,62 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/db';
 import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
-import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
-import { UserProfile } from '@/types/supabase';
+import { useSession } from '@/lib/providers/SessionProvider';
+import { initializeUserProfile } from '@/lib/utils/profile';
+import { toast } from 'react-hot-toast';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  avatar_url: string | null;
+  bio: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { session, isLoading: isSessionLoading } = useSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push('/login');
-          return;
-        }
+    let mounted = true;
 
-        const { data: userProfile, error } = await supabase
-          .from('profiles')
-          .select('*, users!inner(*)')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error.message || error);
-          if (error.message?.includes('no rows')) {
-            router.push('/profile/setup');
-            return;
-          }
-          throw error;
-        }
-
-        if (!userProfile || !userProfile.user.email_confirmed_at) {
-          router.push('/verify-email');
-          return;
-        }
-
-        setProfile({
-          id: userProfile.id,
-          user_id: userProfile.user_id,
-          full_name: userProfile.full_name,
-          bio: userProfile.bio || '',
-          avatar_url: userProfile.avatar_url,
-          role: userProfile.user.role,
-          created_at: userProfile.created_at,
-          updated_at: userProfile.updated_at
-        });
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      } finally {
-        setIsLoading(false);
+    async function loadProfile() {
+      if (!session) {
+        router.replace('/login');
+        return;
       }
+
+      try {
+        const userProfile = await initializeUserProfile(session);
+        if (mounted) {
+          setProfile(userProfile);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Profile loading error:', error);
+        toast.error('Error loading profile');
+        if (mounted) {
+          router.replace('/login');
+        }
+      }
+    }
+
+    if (!isSessionLoading) {
+      loadProfile();
+    }
+
+    return () => {
+      mounted = false;
     };
+  }, [session, isSessionLoading, router]);
 
-    fetchProfile();
-  }, [router]);
-
-  if (isLoading) {
+  if (isSessionLoading || isLoading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -69,84 +65,21 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profile) {
-    return null;
-  }
-
   return (
-    <ProtectedRoute>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <div className="bg-base-200 rounded-lg p-8">
-            <div className="flex items-center gap-6">
-              {profile.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt={profile.full_name}
-                  className="w-24 h-24 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-base-300 flex items-center justify-center">
-                  <span className="text-3xl">{profile.full_name[0]}</span>
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold">{profile.full_name}</h1>
-                <p className="text-base-content/70 mt-1 capitalize">{profile.role}</p>
-              </div>
-            </div>
-
-            {profile.bio && (
-              <div className="mt-6">
-                <h2 className="text-lg font-semibold mb-2">Par mani</h2>
-                <p className="text-base-content/70">{profile.bio}</p>
-              </div>
-            )}
-
-            <div className="mt-8 flex gap-4">
-              <button
-                onClick={() => router.push('/profile/edit')}
-                className="btn btn-primary"
-              >
-                Rediģēt profilu
-              </button>
-              {profile.role === 'teacher' && (
-                <button
-                  onClick={() => router.push('/profile/calendar')}
-                  className="btn btn-outline"
-                >
-                  Pārvaldīt kalendāru
-                </button>
-              )}
-            </div>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Profile Page</h1>
+      <div className="bg-base-200 p-4 rounded-lg">
+        <h2 className="text-xl mb-2">User Info</h2>
+        <p>Email: {profile.email}</p>
+        <p>Role: {profile.role}</p>
+        <p>Name: {profile.full_name}</p>
+        {profile.bio && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold">Bio</h3>
+            <p>{profile.bio}</p>
           </div>
-
-          {/* Additional sections based on role */}
-          {profile.role === 'teacher' ? (
-            <div className="mt-8 grid gap-8">
-              <section>
-                <h2 className="text-xl font-semibold mb-4">Manas nodarbības</h2>
-                {/* Add TeacherLessons component here */}
-              </section>
-              <section>
-                <h2 className="text-xl font-semibold mb-4">Atsauksmes</h2>
-                {/* Add TeacherReviews component here */}
-              </section>
-            </div>
-          ) : (
-            <div className="mt-8 grid gap-8">
-              <section>
-                <h2 className="text-xl font-semibold mb-4">Mani rezervējumi</h2>
-                {/* Add StudentBookings component here */}
-              </section>
-              <section>
-                <h2 className="text-xl font-semibold mb-4">Mīļākie pasniedzēji</h2>
-                {/* Add FavoriteTeachers component here */}
-              </section>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </ProtectedRoute>
+    </div>
   );
 }

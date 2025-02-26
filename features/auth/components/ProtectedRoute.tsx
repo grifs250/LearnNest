@@ -1,85 +1,40 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/db';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
+import { Session } from '@supabase/supabase-js';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requiredRole?: 'student' | 'teacher' | 'admin';
-}
-
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          router.push('/auth');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+          router.replace('/login');
           return;
         }
-
-        if (requiredRole) {
-          const { data: user } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-
-          if (!user || user.role !== requiredRole) {
-            router.push('/dashboard');
-            return;
-          }
-        }
-
-        setIsAuthenticated(true);
+        setIsChecking(false);
       } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/auth');
-      } finally {
-        setIsLoading(false);
+        console.error('Session check error:', error);
+        router.replace('/login');
       }
     };
 
-    checkAuth();
+    checkSession();
+  }, [router, supabase]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        router.push('/auth');
-      } else if (event === 'SIGNED_IN' && requiredRole) {
-        const { data: user } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', session!.user.id)
-          .single();
-
-        if (!user || user.role !== requiredRole) {
-          router.push('/dashboard');
-        }
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router, requiredRole]);
-
-  if (isLoading) {
+  if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return <>{children}</>;

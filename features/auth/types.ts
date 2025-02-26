@@ -1,22 +1,33 @@
-export type AuthMode = 'login' | 'signup';
-export type UserRole = 'skolēns' | 'pasniedzējs';
+export type AuthMode = 'login' | 'register';
+export type UserRole = 'student' | 'teacher' | 'admin';
+export type UIRole = 'skolēns' | 'pasniedzējs'; // For UI display
 
 export interface AuthFormProps {
   initialMode: AuthMode;
-  initialRole: UserRole;
-  updateRole: (role: 'skolēns' | 'pasniedzējs') => void;
+  initialRole: UIRole;
+  updateRole: (role: UIRole) => void;
   updateMode: (mode: AuthMode) => void;
   mode: AuthMode;
 }
 
+// Helper function to convert UI role to storage role
+export const mapUIRoleToStorageRole = (uiRole: UIRole): UserRole => {
+  return uiRole === 'pasniedzējs' ? 'teacher' : 'student';
+};
+
+// Helper function to convert storage role to UI role
+export const mapStorageRoleToUIRole = (storageRole: UserRole): UIRole => {
+  return storageRole === 'teacher' ? 'pasniedzējs' : 'skolēns';
+};
+
 export interface AuthUser {
-  uid: string;
+  id: string;
   email: string | null;
-  displayName: string | null;
-  emailVerified: boolean;
-  isTeacher: boolean;
-  status: 'pending' | 'active' | 'blocked';
-  createdAt: Date;
+  user_metadata: {
+    role: UserRole;
+    full_name: string;
+  };
+  email_confirmed_at?: string;
 }
 
 export interface AuthState {

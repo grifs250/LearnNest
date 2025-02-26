@@ -7,6 +7,7 @@ import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";
 import { Toaster } from 'react-hot-toast'
+import { SessionProvider } from '@/lib/providers/SessionProvider';
 
 const inter = Inter({ subsets: ["latin"] });
 

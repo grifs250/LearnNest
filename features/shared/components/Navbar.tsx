@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { User } from '@supabase/supabase-js';
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X, User as UserIcon } from "lucide-react";
@@ -11,81 +10,64 @@ import { useSupabase } from '@/lib/providers/SupabaseProvider';
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { supabase } = useSupabase();
+  const { supabase, user, loading } = useSupabase();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string>('');
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    let mounted = true;
+    
+    const getProfileData = async () => {
+      if (!user) {
+        if (mounted) {
+          setIsTeacher(null);
+          setDisplayName('');
+          setIsCheckingProfile(false);
+        }
+        return;
+      }
+
+      if (pathname === '/profile/setup') {
+        setIsCheckingProfile(false);
+        return;
+      }
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(session.user);
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
 
-          if (error) throw error;
+        if (error) throw error;
 
+        if (mounted) {
           if (!profile) {
-            console.log('No profile found, redirecting to profile setup');
             router.push('/profile/setup');
           } else {
             setIsTeacher(profile.role === 'teacher');
             setDisplayName(profile.full_name || '');
           }
+          setIsCheckingProfile(false);
         }
       } catch (error) {
-        console.error("Error getting session:", error);
-        setIsTeacher(false);
-        setDisplayName('');
-      } finally {
-        setLoading(false);
+        console.error("Error fetching profile:", error);
+        if (mounted) {
+          setIsTeacher(false);
+          setDisplayName('');
+          setIsCheckingProfile(false);
+        }
       }
     };
 
-    getInitialSession();
+    getProfileData();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          if (error) throw error;
-
-          if (!profile) {
-            router.push('/profile/setup');
-          } else {
-            setIsTeacher(profile.role === 'teacher');
-            setDisplayName(profile.full_name || '');
-          }
-        } catch (error) {
-          console.error("Error fetching profile:", error);
-          setIsTeacher(false);
-          setDisplayName('');
-        }
-      } else {
-        setUser(null);
-        setIsTeacher(null);
-        setDisplayName('');
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase, router]);
+    return () => {
+      mounted = false;
+    };
+  }, [user, supabase, router, pathname]);
 
   const profileButtonClass = isTeacher === null 
     ? "btn-neutral" 

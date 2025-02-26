@@ -1,32 +1,24 @@
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import { createContext, useContext, useEffect, useState } from 'react'
-import type { SupabaseClient, User } from '@supabase/supabase-js'
+import { createContext, useContext, useEffect, useState } from 'react';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 
-type SupabaseContext = {
-  supabase: SupabaseClient
-  user: User | null
-  loading: boolean
-}
+type SupabaseContextType = {
+  supabase: SupabaseClient;
+  user: User | null;
+  loading: boolean;
+};
 
-const Context = createContext<SupabaseContext | undefined>(undefined)
+const Context = createContext<SupabaseContextType | undefined>(undefined);
 
-export default function SupabaseProvider({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [supabase] = useState(() => createClientComponentClient());
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -44,35 +36,36 @@ export default function SupabaseProvider({
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
       
       if (event === 'SIGNED_IN') {
-        router.refresh()
-        toast.success('Veiksmīgi pieslēdzies!')
+        // Don't show toast or redirect here - let the login page handle it
+        router.refresh();
+      } else if (event === 'SIGNED_OUT') {
+        toast.success('Successfully logged out!');
+        router.push('/');
+        router.refresh();
       }
-      if (event === 'SIGNED_OUT') {
-        router.refresh()
-        toast.success('Veiksmīgi atslēdzies!')
-      }
-    })
+    });
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase, router])
+      subscription.unsubscribe();
+    };
+  }, [supabase, router]);
 
   return (
     <Context.Provider value={{ supabase, user, loading }}>
       {children}
     </Context.Provider>
-  )
+  );
 }
 
 export const useSupabase = () => {
-  const context = useContext(Context)
+  const context = useContext(Context);
   if (context === undefined) {
-    throw new Error('useSupabase must be used inside SupabaseProvider')
+    throw new Error('useSupabase must be used inside SupabaseProvider');
   }
-  return context
-} 
+  return context;
+}; 

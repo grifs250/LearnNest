@@ -1,7 +1,9 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
 import AuthForm from '@/features/auth/components/AuthForm';
+import { useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 
 const errorMessages: { [key: string]: string } = {
   verification_expired: 'Verifikācijas saite ir nederīga vai ir beigusies. Lūdzu, pieprasiet jaunu verifikācijas e-pastu.',
@@ -15,22 +17,22 @@ const errorMessages: { [key: string]: string } = {
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
-  const errorMessage = error ? errorMessages[error] || 'Kļūda. Lūdzu, mēģiniet vēlreiz.' : null;
+  const verified = searchParams.get('verified');
+
+  useEffect(() => {
+    if (verified === 'true') {
+      toast.success('E-pasts veiksmīgi apstiprināts! Lūdzu piesakieties.');
+    } else if (error) {
+      toast.error(errorMessages[error] || 'Kļūda. Lūdzu, mēģiniet vēlreiz.');
+    }
+  }, [verified, error]);
 
   return (
-    <div className="min-h-screen">
-      {errorMessage && (
-        <div className="alert alert-error max-w-md mx-auto mt-4">
-          <span>{errorMessage}</span>
-        </div>
-      )}
-      <AuthForm 
+    <div className="min-h-screen bg-base-200">
+      <AuthForm
         initialMode="login"
         initialRole="skolēns"
-        mode="login"
-        updateMode={() => {}}
-        updateRole={() => {}}
-        onSubmit={async () => {}}
+        onSubmit={async () => {}} // Auth is now handled in AuthForm
       />
     </div>
   );

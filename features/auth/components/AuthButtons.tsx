@@ -1,59 +1,54 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { AuthMode } from '../types';
-import Link from "next/link";
-import { useSupabase } from '@/lib/providers/SupabaseProvider';
-import { User } from '@supabase/supabase-js';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface AuthButtonsProps {
   readonly mode?: AuthMode;
 }
 
-export function AuthButtons({ mode = 'signup' }: Readonly<AuthButtonsProps>) {
-  const { supabase } = useSupabase();
+// Default mode is register
+export function AuthButtons({ mode = 'register' }: Readonly<AuthButtonsProps>) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<'student' | 'teacher'>('student'); // Default role
+  const searchParams = useSearchParams();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [role, setRole] = useState<'student' | 'teacher'>(
+    searchParams.get('role') === 'teacher' ? 'teacher' : 'student'
+  );
+
+  // Create a Supabase client
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
+    const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user || null);
-        console.log('Session retrieved:', session);
-      } catch (error) {
-        console.error('Error getting session:', error);
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error checking session:', error.message);
+          setIsAuthenticated(false);
+        } else {
+          setIsAuthenticated(!!session);
+        }
+      } catch (err) {
+        console.error('Failed to check session:', err);
+        setIsAuthenticated(false);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    getInitialSession();
+    checkSession();
+  }, [supabase.auth]);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      console.log('Auth state changed:', session);
-      setLoading(false);
-    });
+  const handleNavigation = (selectedRole: 'student' | 'teacher') => {
+    setRole(selectedRole);
+    const path = mode === 'login' ? 'login' : 'register';
+    router.push(`/${path}?role=${selectedRole}`, { scroll: false });
+  };
 
-    return () => subscription.unsubscribe();
-  }, [supabase]);
-
-  useEffect(() => {
-    // Extract role from URL query parameters
-    const queryRole = new URLSearchParams(window.location.search).get('role');
-    if (queryRole === 'teacher') {
-      setRole('teacher');
-    } else {
-      setRole('student');
-    }
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col sm:flex-row gap-7 pt-10 justify-center">
         <button className="btn btn-accent w-full sm:w-auto" disabled>
@@ -68,24 +63,23 @@ export function AuthButtons({ mode = 'signup' }: Readonly<AuthButtonsProps>) {
     );
   }
 
-  if (user) return null;
+  // If authenticated, don't show the buttons
+  if (isAuthenticated) return null;
 
   return (
     <div className="flex flex-col sm:flex-row gap-7 pt-10 justify-center">
-      <Link 
-        href={`/${mode === 'login' ? 'login' : 'register'}?role=student`}
+      <button 
         className="btn btn-accent w-full sm:w-auto"
-        onClick={() => setRole('student')}
+        onClick={() => handleNavigation('student')}
       >
         👩‍🎓 {mode === 'login' ? 'Ieiet kā Skolēns' : 'Reģistrēties kā Skolēns'}
-      </Link>
-      <Link 
-        href={`/${mode === 'login' ? 'login' : 'register'}?role=teacher`}
+      </button>
+      <button 
         className="btn btn-secondary w-full sm:w-auto"
-        onClick={() => setRole('teacher')}
+        onClick={() => handleNavigation('teacher')}
       >
         👨‍🏫 {mode === 'login' ? 'Ieiet kā Pasniedzējs' : 'Reģistrēties kā Pasniedzējs'}
-      </Link>
+      </button>
     </div>
   );
 } 
