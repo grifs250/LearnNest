@@ -1,29 +1,13 @@
-"use client";
-
-import { supabase } from '@/lib/supabase/db';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-interface AuthLayoutProps {
-  readonly children: React.ReactNode;
-}
-
-export default function AuthLayout({ children }: AuthLayoutProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        router.push('/profile');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
-
-  // Check for any route references using courseId
-
-  return children;
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-base-200">
+      <div className="max-w-md w-full p-6 bg-base-100 rounded-lg shadow-xl">
+        {children}
+      </div>
+    </div>
+  );
 } 

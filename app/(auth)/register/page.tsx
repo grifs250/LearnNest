@@ -1,15 +1,7 @@
 "use client";
 
-import AuthForm from '@/features/auth/components/AuthForm';
+import { SignUp } from "@clerk/nextjs";
 
 export default function RegisterPage() {
-  return (
-    <div>
-      <AuthForm
-        initialMode="register"
-        initialRole="skolēns"
-        onSubmit={async () => {}} // Auth is now handled in AuthForm
-      />
-    </div>
-  );
+  return <SignUp />;
 }

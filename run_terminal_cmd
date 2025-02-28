@@ -1,0 +1,15 @@
+rm -rf lib/firebase
+rm -rf lib/providers
+rm -rf lib/utils
+rm -rf features/auth/components
+rm -rf features/auth/hooks/useVerification.ts
+rm -rf features/auth/utils
+rm -rf app/api/auth
+rm -rf types/database.types.ts
+rm -rf features/bookings/types.ts
+rm -rf lib/supabase/db.ts
+rm -rf lib/supabase/auth.ts
+rm -rf lib/supabase/middleware.ts
+rm -rf lib/supabase/config.ts
+npm install @clerk/nextjs
+npm uninstall @supabase/auth-helpers-nextjs @supabase/ssr firebase firebase-admin next-auth 

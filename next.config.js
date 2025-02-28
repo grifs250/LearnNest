@@ -13,32 +13,20 @@ const nextConfig = {
     },
     optimizePackageImports: ['lucide-react'],
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Client-side polyfills and fallbacks
+  webpack: (config) => {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
         crypto: require.resolve('crypto-browserify'),
         stream: require.resolve('stream-browserify'),
-        os: require.resolve('os-browserify'),
+        buffer: require.resolve('buffer'),
+        os: require.resolve('os-browserify/browser'),
         path: require.resolve('path-browserify'),
+        constants: require.resolve('constants-browserify'),
+        assert: require.resolve('assert/'),
+        util: require.resolve('util/'),
         process: require.resolve('process/browser'),
         events: require.resolve('events/'),
       };
-
-      // Add polyfills
-      config.plugins.push(
-        new webpack.ProvidePlugin({
-          process: 'process/browser',
-        }),
-        new webpack.DefinePlugin({
-          'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-        })
-      );
-    }
 
     // Optimize SVG imports
     config.module.rules.push({

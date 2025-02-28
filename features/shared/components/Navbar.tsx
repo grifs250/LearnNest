@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
-import { Menu, X, UserIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 
 export default function Navbar() {
@@ -13,16 +13,24 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isTeacher = user?.publicMetadata?.role === 'teacher';
-  const displayName = user?.firstName || user?.username;
+  const isStudent = user?.publicMetadata?.role === 'student';
 
-  const navItems = [
+  const publicNavItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
     { label: "Mācību priekšmeti", href: "#subjects" },
     { label: "Valodu kursi", href: "#languages" },
     { label: "IT kursi", href: "#it" },
-    { label: "BUJ", href: "#buj" },
+    { label: "BUJ", href: "/buj" },
     { label: "Kontakti", href: "#contact" },
   ];
+
+  const dashboardItems = isTeacher 
+    ? [{ label: "Mana Klase", href: "/teacher" }]
+    : isStudent 
+    ? [{ label: "Manas Stundas", href: "/student" }]
+    : [];
+
+  const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
 
   return (
     <div>
@@ -46,20 +54,30 @@ export default function Navbar() {
 
         <div className="hidden md:flex gap-4 mr-4 items-center">
           {navItems.map((item) => (
-            <SmoothScrollLink
-              key={item.href}
-              href={pathname === "/" ? item.href : `/${item.href}`}
-              className="hover:underline"
-            >
-              {item.label}
-            </SmoothScrollLink>
+            item.href.startsWith('#') && pathname === '/' ? (
+              <SmoothScrollLink
+                key={item.href}
+                href={item.href}
+                className="hover:underline"
+              >
+                {item.label}
+              </SmoothScrollLink>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="hover:underline"
+              >
+                {item.label}
+              </Link>
+            )
           ))}
           {isLoaded && (
             user ? (
               <UserButton afterSignOutUrl="/" />
             ) : (
               <Link href="/login" className="btn btn-primary">
-                Sign In
+                Pieslēgties
               </Link>
             )
           )}
@@ -69,14 +87,25 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="bg-primary text-primary-content p-4 flex flex-col gap-2 md:hidden">
           {navItems.map((item) => (
-            <SmoothScrollLink
-              key={item.href}
-              href={pathname === "/" ? item.href : `/${item.href}`}
-              onClick={() => setMobileOpen(false)}
-              className="hover:underline text-center"
-            >
-              {item.label}
-            </SmoothScrollLink>
+            item.href.startsWith('#') && pathname === '/' ? (
+              <SmoothScrollLink
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className="hover:underline text-center"
+              >
+                {item.label}
+              </SmoothScrollLink>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className="hover:underline text-center"
+              >
+                {item.label}
+              </Link>
+            )
           ))}
           <div className="flex justify-center">
             {isLoaded && (
@@ -88,7 +117,7 @@ export default function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className="btn btn-sm btn-ghost hover:btn-ghost-focus"
                 >
-                  Sign In
+                  Pieslēgties
                 </Link>
               )
             )}

@@ -1,9 +1,8 @@
-"use client";
+'use client';
 
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { LoadingSpinner } from "@/features/shared/components/ui/LoadingSpinner";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth();
@@ -11,21 +10,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.replace("/login");
+      router.replace('/login');
     }
   }, [isLoaded, isSignedIn, router]);
 
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
+  if (!isLoaded || !isSignedIn) {
+    return <div>Loading...</div>;
   }
 
-  if (isSignedIn) {
-    return <>{children}</>;
-  }
-
-  return null;
+  return <>{children}</>;
 } 
