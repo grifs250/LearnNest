@@ -1,8 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { Database } from '@/types/supabase.types';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { RequestCookies } from 'next/dist/server/web/spec-extension/cookies';
+import { auth } from '@clerk/nextjs/server';
 
 // Create a server-side Supabase client with cookie handling
 export const createClient = () => {
@@ -90,7 +91,7 @@ export const createServerSupabaseClient = () => {
 };
 
 // Create an admin client for background tasks
-export const supabaseAdmin = createSupabaseClient<Database>(
+export const supabaseAdmin = createClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
@@ -99,4 +100,30 @@ export const supabaseAdmin = createSupabaseClient<Database>(
       persistSession: false
     }
   }
-); 
+);
+
+export async function createClerkSupabaseServerClient() {
+  const { getToken } = auth();
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_KEY!,
+    {
+      global: {
+        fetch: async (url, options = {}) => {
+          const clerkToken = await getToken({
+            template: 'supabase',
+          });
+
+          const headers = new Headers(options?.headers);
+          headers.set('Authorization', `Bearer ${clerkToken}`);
+
+          return fetch(url, {
+            ...options,
+            headers,
+          });
+        },
+      },
+    }
+  );
+} 

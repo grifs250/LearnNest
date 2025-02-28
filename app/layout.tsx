@@ -2,29 +2,28 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "./themeProvider";
-import SupabaseProvider from "@/lib/providers/SupabaseProvider";
+import { ClerkProvider } from '@clerk/nextjs';
 import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";
 import { Toaster } from 'react-hot-toast'
-import { SessionProvider } from '@/lib/providers/SessionProvider';
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Learn Nest - Online Learning Platform",
-  description: "Connect with expert teachers for private lessons",
+  title: "MāciesTe - Labākā tiešsaistes mācību platforma skolēniem un studentiem",
+  description: "MāciesTe ir vadošā tiešsaistes mācīšanās platforma Latvijā, kur skolēni un studenti var atrast kvalificētus pasniedzējus. Saņem individuālas mācību stundas matemātikā, fizikā, ķīmijā, angļu valodā un citos priekšmetos, lai uzlabotu sekmes un sagatavotos eksāmeniem.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="lv">
-      <body className={inter.className}>
-        <SupabaseProvider>
+    <ClerkProvider>
+      <html lang="lv">
+        <body className={inter.className}>
           <ThemeProvider>
             <ErrorBoundary>
               <Navbar />
@@ -35,8 +34,8 @@ export default function RootLayout({
             </ErrorBoundary>
           </ThemeProvider>
           <Toaster position="top-center" />
-        </SupabaseProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

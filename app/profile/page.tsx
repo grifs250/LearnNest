@@ -28,13 +28,8 @@ export default function ProfilePage() {
     let mounted = true;
 
     async function loadProfile() {
-      if (!session) {
-        router.replace('/login');
-        return;
-      }
-
       try {
-        const userProfile = await initializeUserProfile(session);
+        const userProfile = await initializeUserProfile(session!);
         if (mounted) {
           setProfile(userProfile);
           setIsLoading(false);
@@ -43,13 +38,17 @@ export default function ProfilePage() {
         console.error('Profile loading error:', error);
         toast.error('Error loading profile');
         if (mounted) {
-          router.replace('/login');
+          setIsLoading(false);
         }
       }
     }
 
-    if (!isSessionLoading) {
+    // Only load profile when we have a session and are mounted
+    if (!isSessionLoading && session && mounted) {
       loadProfile();
+    } else if (!isSessionLoading && !session) {
+      // If session loading is done and we have no session, redirect
+      router.replace('/login');
     }
 
     return () => {
@@ -57,7 +56,17 @@ export default function ProfilePage() {
     };
   }, [session, isSessionLoading, router]);
 
-  if (isSessionLoading || isLoading || !profile) {
+  // Show loading state while session is loading or profile is loading
+  if (isSessionLoading || isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Show loading state while profile is not loaded
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />

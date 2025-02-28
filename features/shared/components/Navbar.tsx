@@ -1,79 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
-import { Menu, X, User as UserIcon } from "lucide-react";
-import { useSupabase } from '@/lib/providers/SupabaseProvider';
+import { Menu, X, UserIcon } from "lucide-react";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { supabase, user, loading } = useSupabase();
+  const { user, isLoaded } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isTeacher, setIsTeacher] = useState<boolean | null>(null);
-  const [displayName, setDisplayName] = useState<string>('');
-  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    
-    const getProfileData = async () => {
-      if (!user) {
-        if (mounted) {
-          setIsTeacher(null);
-          setDisplayName('');
-          setIsCheckingProfile(false);
-        }
-        return;
-      }
-
-      if (pathname === '/profile/setup') {
-        setIsCheckingProfile(false);
-        return;
-      }
-
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        if (mounted) {
-          if (!profile) {
-            router.push('/profile/setup');
-          } else {
-            setIsTeacher(profile.role === 'teacher');
-            setDisplayName(profile.full_name || '');
-          }
-          setIsCheckingProfile(false);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        if (mounted) {
-          setIsTeacher(false);
-          setDisplayName('');
-          setIsCheckingProfile(false);
-        }
-      }
-    };
-
-    getProfileData();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user, supabase, router, pathname]);
-
-  const profileButtonClass = isTeacher === null 
-    ? "btn-neutral" 
-    : isTeacher 
-      ? "btn-secondary hover:btn-secondary-focus" 
-      : "btn-accent hover:btn-accent-focus";
+  const isTeacher = user?.publicMetadata?.role === 'teacher';
+  const displayName = user?.firstName || user?.username;
 
   const navItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
@@ -83,15 +23,6 @@ export default function Navbar() {
     { label: "BUJ", href: "#buj" },
     { label: "Kontakti", href: "#contact" },
   ];
-
-  const handleProfileClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (user) {
-      router.push('/profile');
-    } else {
-      router.push('/login');
-    }
-  };
 
   return (
     <div>
@@ -123,22 +54,12 @@ export default function Navbar() {
               {item.label}
             </SmoothScrollLink>
           ))}
-          {!loading && (
+          {isLoaded && (
             user ? (
-              <Link 
-                href="/profile" 
-                onClick={handleProfileClick}
-                className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
-              >
-                <UserIcon size={16} />
-                {displayName || 'Profils'}
-              </Link>
+              <UserButton afterSignOutUrl="/" />
             ) : (
-              <Link 
-                href="/login"
-                className="btn btn-sm border-t-neutral-400 hover:btn-ghost-focus"
-              >
-                Pieslēgties
+              <Link href="/login" className="btn btn-primary">
+                Sign In
               </Link>
             )
           )}
@@ -158,26 +79,16 @@ export default function Navbar() {
             </SmoothScrollLink>
           ))}
           <div className="flex justify-center">
-            {!loading && (
+            {isLoaded && (
               user ? (
-                <Link 
-                  href="/profile" 
-                  onClick={(e) => {
-                    handleProfileClick(e);
-                    setMobileOpen(false);
-                  }}
-                  className={`btn btn-sm flex items-center gap-1 ${profileButtonClass}`}
-                >
-                  <UserIcon size={16} />
-                  {displayName || 'Profils'}
-                </Link>
+                <UserButton afterSignOutUrl="/" />
               ) : (
                 <Link
                   href="/login"
                   onClick={() => setMobileOpen(false)}
                   className="btn btn-sm btn-ghost hover:btn-ghost-focus"
                 >
-                  Pieslēgties
+                  Sign In
                 </Link>
               )
             )}

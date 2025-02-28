@@ -14,6 +14,7 @@
     "generate-types": "ts-node -P scripts/tsconfig.json scripts/generate-types.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.12.1",
     "@hookform/resolvers": "^4.1.0",
     "@next-auth/supabase-adapter": "^0.2.1",
     "@radix-ui/react-dialog": "^1.1.6",

@@ -1,35 +1,21 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
-import { Session } from '@supabase/supabase-js';
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { LoadingSpinner } from "@/features/shared/components/ui/LoadingSpinner";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session) {
-          router.replace('/login');
-          return;
-        }
-        setIsChecking(false);
-      } catch (error) {
-        console.error('Session check error:', error);
-        router.replace('/login');
-      }
-    };
+    if (isLoaded && !isSignedIn) {
+      router.replace("/login");
+    }
+  }, [isLoaded, isSignedIn, router]);
 
-    checkSession();
-  }, [router, supabase]);
-
-  if (isChecking) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -37,5 +23,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  if (isSignedIn) {
+    return <>{children}</>;
+  }
+
+  return null;
 } 
