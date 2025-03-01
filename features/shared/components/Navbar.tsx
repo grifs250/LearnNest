@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X } from "lucide-react";
@@ -24,11 +24,12 @@ export default function Navbar() {
     { label: "Kontakti", href: "#contact" },
   ];
 
-  const dashboardItems = isTeacher 
-    ? [{ label: "Mana Klase", href: "/teacher" }]
-    : isStudent 
-    ? [{ label: "Manas Stundas", href: "/student" }]
-    : [];
+  let dashboardItems: Array<{ label: string; href: string }> = [];
+  if (isTeacher) {
+    dashboardItems = [{ label: "Mana Klase", href: "/teacher" }];
+  } else if (isStudent) {
+    dashboardItems = [{ label: "Manas Stundas", href: "/student" }];
+  }
 
   const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
 

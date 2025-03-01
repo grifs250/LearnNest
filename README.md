@@ -1,37 +1,108 @@
-﻿# 📚 LearnNest - Online Learning Platform  
+﻿# 📚 MaciesTe - Online Leaninrg Platform  
 
 LINK: https://learn-nest-seven.vercel.app/
 
-LearnNest is a **Next.js 15**-powered platform designed to connect **students** and **teachers** for interactive online learning. Users can **sign up, log in, and manage lessons** with Firebase Authentication and Firestore.  
+MaciesTe is a **Next.js 15**-powered platform designed to connect **students** and **teachers** for interactive online learning. Users can **sign up, log in, and manage lessons** with Firebase Authentication and Firestore.  
 
 ---
 
-## 🚀 Features  
+## 🔧 Technical Specification
 
-✅ **Next.js 15 (App Router)** - Optimized for performance  
-✅ **Role-Based UI** - Choose between **Student** or **Teacher** during sign-up  
-✅ **Firebase Authentication** - Secure sign-in & registration  
-✅ **Firestore Database** - Stores user profiles & roles  
-✅ **Dynamic UI** - Background and buttons change based on user role  
-✅ **TailwindCSS** - Fully responsive & mobile-friendly  
-✅ **Smooth Navigation** - Uses Next.js **App Router (`app/` directory)**  
+## 1. Technology Stack
+- **Frontend**: TypeScript, Next.js 15
+- **UI**: TailwindCSS with DaisyUI
+- **Forms**: React Hook Form with Zod validation
+- **Database**: Supabase (PostgreSQL)
+- **Video Calls**: Daily.co (TBD)
+- **Payments**: Stripe
 
----
+## 2. User Roles & Features
 
-## 📂 Tech Stack  
+### 2.1 Student Features
+- **Registration**:
+  - Name, email, phone, age, password
+  - Email/password login
+  - Password recovery
+- **Core Features**:
+  - Search teachers by subject
+  - Book available time slots
+  - Make prepayments
+  - Receive email confirmations with lesson links
+  - View booked lessons and links in profile
+  - Leave reviews after lessons
+  - Access lesson history
 
-- **Next.js 15** (App Router)  
-- **React 19**  
-- **Firebase (Auth & Firestore)**  
-- **TailwindCSS**  
-- **TypeScript**  
-- **Lucide Icons**  
+### 2.2 Teacher Features
+- **Registration**:
+  - Name, email, phone, profile photo
+  - Bio and specialization
+  - Education documents
+  - Tax ID/Personal ID
+- **Core Features**:
+  - Set availability and pricing (with visible commission fees)
+  - Confirm lesson requests
+  - Receive lesson links via email
+  - Access virtual wallet
+  - View earnings history
+  - Request payouts
+  - View lesson history
 
----
+### 2.3 Admin Features
+- Approve user accounts
+- Teacher quality control
+- Process teacher payouts
+- Monitor reviews
+- Handle disputes
+- Manage all bookings
+- Access payment overview
+- Review all communications
 
-## 📦 Installation & Setup  
+## 3. Core Platform Features
 
-### 1️⃣ Clone the Repository  
-```sh
-git clone https://github.com/YOUR_USERNAME/LearnNest.git
-cd LearnNest
+### 3.1 Booking System
+- Teacher availability management
+- Student booking with prepayment
+- Automated email/SMS notifications
+- 24-hour cancellation policy
+
+### 3.2 Payment System
+- Student prepayments
+- Teacher virtual wallet
+- Platform commission handling
+- Automated invoice generation
+- Payment history tracking
+
+### 3.3 Video Lessons
+- Google Meet link generation (TBD)
+- Link distribution
+- Optional lesson recording
+
+### 3.4 Review System
+- Post-lesson student feedback
+- Public teacher reviews
+
+## 4. Technical Requirements
+
+### 4.1 Security
+- SSL certification (Vercel)
+- User authentication (Clerk)
+- CAPTCHA protection (Clerk)
+
+### 4.2 Integrations
+- Google Analytics
+- Stripe
+- Google Meet (TBD)
+- Calendar (TBD)
+- Virtual Wallet (TBD)
+- Survey System (TBD)
+
+### 4.3 Testing
+- Cross-browser testing (Chrome, Firefox, Safari)
+- Responsive design testing
+- Full functionality testing
+
+## 5. Timeline
+- Development: 6 months from contract signing
+
+
+

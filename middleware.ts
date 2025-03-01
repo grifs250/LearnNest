@@ -1,25 +1,16 @@
-import { authMiddleware } from '@clerk/nextjs';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-export default authMiddleware({
-  // Public routes that don't require authentication
-  publicRoutes: [
+export default clerkMiddleware();
+
+// Stop Middleware running on static files
+export const config = {
+  matcher: [
     "/",
     "/login",
     "/register",
     "/buj",
     "/api/webhooks(.*)",
-    "/lessons(.*)"
-  ],
-  ignoredRoutes: [
-    "/api/webhooks/clerk"
-  ]
-});
-
-// Stop Middleware running on static files
-export const config = {
-  matcher: [
-    "/((?!.+\\.[\\w]+$|_next).*)",
-    "/",
+    "/lessons(.*)",
     "/(api|trpc)(.*)"
   ]
 }; 
