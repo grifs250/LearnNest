@@ -6,7 +6,7 @@ MaciesTe is a **Next.js 15**-powered platform designed to connect **students** a
 
 ---
 
-## 🔧 Technical Specification
+### 🔧 Technical Specification
 
 ## 1. Technology Stack
 - **Frontend**: TypeScript, Next.js 15
