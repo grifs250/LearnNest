@@ -1,8 +1,8 @@
-﻿# 📚 MaciesTe - Online Leaninrg Platform  
+﻿# 📚 MāciesTe - Online Learning Platform
 
 LINK: https://learn-nest-seven.vercel.app/
 
-MaciesTe is a **Next.js 15**-powered platform designed to connect **students** and **teachers** for interactive online learning. Users can **sign up, log in, and manage lessons** with Firebase Authentication and Firestore.  
+MāciesTe is a modern online learning platform built with **Next.js 15**, connecting students with qualified teachers for personalized lessons. The platform features **TypeScript**, **TailwindCSS with DaisyUI**, and **Supabase** for authentication and data storage. Students can search for teachers, book lessons, make payments via Stripe, and attend video sessions. Teachers can manage their schedules, track earnings, and receive secure payouts.
 
 ---
 
