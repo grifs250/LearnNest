@@ -1,17 +1,13 @@
 📁 ROOT
 ├── 📁 app/
-│   ├── 📁 (auth)/                    # Authentication route group
-│   │   ├── 📁 action/                # Email verification action handler
+│   ├── 📁 (auth)/                    # Clerk Authentication routes
+│   │   ├── 📁 login/                 # Clerk Sign In
 │   │   │   └── page.tsx
-│   │   ├── 📁 login/
+│   │   ├── 📁 register/              # Clerk Sign Up
 │   │   │   └── page.tsx
-│   │   ├── 📁 register/
+│   │   ├── 📁 sso-callback/          # Clerk SSO callback
 │   │   │   └── page.tsx
-│   │   ├── 📁 verify-email/
-│   │   │   └── page.tsx
-│   │   ├── layout.tsx                # Auth layout with protection
-│   │   ├── loading.tsx               # Auth loading state
-│   │   └── template.tsx              # Auth metadata
+│   │   └── layout.tsx                # Auth layout
 │   │
 │   ├── 📁 (dashboard)/               # Dashboard route group
 │   │   ├── 📁 student/
@@ -35,21 +31,29 @@
 │   │   ├── 📁 [category]/
 │   │   │   ├── 📁 [subjectId]/
 │   │   │   │   ├── 📁 [lessonId]/
-│   │   │   │   │   ├── page.tsx
+│   │   │   │   │   ├── page.tsx      # Server component that imports client.tsx
+│   │   │   │   │   ├── client.tsx    # Client components with "use client"
+│   │   │   │   │   ├── metadata.ts   # Metadata generation
 │   │   │   │   │   ├── loading.tsx
 │   │   │   │   │   ├── error.tsx
 │   │   │   │   │   └── template.tsx
-│   │   │   │   ├── page.tsx
+│   │   │   │   ├── page.tsx          # Server component that imports client.tsx
+│   │   │   │   ├── client.tsx        # Client components with "use client"
+│   │   │   │   ├── metadata.ts       # Metadata generation
 │   │   │   │   ├── loading.tsx
 │   │   │   │   ├── error.tsx
 │   │   │   │   └── template.tsx
-│   │   │   ├── page.tsx
+│   │   │   ├── page.tsx              # Server component that imports client.tsx
+│   │   │   ├── client.tsx            # Client components with "use client"
+│   │   │   ├── metadata.ts           # Metadata generation
 │   │   │   ├── loading.tsx
 │   │   │   ├── error.tsx
 │   │   │   └── template.tsx
 │   │   ├── 📁 meet/
 │   │   │   └── 📁 [lessonId]/
-│   │   │       ├── page.tsx
+│   │   │       ├── page.tsx          # Server component that imports client.tsx
+│   │   │       ├── client.tsx        # Client components with "use client"
+│   │   │       ├── metadata.ts       # Metadata generation
 │   │   │       ├── loading.tsx
 │   │   │       ├── error.tsx
 │   │   │       └── template.tsx
@@ -59,21 +63,19 @@
 │   │   └── template.tsx              # Lessons metadata
 │   │
 │   ├── 📁 api/                       # API routes
-│   │   ├── 📁 auth/
-│   │   │   ├── 📁 [...nextauth]/     # NextAuth.js routes
-│   │   │   │   └── route.ts
-│   │   │   └── 📁 verify-email/
+│   │   ├── 📁 webhooks/              # Webhook handlers
+│   │   │   └── 📁 clerk/             # Clerk webhook
 │   │   │       └── route.ts
 │   │   ├── 📁 lessons/
-│   │   │   ├── 📁 create/
-│   │   │   │   └── route.ts
-│   │   │   └── 📁 [id]/
-│   │   │       └── route.ts
+│   │   │   └── route.ts
 │   │   └── 📁 bookings/
-│   │       ├── 📁 create/
-│   │       │   └── route.ts
-│   │       └── 📁 [id]/
-│   │           └── route.ts
+│   │       └── route.ts
+│   │
+│   ├── 📁 (profiles)/                # Profile route group
+│   │   ├── 📁 teachers/
+│   │   │   └── 📁 [slug]/
+│   │   │       └── page.tsx
+│   │   └── layout.tsx
 │   │
 │   ├── 📁 profile/                   # Profile pages
 │   │   ├── 📁 [userId]/
@@ -91,19 +93,15 @@
 │   └── themeProvider.tsx             # Theme context provider
 │
 ├── 📁 features/                      # Feature-specific code
-│   ├── 📁 auth/
+│   ├── 📁 auth/                      # Auth feature code
 │   │   ├── 📁 components/
 │   │   │   ├── index.ts
-│   │   │   ├── AuthForm.tsx
-│   │   │   ├── AuthWrapper.tsx
-│   │   │   ├── AuthButtons.tsx
-│   │   │   └── EmailVerification.tsx
+│   │   │   ├── SignInForm.tsx        # Clerk sign in form
+│   │   │   ├── SignUpForm.tsx        # Clerk sign up form
+│   │   │   └── UserButton.tsx        # Clerk user button
 │   │   ├── 📁 hooks/
 │   │   │   ├── index.ts
-│   │   │   ├── useAuth.ts
-│   │   │   └── useVerification.ts
-│   │   ├── 📁 utils/
-│   │   │   └── auth-helpers.ts
+│   │   │   └── useAuth.ts            # Clerk auth hook
 │   │   └── types.ts
 │   │
 │   ├── 📁 lessons/
@@ -145,6 +143,8 @@
 │   │   ├── 📁 components/
 │   │   │   ├── index.ts
 │   │   │   ├── BookingCalendar.tsx
+│   │   │   ├── TeacherBookings.tsx
+│   │   │   ├── StudentBookings.tsx
 │   │   │   └── TimeSlotPicker.tsx
 │   │   ├── 📁 hooks/
 │   │   │   ├── index.ts
@@ -162,42 +162,44 @@
 │
 ├── 📁 shared/                        # Shared code
 │   ├── 📁 components/                # Truly shared components
-│   │   ├── 📁 ui/                   # Basic UI components
+│   │   ├── 📁 ui/                    # Basic UI components
 │   │   │   ├── index.ts
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
 │   │   │   └── Modal.tsx
+│   │   ├── 📁 SEO/                   # SEO components
+│   │   │   ├── index.ts
+│   │   │   └── DynamicMetadata.tsx
 │   │   ├── index.ts
 │   │   ├── Navbar.tsx
 │   │   ├── Footer.tsx
 │   │   └── UserInfoModal.tsx
 │   │
-│   ├── 📁 hooks/                    # Common hooks
+│   ├── 📁 hooks/                     # Common hooks
 │   │   ├── index.ts
 │   │   ├── useToast.ts
 │   │   └── useMediaQuery.ts
 │   │
-│   ├── 📁 utils/                    # Utilities
+│   ├── 📁 utils/                     # Utilities
 │   │   ├── index.ts
 │   │   ├── date-helpers.ts
 │   │   └── validation.ts
 │   │
-│   └── 📁 types/                    # Shared types
+│   └── 📁 types/                     # Shared types
 │       ├── index.ts
 │       ├── common.ts
 │       └── lesson.ts
 │
-├── 📁 lib/                          # External services
-│   ├── 📁 firebase/                 # Firebase related files (to be removed)
+├── 📁 lib/                           # External services
+│   ├── 📁 clerk/                     # Clerk helpers
 │   │   ├── index.ts
-│   │   ├── client.ts
-│   │   ├── admin.ts
-│   │   └── config.ts
+│   │   └── helpers.ts
 │   │
-│   ├── 📁 supabase/                 # Supabase related files
+│   ├── 📁 supabase/                  # Supabase config
 │   │   ├── index.ts
-│   │   ├── client.ts
-│   │   └── config.ts
+│   │   ├── db.ts                     # Re-export client for easier imports
+│   │   ├── client.ts                 # Client setup
+│   │   └── server.ts                 # Server setup
 │   │
 │   ├── 📁 google/
 │   │   ├── index.ts
@@ -207,13 +209,13 @@
 │   ├── fetchLessons.ts
 │   └── fetchSubjects.ts
 │
-├── 📁 config/                       # App configuration
+├── 📁 config/                        # App configuration
 │   ├── index.ts
 │   ├── constants.ts
 │   ├── routes.ts
 │   └── site.ts
 │
-├── 📁 public/                       # Static files
+├── 📁 public/                        # Static files
 │   ├── 📁 images/
 │   ├── 📁 icons/
 │   ├── file.svg
@@ -222,7 +224,7 @@
 │   ├── vercel.svg
 │   └── window.svg
 │
-├── 📁 instructions/                 # Project documentation
+├── 📁 instructions/                  # Project documentation
 │   ├── helperPromts.md
 │   ├── roadmap.md
 │   └── proposedFileStructure.md
@@ -238,5 +240,4 @@
 ├── tailwind.config.js
 ├── tsconfig.json
 ├── README.md
-├── firestore.rules                   # To be removed if transitioning to Supabase
-└── middleware.ts
+└── middleware.ts                    # Clerk middleware

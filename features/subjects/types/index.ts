@@ -1,4 +1,4 @@
-import type { User } from '@/features/auth/types';
+import type { User } from '@/features/auth/types/types';
 
 export interface Subject {
   id: string;

@@ -2,11 +2,46 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAvailableLessons } from "../hooks";
-import { Subject } from '@/features/lessons/types';
+import { Subject } from '@/types/database';
+import { dbService } from '@/lib/supabase/db';
 
 interface CourseSectionsProps {
   readonly subjects: Subject[];
+}
+
+/**
+ * Custom hook to determine which subjects have available lessons
+ */
+function useAvailableLessons() {
+  const [availableSubjects, setAvailableSubjects] = useState(new Set<string>());
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchActiveLessons() {
+      try {
+        // Fetch lessons with active status directly from database service
+        const lessons = await dbService.getLessons({ is_active: true });
+        
+        // Extract unique subject IDs
+        const subjectIds = new Set(
+          lessons.map(lesson => lesson.subject_id)
+        );
+        
+        setAvailableSubjects(subjectIds);
+      } catch (error) {
+        console.error('Error fetching available lessons:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchActiveLessons();
+  }, []);
+
+  return {
+    availableSubjects,
+    isLoading
+  };
 }
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -39,16 +74,16 @@ export function CourseSections({ subjects }: CourseSectionsProps) {
 
   return (
     <div className="py-16 px-8 space-y-16">
-      {subjects.map((subject) => (
-        <section key={subject.id} id={subject.id} className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-8">
-            {subject.name}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-            {availableSubjects.has(subject.id) ? (
+      <section className="max-w-6xl mx-auto">
+        <h2 className="text-3xl font-bold text-center mb-8">
+          Pieejamie priekšmeti
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {subjects.map((subject) => (
+            availableSubjects.has(subject.id) ? (
               <Link 
                 key={subject.id} 
-                href={`/lessons/${subject.slug}`} 
+                href={`/lessons/${subject.category_id}/${subject.id}`}
                 className="card bg-base-100 shadow-lg hover:shadow-xl p-6 transition-all"
               >
                 <div className="card-body p-0">
@@ -72,10 +107,10 @@ export function CourseSections({ subjects }: CourseSectionsProps) {
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </section>
-      ))}
+            )
+          ))}
+        </div>
+      </section>
     </div>
   );
 } 

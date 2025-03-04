@@ -1,18 +1,31 @@
 import { CourseSections } from "@/features/lessons/components";
+import Image from 'next/image';
 import BujPage from "./buj/page";
 import Link from "next/link";
 import { AuthButtons } from "@/features/auth/components";
-import { fetchCategoriesWithSubjects } from '@/features/lessons/services/subjectService';
-import { Subject, Category } from '@/features/lessons/types';
+import { Subject as SupabaseSubject } from '@/types/models';
 import Head from 'next/head';
 
 // Define the props interface for LandingContent
 interface LandingContentProps {
-  subjects: Subject[];
+  subjects: SupabaseSubject[];
 }
 
-export default async function LandingContent({ subjects }: LandingContentProps) {
-  const categoriesWithSubjects = await fetchCategoriesWithSubjects();
+export default function LandingContent({ subjects }: LandingContentProps) {
+  // Group subjects by category
+  const subjectsByCategory = subjects.reduce((acc, subject) => {
+    if (!subject.category) return acc;
+    
+    const categoryId = subject.category.id;
+    if (!acc[categoryId]) {
+      acc[categoryId] = {
+        category: subject.category,
+        subjects: []
+      };
+    }
+    acc[categoryId].subjects.push(subject);
+    return acc;
+  }, {} as Record<string, { category: SupabaseSubject['category'], subjects: SupabaseSubject[] }>);
 
   return (
     <>
@@ -50,31 +63,24 @@ export default async function LandingContent({ subjects }: LandingContentProps) 
 
         {/* Categories and Subjects Section */}
         <section className="py-16 px-8 bg-base-200">
-          {categoriesWithSubjects.map(item => {
-            const { category, subjects } = item;
-            return (
-              <div key={category.id} className="mb-16">
-                <h2 className="text-3xl font-bold text-center mb-8">{category.name}</h2>
-                <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {subjects && subjects.length > 0 ? (
-                    subjects.map(subject => (
-                      <div key={subject.id} className="card bg-base-100 shadow-lg p-6 transition-all opacity-50 pointer-events-none">
-                        <div className="card-body p-0">
-                          <h4 className="font-semibold text-lg mb-2">{subject.name}</h4>
-                          <div className="flex items-center text-gray-400">
-                            <span className="mr-2">ℹ️</span>
-                            <span>Nav pieejamu nodarbību</span>
-                          </div>
-                        </div>
+          {Object.values(subjectsByCategory).map(({ category, subjects }) => (
+            <div key={category?.id} className="mb-16">
+              <h2 className="text-3xl font-bold text-center mb-8">{category?.name}</h2>
+              <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {subjects.map(subject => (
+                  <div key={subject.id} className="card bg-base-100 shadow-lg p-6 transition-all opacity-50 pointer-events-none">
+                    <div className="card-body p-0">
+                      <h4 className="font-semibold text-lg mb-2">{subject.name}</h4>
+                      <div className="flex items-center text-gray-400">
+                        <span className="mr-2">ℹ️</span>
+                        <span>Nav pieejamu nodarbību</span>
                       </div>
-                    ))
-                  ) : (
-                    <p>Nav pieejamu priekšmetu šajā kategorijā</p>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </section>
 
         {/* BUJ (FAQ) */}

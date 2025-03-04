@@ -1,20 +1,42 @@
-"use client";
+import { Metadata } from 'next';
+import { CategoryClient } from './client';
+import dbService from '@/lib/supabase/db';
+import { notFound } from 'next/navigation';
 
-import { useParams } from "next/navigation";
-import { CourseSections } from "@/features/lessons/components";
-import { useCategory } from "@/features/lessons/hooks";
+interface CategoryPageProps {
+  params: {
+    category: string;
+  };
+}
 
-export default function CategoryPage() {
-  const { category } = useParams();
-  const { data, loading } = useCategory(category as string);
-
-  if (loading) {
-    return <div className="loading loading-spinner loading-lg"></div>;
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const categoryId = params.category;
+  
+  try {
+    const categoryData = await dbService.getCategoryWithSubjects(categoryId);
+    
+    if (!categoryData) {
+      return {
+        title: 'Kategorija nav atrasta | MāciesTe',
+        description: 'Diemžēl meklētā kategorija nav atrasta.',
+      };
+    }
+    
+    return {
+      title: `${categoryData.name} | MāciesTe`,
+      description: categoryData.description || `Apgūsti ${categoryData.name} priekšmetus MāciesTe platformā!`,
+    };
+  } catch (error) {
+    console.error('Error generating category metadata:', error);
+    return {
+      title: 'Kategorija | MāciesTe',
+      description: 'Apgūsti priekšmetus MāciesTe platformā!',
+    };
   }
+}
 
-  if (!data) {
-    return <div>Category not found</div>;
-  }
-
-  return <CourseSections categories={[data]} />;
-} 
+export default function CategoryPage({ params }: CategoryPageProps) {
+  const categoryId = params.category;
+  
+  return <CategoryClient categoryId={categoryId} />;
+}

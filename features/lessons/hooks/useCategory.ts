@@ -1,56 +1,70 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Category } from "../types";
-import { supabase } from '@/lib/supabase/db';
+import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
+import { Category, Subject } from '@/types/database';
+import { toast } from 'react-hot-toast';
+import dbService from '@/lib/supabase/db';
 
-export function useCategory(categoryId: string) {
-  const [data, setData] = useState<Category | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+// Define a more specific interface for API response
+export interface CategoryWithSubjects extends Category {
+  subjects: Subject[];
+}
+
+interface UseCategoryResult {
+  data: CategoryWithSubjects | null;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => void;
+}
+
+/**
+ * Hook for fetching a category with its subjects
+ */
+export function useCategory(categoryId: string): UseCategoryResult {
+  const [data, setData] = useState<CategoryWithSubjects | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchCategory = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const categoryData = await dbService.getCategoryWithSubjects(categoryId);
+      
+      if (!categoryData) {
+        throw new Error('Category not found');
+      }
+      
+      setData(categoryData);
+    } catch (err) {
+      console.error('Error fetching category:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch category'));
+      toast.error('Neizdevās ielādēt kategoriju');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchCategory() {
-      if (!categoryId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryId)) {
-        setError("Invalid category ID");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('id', categoryId)
-          .single();
-
-        if (error) throw error;
-        setData(data);
-      } catch (err) {
-        console.error("Error fetching category:", err);
-        setError("Failed to load category");
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchCategory();
   }, [categoryId]);
 
-  return { data, loading, error };
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: fetchCategory
+  };
 }
 
 export async function getCategoryById(categoryId: string): Promise<Category | null> {
   try {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('id', categoryId)
-      .single();
-
-    if (error) throw error;
-    return data;
+    // Using the available getCategories method and filtering
+    const categories = await dbService.getCategories();
+    const category = categories.find(cat => cat.id === categoryId) || null;
+    return category;
   } catch (error) {
     console.error('Error fetching category:', error);
     throw error;

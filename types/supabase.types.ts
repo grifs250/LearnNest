@@ -6,9 +6,40 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          id: string
+          user_id: string
+          email: string
+          full_name: string
+          role: 'student' | 'teacher' | 'admin'
+          avatar_url: string | null
+          bio: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          email: string
+          full_name: string
+          role?: 'student' | 'teacher' | 'admin'
+          avatar_url?: string | null
+          bio?: string | null
+          is_active?: boolean
+        }
+        Update: {
+          email?: string
+          full_name?: string
+          role?: 'student' | 'teacher' | 'admin'
+          avatar_url?: string | null
+          bio?: string | null
+          is_active?: boolean
+        }
+      }
       bookings: {
         Row: {
           amount: number
@@ -122,8 +153,8 @@ export type Database = {
           },
         ]
       }
-  lessons: {
-    Row: {
+      lessons: {
+        Row: {
           created_at: string | null
           description: string | null
           duration: number
@@ -264,54 +295,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string | null
-          email: string
-          full_name: string
-          id: string
-          is_active: boolean | null
-          language: string | null
-          metadata: Json | null
-          phone: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          timezone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email: string
-          full_name: string
-          id: string
-          is_active?: boolean | null
-          language?: string | null
-          metadata?: Json | null
-          phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: string
-          full_name?: string
-          id?: string
-          is_active?: boolean | null
-          language?: string | null
-          metadata?: Json | null
-          phone?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          timezone?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       reviews: {
         Row: {
@@ -517,7 +500,7 @@ export type Database = {
         ]
       }
       teacher_subjects: {
-    Row: {
+        Row: {
           created_at: string | null
           experience_years: number | null
           hourly_rate: number | null
@@ -623,9 +606,9 @@ export type Database = {
       }
     }
     Enums: {
-      booking_status: "pending" | "confirmed" | "cancelled" | "completed"
-      payment_status: "pending" | "paid" | "refunded" | "failed"
-      user_role: "student" | "teacher" | "admin"
+      booking_status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+      payment_status: 'pending' | 'paid' | 'refunded' | 'failed'
+      user_role: 'student' | 'teacher' | 'admin'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -729,3 +712,15 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+// Export commonly used types
+export type Profile = Database['public']['Tables']['profiles']['Row']
+export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
+export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
+
+// Add Booking type
+export type Booking = Database['public']['Tables']['bookings']['Row'];
+
+// Add other missing types
+export type Lesson = Database['public']['Tables']['lessons']['Row'];
+export type Subject = Database['public']['Tables']['subjects']['Row'];

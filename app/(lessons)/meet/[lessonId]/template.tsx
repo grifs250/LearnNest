@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Tiešsaistes nodarbība | LearnNest',
+  title: 'Tiešsaistes nodarbība | MāciesTe',
   description: 'Piedalies tiešsaistes nodarbībā'
 };
 

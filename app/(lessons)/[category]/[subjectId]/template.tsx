@@ -1,7 +1,4 @@
-"use client";
-
 import { Metadata } from 'next';
-import { useParams } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Nodarbības | LearnNest',
@@ -13,7 +10,5 @@ export default function SubjectTemplate({
 }: {
   children: React.ReactNode;
 }) {
-  const params = useParams();
-  const subject_id = params.subjectId;
   return children;
 } 

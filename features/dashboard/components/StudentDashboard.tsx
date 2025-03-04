@@ -1,12 +1,12 @@
 "use client";
 
 import { AvailableVacancies } from "@/features/bookings/components";
-import { auth } from "@/lib/firebase/client";
+import { useUser } from "@clerk/nextjs";
 
 export function StudentDashboard() {
-  const userId = auth.currentUser?.uid;
+  const { user } = useUser();
 
-  if (!userId) return null;
+  if (!user) return null;
 
   return (
     <div className="space-y-8">

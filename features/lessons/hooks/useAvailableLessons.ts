@@ -1,59 +1,88 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from '@/lib/supabase/db';
-import { Tables } from '@/types/supabase.types';
+import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
+import type { Database } from '@/types/supabase.types';
+import { toast } from 'react-hot-toast';
 
-export function useAvailableLessons() {
-  const [availableSubjects, setAvailableSubjects] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
+type Lesson = Database['public']['Tables']['lessons']['Row'];
+
+export function useAvailableLessons(filters?: {
+  categoryId?: string;
+  subjectId?: string;
+  teacherId?: string;
+  isActive?: boolean;
+}) {
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const { supabase, isLoading: isClientLoading } = useClerkSupabase();
 
   useEffect(() => {
-    // Initial fetch
-    const fetchSubjects = async () => {
+    if (isClientLoading || !supabase) return;
+
+    const fetchLessons = async () => {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('lessons')
-          .select('subject_id')
-          .eq('is_active', true);
+          .select(`
+            *,
+            teacher:teacher_id(
+              id,
+              full_name,
+              avatar_url,
+              metadata
+            ),
+            subject:subject_id(
+              id,
+              name,
+              category_id
+            ),
+            lesson_schedules(
+              id,
+              start_time,
+              end_time,
+              is_available,
+              bookings(*)
+            )
+          `);
 
-        if (error) throw error;
+        // Apply filters
+        if (filters?.categoryId) {
+          query = query.eq('subject.category_id', filters.categoryId);
+        }
+        if (filters?.subjectId) {
+          query = query.eq('subject_id', filters.subjectId);
+        }
+        if (filters?.teacherId) {
+          query = query.eq('teacher_id', filters.teacherId);
+        }
+        if (filters?.isActive !== undefined) {
+          query = query.eq('is_active', filters.isActive);
+        }
 
-        const subjectsSet = new Set(
-          data.map(lesson => lesson.subject_id)
-        );
-        setAvailableSubjects(subjectsSet);
-      } catch (error) {
-        console.error('Error fetching available subjects:', error);
+        const { data, error: supabaseError } = await query;
+
+        if (supabaseError) throw supabaseError;
+
+        setLessons(data || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching lessons:', err);
+        setError(err instanceof Error ? err : new Error('Failed to fetch lessons'));
+        toast.error('Failed to load lessons');
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
-    fetchSubjects();
+    fetchLessons();
+  }, [supabase, filters?.categoryId, filters?.subjectId, filters?.teacherId, filters?.isActive, isClientLoading]);
 
-    // Set up real-time subscription
-    const subscription = supabase
-      .channel('lessons_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'lessons'
-        },
-        async () => {
-          // Refetch subjects when changes occur
-          await fetchSubjects();
-        }
-      )
-      .subscribe();
-
-    // Cleanup subscription
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  return { availableSubjects, isLoading };
+  return {
+    lessons,
+    loading: loading || isClientLoading,
+    error,
+    refetch: () => setLoading(true), // This will trigger a re-fetch due to the loading dependency
+  };
 } 

@@ -1,46 +1,41 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/features/shared/components/ui/Dialog';
-import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
-import { supabase } from '@/lib/supabase/db';
+import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
+import { useUser } from '@clerk/nextjs';
 import { toast } from 'react-hot-toast';
+import type { Database } from '@/types/supabase.types';
+
+type Review = Database['public']['Tables']['reviews']['Row'];
 
 interface ReviewModalProps {
-  lessonId: string;
-  teacherId: string;
-  studentId: string;
   bookingId: string;
-  isOpen: boolean;
+  teacherId: string;
   onClose: () => void;
-  onSuccess: () => void | Promise<void>;
 }
 
-export function ReviewModal({
-  lessonId,
-  teacherId,
-  studentId,
-  bookingId,
-  isOpen,
-  onClose,
-  onSuccess,
-}: ReviewModalProps) {
+export function ReviewModal({ bookingId, teacherId, onClose }: ReviewModalProps) {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { supabase } = useClerkSupabase();
+  const { user } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    if (!user) {
+      toast.error('You must be logged in to submit a review');
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
       const { error } = await supabase
         .from('reviews')
         .insert({
-          lesson_id: lessonId,
-          teacher_id: teacherId,
-          student_id: studentId,
           booking_id: bookingId,
+          teacher_id: teacherId,
+          student_id: user.id,
           rating,
           comment,
         });
@@ -48,7 +43,6 @@ export function ReviewModal({
       if (error) throw error;
 
       toast.success('Review submitted successfully');
-      await onSuccess();
       onClose();
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -59,48 +53,43 @@ export function ReviewModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Leave a Review</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">Rating</label>
-            <div className="flex gap-2">
+    <div className="modal modal-open">
+      <div className="modal-box">
+        <h3 className="font-bold text-lg mb-4">Leave a Review</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Rating</span>
+            </label>
+            <div className="rating gap-1">
               {[1, 2, 3, 4, 5].map((value) => (
-                <button
+                <input
                   key={value}
-                  type="button"
-                  onClick={() => setRating(value)}
-                  className={`text-2xl ${
-                    value <= rating ? 'text-yellow-400' : 'text-gray-300'
-                  }`}
-                  aria-label={`Rate ${value} out of 5 stars`}
-                >
-                  ★
-                </button>
+                  type="radio"
+                  name="rating"
+                  className="mask mask-star-2 bg-orange-400"
+                  checked={rating === value}
+                  onChange={() => setRating(value)}
+                />
               ))}
             </div>
           </div>
-          <div>
-            <label htmlFor="comment" className="block text-sm font-medium mb-2">
-              Comment
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text">Comment</span>
             </label>
             <textarea
-              id="comment"
+              className="textarea textarea-bordered h-24"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full min-h-[100px] p-3 border rounded-lg"
               placeholder="Share your experience..."
-              required
             />
           </div>
-          <div className="flex justify-end gap-3">
+          <div className="modal-action">
             <button
               type="button"
+              className="btn"
               onClick={onClose}
-              className="btn btn-ghost"
               disabled={isSubmitting}
             >
               Cancel
@@ -110,18 +99,11 @@ export function ReviewModal({
               className="btn btn-primary"
               disabled={isSubmitting}
             >
-              {isSubmitting ? (
-                <>
-                  <LoadingSpinner size="sm" />
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                'Submit Review'
-              )}
+              {isSubmitting ? 'Submitting...' : 'Submit Review'}
             </button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 } 

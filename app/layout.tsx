@@ -13,6 +13,23 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "MāciesTe - Labākā tiešsaistes mācību platforma skolēniem un studentiem",
   description: "MāciesTe ir vadošā tiešsaistes mācīšanās platforma Latvijā, kur skolēni un studenti var atrast kvalificētus pasniedzējus. Saņem individuālas mācību stundas matemātikā, fizikā, ķīmijā, angļu valodā un citos priekšmetos, lai uzlabotu sekmes un sagatavotos eksāmeniem.",
+  keywords: 'tiešsaistes mācības, izglītība, privātskolotāji, nodarbības, skolotāji, studenti',
+  openGraph: {
+    title: 'MāciesTe - Tiešsaistes mācību platforma',
+    description: 'Atrodi kvalificētus pasniedzējus un rezervē nodarbības dažādos priekšmetos.',
+    url: 'https://macieste.lv',
+    siteName: 'MāciesTe',
+    locale: 'lv_LV',
+    type: 'website',
+    images: [
+      {
+        url: 'https://macieste.lv/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'MāciesTe - Tiešsaistes mācību platforma',
+      }
+    ],
+  },
 };
 
 export default function RootLayout({

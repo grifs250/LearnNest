@@ -1,5 +1,5 @@
 import { Booking } from '@/features/bookings/types';
-import { User } from '@/features/auth/types';
+import { User } from '@/features/auth/types/types';
 
 export interface Review {
   id: string;

@@ -1,103 +1,97 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/db';
-import { StudentLesson, TeacherData, LessonData, BookedTimeData } from "../types";
-import { Tables } from '@/types/supabase.types';
+import { useUser } from '@clerk/nextjs';
+import dbService from '@/lib/supabase/db';
+import { BookingWithDetails, BookingStatus } from '@/types/database';
 import { toast } from "react-hot-toast";
 
-export function useStudentLessons(studentId: string) {
+// Define a StudentLesson type that represents what's shown in the UI
+export interface StudentLesson {
+  id: string;
+  bookingId: string;
+  subject: string;
+  teacherName: string;
+  teacherId: string;
+  date: string;
+  time: string;
+  status: BookingStatus;
+  category: string;
+  subjectId: string;
+}
+
+export function useStudentLessons() {
+  const { isLoaded, user } = useUser();
   const [lessons, setLessons] = useState<StudentLesson[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-  async function fetchLessons() {
-    setLoading(true);
-    setError(null);
+  const fetchLessons = async () => {
+    if (!isLoaded || !user) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('student_id', studentId);
-
-      if (error) throw error;
-
-      const lessonsList: StudentLesson[] = [];
-      
-      for (const lesson of (data as Tables['lessons']['Row'][])) {
-        const bookedTimes = lesson.bookedTimes ?? {} as Record<string, BookedTimeData>;
-        
-        for (const [timeSlot, booking] of Object.entries(bookedTimes)) {
-          const bookingData = booking as BookedTimeData;
-          if (bookingData.studentId === studentId) {
-            const [date, time] = timeSlot.split('T');
-            
-            const { data: teacherData } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', lesson.teacherId)
-              .single();
-            
-            lessonsList.push({
-              id: lesson.id,
-              subject: lesson.subject,
-              teacherName: lesson.teacherName,
-              teacherId: lesson.teacherId,
-              date,
-              time,
-              status: bookingData.status ?? 'pending',
-              availableTimes: Object.keys(teacherData?.workHours ?? {}),
-              category: lesson.category ?? 'subjects',
-              subjectId: lesson.subjectId
-            });
-          }
-        }
-      }
-
-      setLessons(lessonsList);
+      setLoading(true);
       setError(null);
-    } catch (error) {
-      console.error("Error fetching lessons:", error);
-      setError("Failed to load your lessons");
-      toast.error("Neizdevās ielādēt nodarbības");
+
+      const bookings = await dbService.getBookings({ 
+        student_id: user.id,
+      });
+
+      // Transform bookings into student lessons
+      const transformedLessons = bookings.map(booking => {
+        // Extract data from the booking and related entities
+        const scheduleData = booking.schedule;
+        const lessonData = booking.lesson;
+        
+        // Format date and time from schedule
+        const scheduleDate = scheduleData ? new Date(scheduleData.start_time) : new Date();
+        const dateStr = scheduleDate.toLocaleDateString('lv-LV', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+        const timeStr = scheduleDate.toLocaleTimeString('lv-LV', {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        return {
+          id: booking.id,
+          bookingId: booking.id,
+          subject: lessonData?.title || 'Nezināms priekšmets',
+          teacherName: lessonData?.teacher?.full_name || 'Nezināms pasniedzējs',
+          teacherId: '',  // Will need to get this from the lesson data later
+          date: dateStr,
+          time: timeStr,
+          status: booking.status,
+          category: '', // Will need to be updated if needed
+          subjectId: ''  // Will need to get this from the lesson data later
+        };
+      });
+
+      setLessons(transformedLessons);
+    } catch (err) {
+      console.error('Error fetching student lessons:', err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch lessons'));
+      toast.error('Neizdevās ielādēt nodarbības. Lūdzu, mēģiniet vēlāk.');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchLessons();
-  }, [studentId]);
+    if (isLoaded) {
+      fetchLessons();
+    }
+  }, [isLoaded, user]);
 
   return {
     lessons,
     loading,
     error,
-    refreshLessons: fetchLessons
+    refetch: fetchLessons
   };
-}
-
-export async function getStudentLessons(studentId: string): Promise<StudentLesson[]> {
-  try {
-    const { data, error } = await supabase
-      .from('lessons')
-      .select('*')
-      .eq('student_id', studentId);
-
-    if (error) throw error;
-    return (data as Tables['lessons']['Row'][]).map(lesson => ({
-      id: lesson.id,
-      subject: lesson.subject,
-      teacherName: lesson.teacherName,
-      teacherId: lesson.teacherId,
-      date: '',
-      time: '',
-      status: 'pending',
-      category: lesson.category,
-      subjectId: lesson.subjectId
-    }));
-  } catch (error) {
-    console.error('Error fetching student lessons:', error);
-    throw error;
-  }
 } 

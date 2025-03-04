@@ -22,6 +22,7 @@ export type Student = Tables['student_profiles']['Row'] & {
 export type Subject = Tables['subjects']['Row'] & {
   parent?: Subject;
   children?: Subject[];
+  category?: Category | null;
 };
 export type TeacherSubject = Tables['teacher_subjects']['Row'] & {
   subject: Subject;
@@ -84,7 +85,7 @@ export type UpdateBooking = Tables['bookings']['Update'];
 export type UpdateReview = Tables['reviews']['Update'];
 
 // Utility types
-export type Json = Database['public']['Tables']['profiles']['Row']['metadata'];
+export type Json = Record<string, any>; // or use the actual type from your Database type
 export type Timestamp = string; // ISO string format
 
 // Common interfaces
@@ -117,4 +118,17 @@ export interface StudentSchedule {
     date: Timestamp;
     isUnavailable: boolean;
   }[];
+}
+
+export type Category = Tables['categories']['Row'];
+
+// Form schema for subjects
+export interface SubjectFormData {
+  name: string;
+  slug: string;
+  description?: string;
+  icon_url?: string;
+  category_id?: string;
+  is_active?: boolean;
+  metadata?: Record<string, any>;
 } 

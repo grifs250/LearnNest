@@ -3,8 +3,8 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
-import type { User } from '@/features/auth/types';
-import type { Profile } from '@/features/auth/types';
+import type { User } from '@/features/auth/types/types';
+import type { Profile } from '@/features/auth/types/types';
 
 interface SupabaseContextType {
   user: User | null;

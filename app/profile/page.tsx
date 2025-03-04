@@ -3,61 +3,81 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
-import { useSession } from '@/lib/providers/SessionProvider';
+import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/features/auth';
 import { initializeUserProfile } from '@/lib/utils/profile';
 import { toast } from 'react-hot-toast';
-
-interface UserProfile {
-  id: string;
-  email: string;
-  full_name: string;
-  role: string;
-  avatar_url: string | null;
-  bio: string | null;
-  created_at: string;
-  updated_at: string;
-}
+import { createClient } from '@/lib/supabase/client';
+import type { UserProfile } from '@/types/database';
+import type { SupabaseError } from '@/lib/types/supabase';
+import { StudentBookings, TeacherBookings } from '@/features/bookings/components';
+import { formatClerkId } from '@/lib/utils/user';
 
 export default function ProfilePage() {
+  const { user, isLoaded } = useUser();
+  const { isTeacher } = useAuth();
   const router = useRouter();
-  const { session, isLoading: isSessionLoading } = useSession();
+  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    if (!isLoaded) return;
 
-    async function loadProfile() {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const fetchProfile = async () => {
+      const supabase = createClient();
+      const formattedId = formatClerkId(user.id);
+      
       try {
-        const userProfile = await initializeUserProfile(session!);
-        if (mounted) {
-          setProfile(userProfile);
-          setIsLoading(false);
+        const { data: existingProfile, error: fetchError } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', formattedId)
+          .single();
+
+        if (fetchError) {
+          const error = fetchError as SupabaseError;
+          console.error('Profile fetch error:', {
+            code: error.code,
+            message: error.message,
+            details: error.details
+          });
+
+          if (error.code === 'PGRST116') {
+            try {
+              const newProfile = await initializeUserProfile(user);
+              setProfile(newProfile);
+              toast.success('Profile created successfully');
+            } catch (initError) {
+              console.error('Profile initialization error:', initError);
+              toast.error('Failed to create profile');
+            }
+          } else {
+            toast.error(`Failed to load profile: ${error.message}`);
+          }
+        } else if (existingProfile) {
+          setProfile(existingProfile as UserProfile);
         }
       } catch (error) {
-        console.error('Profile loading error:', error);
-        toast.error('Error loading profile');
-        if (mounted) {
-          setIsLoading(false);
-        }
+        const err = error as Error;
+        console.error('Profile error:', {
+          message: err.message,
+          stack: err.stack
+        });
+        toast.error('Failed to load profile');
+      } finally {
+        setLoading(false);
       }
-    }
-
-    // Only load profile when we have a session and are mounted
-    if (!isSessionLoading && session && mounted) {
-      loadProfile();
-    } else if (!isSessionLoading && !session) {
-      // If session loading is done and we have no session, redirect
-      router.replace('/login');
-    }
-
-    return () => {
-      mounted = false;
     };
-  }, [session, isSessionLoading, router]);
 
-  // Show loading state while session is loading or profile is loading
-  if (isSessionLoading || isLoading) {
+    fetchProfile();
+  }, [isLoaded, user, router]);
+
+  if (!isLoaded || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -65,28 +85,99 @@ export default function ProfilePage() {
     );
   }
 
-  // Show loading state while profile is not loaded
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
+  if (!user || !profile) {
+    return null; // Router will handle redirect
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Profile Page</h1>
-      <div className="bg-base-200 p-4 rounded-lg">
-        <h2 className="text-xl mb-2">User Info</h2>
-        <p>Email: {profile.email}</p>
-        <p>Role: {profile.role}</p>
-        <p>Name: {profile.full_name}</p>
-        {profile.bio && (
-          <div className="mt-4">
-            <h3 className="text-lg font-semibold">Bio</h3>
-            <p>{profile.bio}</p>
+    <div className="container mx-auto px-4 py-8">
+      {/* Profile Info */}
+      <div className="bg-base-100 rounded-lg shadow-lg p-6 mb-8">
+        <h1 className="text-2xl font-bold mb-6">Profils</h1>
+        
+        <div className="space-y-4">
+          {/* User Info */}
+          <div className="flex items-center gap-4">
+            <div className="avatar">
+              <div className="w-24 rounded-full">
+                <img 
+                  src={user.imageUrl || '/default-avatar.png'} 
+                  alt={user.fullName || 'Profils'} 
+                />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">{profile.full_name}</h2>
+              <p className="text-gray-600">{user.emailAddresses[0].emailAddress}</p>
+              <span className="badge badge-primary mt-2">
+                {isTeacher ? 'Pasniedzējs' : 'Skolēns'}
+              </span>
+            </div>
           </div>
+
+          <div className="divider"></div>
+
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold mb-2">Pamatinformācija</h3>
+              <div className="space-y-2">
+                <p>
+                  <span className="text-gray-600">E-pasts: </span>
+                  {profile.email}
+                </p>
+              </div>
+            </div>
+
+            {/* Teacher Specific Info */}
+            {isTeacher && profile.profile_type === 'teacher' && (
+              <div>
+                <h3 className="font-semibold mb-2">Pasniedzēja informācija</h3>
+                <div className="space-y-2">
+                  <p>
+                    <span className="text-gray-600">Izglītība: </span>
+                    {profile.teacher_education ? profile.teacher_education.join(', ') : 'Nav norādīta'}
+                  </p>
+                  <p>
+                    <span className="text-gray-600">Pieredze: </span>
+                    {profile.teacher_experience_years ? `${profile.teacher_experience_years} gadi` : 'Nav norādīta'}
+                  </p>
+                  {profile.teacher_specializations && (
+                    <p>
+                      <span className="text-gray-600">Specializācijas: </span>
+                      {profile.teacher_specializations.join(', ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6">
+            <button
+              onClick={() => router.push('/profile/edit')}
+              className="btn btn-primary"
+            >
+              Rediģēt profilu
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Bookings Section */}
+      <div className="bg-base-100 rounded-lg shadow-lg p-6">
+        <h2 className="text-xl font-bold mb-6">
+          {isTeacher ? 'Manas nodarbības' : 'Manas rezervācijas'}
+        </h2>
+        
+        {isTeacher ? (
+          <div>
+            {/* Using userId instead of teacherId to match the component's expected props */}
+            {profile && <StudentBookings userId={formatClerkId(user.id)} />}
+          </div>
+        ) : (
+          <StudentBookings userId={formatClerkId(user.id)} />
         )}
       </div>
     </div>

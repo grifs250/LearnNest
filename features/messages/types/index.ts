@@ -1,5 +1,5 @@
 import { BaseEntity } from '@/features/shared/types';
-import type { User } from '@/features/auth/types';
+import type { User } from '@/features/auth/types/types';
 import type { Booking } from '@/features/bookings/types';
 
 export interface Message extends BaseEntity {

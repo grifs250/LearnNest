@@ -1,43 +1,39 @@
 "use client";
 
+import { useBookings } from '../hooks/useBookings';
 import { useState } from "react";
-import { updateVacancy } from '@/lib/supabase/db';
 import { toast } from "react-hot-toast";
 
 interface CancelBookingProps {
-  vacancyId: string;
-  onCancelSuccess?: () => void;
+  bookingId: string;
+  onCancel?: () => void;
 }
 
-export function CancelBooking({ vacancyId, onCancelSuccess }: CancelBookingProps) {
+export function CancelBooking({ bookingId, onCancel }: CancelBookingProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const { cancelBooking } = useBookings();
 
-  async function handleCancel() {
+  const handleCancel = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await updateVacancy(vacancyId, { bookedBy: null, canceledAt: new Date().toISOString() });
-
-      toast.success("Rezervācija atcelta");
-      onCancelSuccess?.();
+      await cancelBooking(bookingId);
+      toast.success('Booking cancelled successfully');
+      onCancel?.();
     } catch (error) {
-      console.error("Error canceling booking:", error);
-      toast.error("Neizdevās atcelt rezervāciju");
+      console.error('Error cancelling booking:', error);
+      toast.error('Failed to cancel booking');
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <button 
-      onClick={handleCancel} 
-      className="btn btn-error mt-2"
+    <button
+      onClick={handleCancel}
       disabled={isLoading}
+      className="btn btn-error btn-sm"
     >
-      {isLoading ? (
-        <span className="loading loading-spinner loading-sm"></span>
-      ) : (
-        "Atcelt rezervāciju"
-      )}
+      {isLoading ? 'Cancelling...' : 'Cancel Booking'}
     </button>
   );
 } 

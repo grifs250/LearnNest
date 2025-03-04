@@ -2,12 +2,12 @@
 
 import { StudentBookings } from "@/features/bookings/components";
 import { TeacherWorkHours } from "@/features/schedule/components";
-import { auth } from "@/lib/firebase/client";
+import { useUser } from "@clerk/nextjs";
 
 export function TeacherDashboard() {
-  const userId = auth.currentUser?.uid;
+  const { user } = useUser();
 
-  if (!userId) return null;
+  if (!user) return null;
 
   return (
     <div className="space-y-8">
@@ -15,12 +15,12 @@ export function TeacherDashboard() {
       
       <section>
         <h3 className="text-xl font-semibold mb-4">Darba laiki</h3>
-        <TeacherWorkHours teacherId={userId} />
+        <TeacherWorkHours teacherId={user.id} />
       </section>
 
       <section>
         <h3 className="text-xl font-semibold mb-4">Rezervācijas</h3>
-        <StudentBookings userId={userId} />
+        <StudentBookings userId={user.id} />
       </section>
     </div>
   );

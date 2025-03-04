@@ -1,8 +1,6 @@
-'use client';
-
 import { Suspense } from "react";
 import LoadingSpinner from "./loading";
-import { LessonsProvider } from "@/features/lessons/context/LessonsContext";
+import { LessonsProviderWrapper } from "./client-layout";
 
 export default function LessonsLayout({
   children,
@@ -10,12 +8,12 @@ export default function LessonsLayout({
   readonly children: React.ReactNode;
 }) {
   return (
-    <LessonsProvider>
+    <LessonsProviderWrapper>
       <Suspense fallback={<LoadingSpinner />}>
         <div className="min-h-screen">
           {children}
         </div>
       </Suspense>
-    </LessonsProvider>
+    </LessonsProviderWrapper>
   );
 } 

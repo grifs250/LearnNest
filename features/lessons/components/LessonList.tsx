@@ -1,35 +1,34 @@
 'use client';
 
-import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
+import { supabase } from '@/lib/supabase/client';
+import { useUser } from '@/lib/hooks/useUser';
 import { useEffect, useState } from 'react';
 import type { Database } from '@/types/supabase.types';
 
 type Lesson = Database['public']['Tables']['lessons']['Row'];
 
 export function LessonList() {
-  const { supabase, isLoading } = useClerkSupabase();
+  const { user, profile } = useUser();
   const [lessons, setLessons] = useState<Lesson[]>([]);
 
+  const fetchLessons = async () => {
+    // RLS will automatically filter based on user role
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching lessons:', error);
+      return;
+    }
+
+    setLessons(data || []);
+  };
+
   useEffect(() => {
-    if (isLoading) return;
-
-    const fetchLessons = async () => {
-      const { data, error } = await supabase
-        .from('lessons')
-        .select('*');
-
-      if (error) {
-        console.error('Error fetching lessons:', error);
-        return;
-      }
-
-      setLessons(data || []);
-    };
-
     fetchLessons();
-  }, [supabase, isLoading]);
-
-  if (isLoading) return <div>Loading...</div>;
+  }, []);
 
   return (
     <div className="grid gap-4">

@@ -1,22 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/lib/supabase/db';
+import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
 import { LoadingSpinner } from '@/features/shared/components/ui/LoadingSpinner';
 
-interface Message {
+type Message = {
   id: string;
-  lesson_id: string;
   user_id: string;
   content: string;
   created_at: string;
   user?: {
-    profile?: {
-      full_name: string;
-      avatar_url?: string;
-    };
+    full_name: string;
+    avatar_url?: string;
   };
-}
+};
 
 interface ChatProps {
   lessonId: string;
@@ -24,6 +21,7 @@ interface ChatProps {
 }
 
 export function Chat({ lessonId, userId }: ChatProps) {
+  const { supabase, isInitialized } = useClerkSupabase();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -38,17 +36,17 @@ export function Chat({ lessonId, userId }: ChatProps) {
   }, [messages]);
 
   useEffect(() => {
+    if (!supabase || !isInitialized) return;
+
     const fetchMessages = async () => {
       try {
         const { data, error } = await supabase
           .from('messages')
           .select(`
             *,
-            user:user_id (
-              profile (
-                full_name,
-                avatar_url
-              )
+            user:profiles!user_id (
+              full_name,
+              avatar_url
             )
           `)
           .eq('lesson_id', lessonId)
@@ -86,11 +84,11 @@ export function Chat({ lessonId, userId }: ChatProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [lessonId]);
+  }, [supabase, isInitialized, lessonId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !supabase) return;
 
     try {
       const { error } = await supabase.from('messages').insert({
@@ -106,7 +104,7 @@ export function Chat({ lessonId, userId }: ChatProps) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isInitialized) {
     return (
       <div className="flex justify-center items-center h-[600px]">
         <LoadingSpinner size="lg" />
@@ -132,7 +130,7 @@ export function Chat({ lessonId, userId }: ChatProps) {
             >
               {message.user_id !== userId && (
                 <p className="text-sm font-medium mb-1">
-                  {message.user?.profile?.full_name || 'Unknown User'}
+                  {message.user?.full_name || 'Unknown User'}
                 </p>
               )}
               <p className="break-words">{message.content}</p>

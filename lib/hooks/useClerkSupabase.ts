@@ -1,22 +1,42 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClerkSupabaseClient } from '@/lib/supabase/client';
-import { useUser } from '@clerk/nextjs';
+import { createBrowserClient } from '@supabase/ssr';
+import { useAuth } from '@clerk/nextjs';
+import type { Database } from '@/types/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 export function useClerkSupabase() {
-  const { user, isLoaded } = useUser();
+  const { getToken, isLoaded } = useAuth();
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
-  const supabase = createClerkSupabaseClient();
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    setIsInitialized(true);
-  }, [user, isLoaded]);
+    if (!isLoaded) return;
+
+    const initSupabase = async () => {
+      const token = await getToken({ template: 'supabase' });
+      const client = createBrowserClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        }
+      );
+      setSupabase(client);
+      setIsInitialized(true);
+    };
+
+    initSupabase();
+  }, [getToken, isLoaded]);
 
   return {
     supabase,
     isInitialized,
-    isLoading: !isLoaded || !isInitialized,
+    isLoading: !isLoaded || !isInitialized
   };
 } 

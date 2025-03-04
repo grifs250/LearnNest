@@ -1,140 +1,203 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase/db";
+import { useClerkSupabase } from "@/lib/hooks/useClerkSupabase";
 import { fetchSubjects } from "@/lib/fetchSubjects";
 import { Subject } from "@/features/lessons/types";
+import { useUser } from "@clerk/nextjs";
+import { toast } from "react-hot-toast";
 
-export function LessonForm() {
+interface LessonFormProps {
+  onSubmit?: () => void;
+  onCancel?: () => void;
+}
+
+export function LessonForm({ onSubmit, onCancel }: LessonFormProps) {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [subject, setSubject] = useState("");
-  const [description, setDescription] = useState("");
-  const [lessonLength, setLessonLength] = useState(45); // Default 45 min
-  const [saving, setSaving] = useState(false);
-  const [price, setPrice] = useState<number | ''>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const { supabase, isLoading: isClientLoading } = useClerkSupabase();
+  const { user } = useUser();
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    subject_id: '',
+    price: 0,
+    duration: 60,
+    max_students: 1,
+    is_active: true
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const loadSubjects = async () => {
       try {
-        const { data, error } = await supabase
-          .from('subjects')
-          .select('*');
-
-        if (error) throw error;
-
+        const data = await fetchSubjects();
         setSubjects(data);
-      } catch (err) {
-        console.error('Error fetching subjects:', err);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('Error loading subjects:', error);
+        toast.error('Failed to load subjects');
       }
     };
 
-    fetchData();
+    loadSubjects();
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return alert("Jums ir jābūt pieteiktam!");
-
-    const selectedSubject = subjects.find(s => s.id === subject);
-    if (!selectedSubject) return alert("Lūdzu izvēlieties priekšmetu!");
-
-    setSaving(true);
-    try {
-      await addDoc(collection(db, "lessons"), {
-        subject: selectedSubject.name,
-        subjectId: subject,
-        description,
-        lessonLength,
-        teacherId: auth.currentUser.uid,
-        teacherName: auth.currentUser.displayName,
-        bookedTimes: {},
-        category: selectedSubject.categoryId || 'subjects',
-        price
-      });
-
-      alert("Nodarbība izveidota!");
-      // Reset form
-      setSubject("");
-      setDescription("");
-      setLessonLength(45);
-      setPrice('');
-    } catch (error) {
-      console.error("Kļūda veidojot nodarbību:", error);
-      alert("Neizdevās izveidot nodarbību.");
+    if (!user || !supabase) {
+      toast.error('You must be logged in to create a lesson');
+      return;
     }
-    setSaving(false);
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('lessons')
+        .insert({
+          ...formData,
+          teacher_id: user.id,
+        });
+
+      if (error) throw error;
+
+      toast.success('Lesson created successfully');
+      onSubmit?.();
+    } catch (error) {
+      console.error('Error creating lesson:', error);
+      toast.error('Failed to create lesson');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? Number(value) : value
+    }));
+  };
+
+  if (isClientLoading) {
+    return <div>Loading...</div>;
   }
 
-  if (loading) return <div>Loading...</div>;
-
   return (
-    <form onSubmit={handleSubmit} className="p-6 bg-white shadow-lg rounded-lg max-w-lg mx-auto space-y-4">
-      <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">📚 Izveidot Nodarbību</h3>
-
-      {/* Priekšmeta izvēle */}
-      <label className="block text-gray-700 font-semibold mb-1">Priekšmets</label>
-      <select
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        required
-        className="input input-bordered w-full mb-4"
-      >
-        <option value="">Izvēlieties priekšmetu</option>
-        {subjects.map((s) => (
-          <option key={s.id} value={s.id}>{s.name}</option>
-        ))}
-      </select>
-
-      {/* Apraksts */}
-      <label className="block text-gray-700 font-semibold mb-1">Apraksts</label>
-      <textarea
-        placeholder="Aprakstiet nodarbību, piemēram, 'Algebras pamati - vienādojumi un nevienādības'"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-        className="textarea textarea-bordered w-full mb-4"
-      />
-
-      {/* Nodarbības ilgums */}
-      <label className="block text-gray-700 font-semibold mb-1">Nodarbības ilgums (minūtēs)</label>
-      <input
-        type="number"
-        min="30"
-        max="120"
-        step="15"
-        value={lessonLength}
-        onChange={(e) => setLessonLength(Number(e.target.value))}
-        className="input input-bordered w-full mb-4"
-      />
-
-      <div className="form-control">
-        <label className="block text-gray-700 font-semibold mb-1">
-          Cena (EUR)
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="label">
+          <span className="label-text">Title</span>
         </label>
         <input
-          type="number"
-          min="0"
-          step="0.01"
-          value={price}
-          onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
+          type="text"
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
           className="input input-bordered w-full"
-          placeholder="15"
           required
         />
       </div>
 
-      {/* Saglabāšanas poga */}
-      <button
-        type="submit"
-        className={`btn w-full mt-4 ${saving ? "btn-disabled" : "btn-primary"}`}
-        disabled={saving}
-      >
-        {saving ? "Saglabā..." : "✅ Izveidot Nodarbību"}
-      </button>
+      <div>
+        <label className="label">
+          <span className="label-text">Description</span>
+        </label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          className="textarea textarea-bordered w-full"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="label">
+          <span className="label-text">Subject</span>
+        </label>
+        <select
+          name="subject_id"
+          value={formData.subject_id}
+          onChange={handleChange}
+          className="select select-bordered w-full"
+          required
+        >
+          <option value="">Select a subject</option>
+          {subjects.map(subject => (
+            <option key={subject.id} value={subject.id}>
+              {subject.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="label">
+          <span className="label-text">Price (€)</span>
+        </label>
+        <input
+          type="number"
+          name="price"
+          value={formData.price}
+          onChange={handleChange}
+          className="input input-bordered w-full"
+          min="0"
+          step="0.01"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="label">
+          <span className="label-text">Duration (minutes)</span>
+        </label>
+        <input
+          type="number"
+          name="duration"
+          value={formData.duration}
+          onChange={handleChange}
+          className="input input-bordered w-full"
+          min="30"
+          step="15"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="label">
+          <span className="label-text">Maximum Students</span>
+        </label>
+        <input
+          type="number"
+          name="max_students"
+          value={formData.max_students}
+          onChange={handleChange}
+          className="input input-bordered w-full"
+          min="1"
+          required
+        />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn btn-ghost"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={loading}
+        >
+          {loading ? 'Creating...' : 'Create Lesson'}
+        </button>
+      </div>
     </form>
   );
 }

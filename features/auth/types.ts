@@ -1,25 +1,34 @@
-import { User } from '@clerk/nextjs/server';
+import { Profile, UserRole } from '@/lib/types/database.types';
 
-export type AuthUser = User;
+export type {
+  Profile,
+  UserRole
+};
 
-export type UserRole = 'student' | 'teacher';
-
-export interface UserProfile {
-  id: string;
+export type UserSession = {
+  userId: string;
+  profileId: string;
   email: string;
+  role: UserRole;
+  isActive: boolean;
+};
+
+export type AuthFormData = {
+  email: string;
+  password: string;
+};
+
+export type RegisterFormData = AuthFormData & {
   fullName: string;
   role: UserRole;
-  createdAt: string;
-}
-
-export type UIRole = 'skolēns' | 'pasniedzējs'; // For UI display
-
-// Helper function to convert UI role to storage role
-export const mapUIRoleToStorageRole = (uiRole: UIRole): UserRole => {
-  return uiRole === 'pasniedzējs' ? 'teacher' : 'student';
 };
 
-// Helper function to convert storage role to UI role
-export const mapStorageRoleToUIRole = (storageRole: UserRole): UIRole => {
-  return storageRole === 'teacher' ? 'pasniedzējs' : 'skolēns';
-};
+export type ProfileUpdateData = {
+  full_name?: string;
+  bio?: string;
+  phone?: string;
+  age?: number;
+  languages?: string[];
+  hourly_rate?: number;
+  learning_goals?: string[];
+}; 

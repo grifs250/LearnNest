@@ -1,22 +1,30 @@
 # PROJECT OVERVIEW
-- Online learning platform that connects students with teachers for private lessons
-
+- Online learning platform "MāciesTe" that connects students with teachers for private lessons
+- ALL CONTENT IS IN LATVIAN
+- Write answers and comments in English
 # PERSONALITY
-- Educational, frendly, as senior developer
+- Educational, friendly, as senior developer
 
 # TECH STACK
 - Next.js 15 with App Router
-- SUPABASE (Auth, DB, Storage)
+- Clerk (Auth)
+- SUPABASE (DB, Storage)
 - TypeScript
 - TailwindCSS with DaisyUI
 - React Hook Form
 - Zod validation
 
+# AUTH SETUP
+- Clerk handles all authentication
+- Supabase uses Clerk JWT for RLS
+- No Supabase Auth or cookies needed
+- Webhook syncs Clerk users to Supabase profiles
+
 # ERROR FIXING PROCESS
 step 1: explain the error in simple terms
 step 2: explain the solution in simple terms
 step 3: show how to fix the error
-step 4: give sudjestions for next step if needed
+step 4: give suggestions for next step if needed
 
 # BUILDING PROCESS
 - npm install
@@ -26,24 +34,41 @@ step 4: give sudjestions for next step if needed
 
 # Our .env variables
 .env.local
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/login
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/register
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/
+
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_key
+```
 
 # CURRENT FILE STRUCTURE
-instructions\proposedFileStructure.md
+instructions\proposedFileStructure.md (this is changing constantly, BUT IMPORTANT IS TO USE BEST PRACTICES)
 
 📁 ROOT
 ├── 📁 app/
-│   ├── 📁 (auth)/                    # Authentication route group
-│   │   ├── 📁 action/                # Email verification action handler
+│   ├── 📁 (auth)/                    # Clerk Authentication routes
+│   │   ├── 📁 login/                 # Clerk Sign In
 │   │   │   └── page.tsx
-│   │   ├── 📁 login/
+│   │   ├── 📁 register/              # Clerk Sign Up
 │   │   │   └── page.tsx
-│   │   ├── 📁 register/
+│   │   ├── 📁 sso-callback/          # Clerk SSO callback
 │   │   │   └── page.tsx
-│   │   ├── 📁 verify-email/
-│   │   │   └── page.tsx
-│   │   ├── layout.tsx                # Auth layout with protection
-│   │   ├── loading.tsx               # Auth loading state
-│   │   └── template.tsx              # Auth metadata
+│   │   └── layout.tsx                # Auth layout
+│   │
+│   ├── 📁 api/                       # API routes
+│   │   ├── 📁 webhooks/              # Webhook handlers
+│   │   │   └── 📁 clerk/             # Clerk webhook
+│   │   │       └── route.ts
+│   │   ├── 📁 lessons/
+│   │   │   └── route.ts
+│   │   └── 📁 bookings/
+│   │       └── route.ts
 │   │
 │   ├── 📁 (dashboard)/               # Dashboard route group
 │   │   ├── 📁 student/
@@ -67,21 +92,29 @@ instructions\proposedFileStructure.md
 │   │   ├── 📁 [category]/
 │   │   │   ├── 📁 [subjectId]/
 │   │   │   │   ├── 📁 [lessonId]/
-│   │   │   │   │   ├── page.tsx
+│   │   │   │   │   ├── page.tsx      # Server component that imports client.tsx
+│   │   │   │   │   ├── client.tsx    # Client components with "use client"
+│   │   │   │   │   ├── metadata.ts   # Metadata generation
 │   │   │   │   │   ├── loading.tsx
 │   │   │   │   │   ├── error.tsx
 │   │   │   │   │   └── template.tsx
-│   │   │   │   ├── page.tsx
+│   │   │   │   ├── page.tsx          # Server component that imports client.tsx
+│   │   │   │   ├── client.tsx        # Client components with "use client"
+│   │   │   │   ├── metadata.ts       # Metadata generation
 │   │   │   │   ├── loading.tsx
 │   │   │   │   ├── error.tsx
 │   │   │   │   └── template.tsx
-│   │   │   ├── page.tsx
+│   │   │   ├── page.tsx              # Server component that imports client.tsx
+│   │   │   ├── client.tsx            # Client components with "use client"
+│   │   │   ├── metadata.ts           # Metadata generation
 │   │   │   ├── loading.tsx
 │   │   │   ├── error.tsx
 │   │   │   └── template.tsx
 │   │   ├── 📁 meet/
 │   │   │   └── 📁 [lessonId]/
-│   │   │       ├── page.tsx
+│   │   │       ├── page.tsx          # Server component that imports client.tsx
+│   │   │       ├── client.tsx        # Client components with "use client"
+│   │   │       ├── metadata.ts       # Metadata generation
 │   │   │       ├── loading.tsx
 │   │   │       ├── error.tsx
 │   │   │       └── template.tsx
@@ -90,22 +123,11 @@ instructions\proposedFileStructure.md
 │   │   ├── error.tsx                 # Lessons error boundary
 │   │   └── template.tsx              # Lessons metadata
 │   │
-│   ├── 📁 api/                       # API routes
-│   │   ├── 📁 auth/
-│   │   │   ├── 📁 [...nextauth]/     # NextAuth.js routes
-│   │   │   │   └── route.ts
-│   │   │   └── 📁 verify-email/
-│   │   │       └── route.ts
-│   │   ├── 📁 lessons/
-│   │   │   ├── 📁 create/
-│   │   │   │   └── route.ts
-│   │   │   └── 📁 [id]/
-│   │   │       └── route.ts
-│   │   └── 📁 bookings/
-│   │       ├── 📁 create/
-│   │       │   └── route.ts
-│   │       └── 📁 [id]/
-│   │           └── route.ts
+│   ├── 📁 (profiles)/                # Profile route group
+│   │   ├── 📁 teachers/
+│   │   │   └── 📁 [slug]/
+│   │   │       └── page.tsx
+│   │   └── layout.tsx
 │   │
 │   ├── 📁 profile/                   # Profile pages
 │   │   ├── 📁 [userId]/
@@ -123,19 +145,15 @@ instructions\proposedFileStructure.md
 │   └── themeProvider.tsx             # Theme context provider
 │
 ├── 📁 features/                      # Feature-specific code
-│   ├── 📁 auth/
+│   ├── 📁 auth/                      # Auth feature code
 │   │   ├── 📁 components/
 │   │   │   ├── index.ts
-│   │   │   ├── AuthForm.tsx
-│   │   │   ├── AuthWrapper.tsx
-│   │   │   ├── AuthButtons.tsx
-│   │   │   └── EmailVerification.tsx
+│   │   │   ├── SignInForm.tsx        # Clerk sign in form
+│   │   │   ├── SignUpForm.tsx        # Clerk sign up form
+│   │   │   └── UserButton.tsx        # Clerk user button
 │   │   ├── 📁 hooks/
 │   │   │   ├── index.ts
-│   │   │   ├── useAuth.ts
-│   │   │   └── useVerification.ts
-│   │   ├── 📁 utils/
-│   │   │   └── auth-helpers.ts
+│   │   │   └── useAuth.ts            # Clerk auth hook
 │   │   └── types.ts
 │   │
 │   ├── 📁 lessons/
@@ -177,6 +195,8 @@ instructions\proposedFileStructure.md
 │   │   ├── 📁 components/
 │   │   │   ├── index.ts
 │   │   │   ├── BookingCalendar.tsx
+│   │   │   ├── TeacherBookings.tsx
+│   │   │   ├── StudentBookings.tsx
 │   │   │   └── TimeSlotPicker.tsx
 │   │   ├── 📁 hooks/
 │   │   │   ├── index.ts
@@ -194,42 +214,44 @@ instructions\proposedFileStructure.md
 │
 ├── 📁 shared/                        # Shared code
 │   ├── 📁 components/                # Truly shared components
-│   │   ├── 📁 ui/                   # Basic UI components
+│   │   ├── 📁 ui/                    # Basic UI components
 │   │   │   ├── index.ts
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
 │   │   │   └── Modal.tsx
+│   │   ├── 📁 SEO/                   # SEO components
+│   │   │   ├── index.ts
+│   │   │   └── DynamicMetadata.tsx
 │   │   ├── index.ts
 │   │   ├── Navbar.tsx
 │   │   ├── Footer.tsx
 │   │   └── UserInfoModal.tsx
 │   │
-│   ├── 📁 hooks/                    # Common hooks
+│   ├── 📁 hooks/                     # Common hooks
 │   │   ├── index.ts
 │   │   ├── useToast.ts
 │   │   └── useMediaQuery.ts
 │   │
-│   ├── 📁 utils/                    # Utilities
+│   ├── 📁 utils/                     # Utilities
 │   │   ├── index.ts
 │   │   ├── date-helpers.ts
 │   │   └── validation.ts
 │   │
-│   └── 📁 types/                    # Shared types
+│   └── 📁 types/                     # Shared types
 │       ├── index.ts
 │       ├── common.ts
 │       └── lesson.ts
 │
-├── 📁 lib/                          # External services
-│   ├── 📁 firebase/                 # Firebase related files (to be removed)
+├── 📁 lib/                           # External services
+│   ├── 📁 clerk/                     # Clerk helpers
 │   │   ├── index.ts
-│   │   ├── client.ts
-│   │   ├── admin.ts
-│   │   └── config.ts
+│   │   └── helpers.ts
 │   │
-│   ├── 📁 supabase/                 # Supabase related files
+│   ├── 📁 supabase/                  # Supabase config
 │   │   ├── index.ts
-│   │   ├── client.ts
-│   │   └── config.ts
+│   │   ├── db.ts                     # Re-export client for easier imports
+│   │   ├── client.ts                 # Client setup
+│   │   └── server.ts                 # Server setup
 │   │
 │   ├── 📁 google/
 │   │   ├── index.ts
@@ -239,13 +261,13 @@ instructions\proposedFileStructure.md
 │   ├── fetchLessons.ts
 │   └── fetchSubjects.ts
 │
-├── 📁 config/                       # App configuration
+├── 📁 config/                        # App configuration
 │   ├── index.ts
 │   ├── constants.ts
 │   ├── routes.ts
 │   └── site.ts
 │
-├── 📁 public/                       # Static files
+├── 📁 public/                        # Static files
 │   ├── 📁 images/
 │   ├── 📁 icons/
 │   ├── file.svg
@@ -254,7 +276,7 @@ instructions\proposedFileStructure.md
 │   ├── vercel.svg
 │   └── window.svg
 │
-├── 📁 instructions/                 # Project documentation
+├── 📁 instructions/                  # Project documentation
 │   ├── helperPromts.md
 │   ├── roadmap.md
 │   └── proposedFileStructure.md
@@ -270,8 +292,7 @@ instructions\proposedFileStructure.md
 ├── tailwind.config.js
 ├── tsconfig.json
 ├── README.md
-├── firestore.rules                   # To be removed if transitioning to Supabase
-└── middleware.ts
+└── middleware.ts                    # Clerk middleware
 
 
 # GITHUB PUSH PROCESS
@@ -280,20 +301,35 @@ instructions\proposedFileStructure.md
 - git push origin main
 
 # IMPORTANT DEVELOPMENT GUIDELINES
+- ALL UI IS IN LATVIAN
 - Test thoroughly file compatibility and ensure all files work together seamlessly
 - Write clean, readable, and well-structured code following DRY principles
-- Follow TypeScript and 13+ Next.js best practices and conventions
+- Follow TypeScript and Next.js best practices and conventions
 - Ensure all TypeScript types are properly defined and errors are resolved
 - Use meaningful variable names and add appropriate comments
 - Implement proper error handling and logging
 - Follow the project's coding style and patterns
+- Use Clerk for all auth-related functionality
+- Use Supabase only for database and storage
+- Ensure RLS policies work with Clerk JWT
+
+# AUTH FLOW
+1. User signs in/up with Clerk
+2. Clerk webhook creates/updates Supabase profile
+3. Clerk JWT used for Supabase RLS policies
+4. No direct Supabase Auth interaction needed
+
+# DATABASE ACCESS
+- Client-side: Use supabase client with RLS
+- Server-side: Use createServerSupabaseClient
+- Admin tasks: Use supabaseAdmin
 
 # OTHER CONTEXT
 DB STRUCTURE
 supabase\schema.sql
 
 # COMMENTS
-- make sure to ALWAYS include commments in your code
+- make sure to ALWAYS include comments in your code
 - do not delete comments unless they are no longer needed
 
 

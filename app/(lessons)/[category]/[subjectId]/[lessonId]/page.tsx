@@ -1,18 +1,19 @@
-"use client";
+import { ClientComponents } from './client';
+import { generateMetadata } from './metadata';
 
-import { LessonDetails } from "@/features/lessons/components";
-import { useParams } from "next/navigation";
+export { generateMetadata };
 
-export default function LessonDetailsPage() {
-  const params = useParams();
+interface LessonPageProps {
+  params: {
+    category: string;
+    subjectId: string;
+    lessonId: string;
+  };
+}
+
+export default function LessonPage({ params }: LessonPageProps) {
+  // Server-only data fetching if needed
+  // const data = await fetchDataOnServer(params);
   
-  return (
-    <div className="container mx-auto">
-      <LessonDetails 
-        category={params.category as string}
-        subjectId={params.subjectId as string}
-        lessonId={params.lessonId as string}
-      />
-    </div>
-  );
-} 
+  return <ClientComponents.LessonDetail params={params} />;
+}
