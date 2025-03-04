@@ -10,15 +10,14 @@ export type Timestamp = string;
 
 // Enums
 export type UserRole = 'student' | 'teacher' | 'admin';
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'canceled' | 'completed';
+export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 
 // Tables
 export type Tables = Database['public']['Tables'];
 
 // Row Types
 export type ProfileRow = Tables['profiles']['Row'];
-export type UserRow = Tables['users']['Row'];
 export type SubjectRow = Tables['subjects']['Row'];
 export type TeacherSubjectRow = Tables['teacher_subjects']['Row'];
 export type LessonRow = Tables['lessons']['Row'];
@@ -30,7 +29,6 @@ export type NotificationRow = Tables['notifications']['Row'];
 
 // Insert Types
 export type ProfileInsert = Tables['profiles']['Insert'];
-export type UserInsert = Tables['users']['Insert'];
 export type SubjectInsert = Tables['subjects']['Insert'];
 export type TeacherSubjectInsert = Tables['teacher_subjects']['Insert'];
 export type LessonInsert = Tables['lessons']['Insert'];
@@ -42,7 +40,6 @@ export type NotificationInsert = Tables['notifications']['Insert'];
 
 // Update Types
 export type ProfileUpdate = Tables['profiles']['Update'];
-export type UserUpdate = Tables['users']['Update'];
 export type SubjectUpdate = Tables['subjects']['Update'];
 export type TeacherSubjectUpdate = Tables['teacher_subjects']['Update'];
 export type LessonUpdate = Tables['lessons']['Update'];
@@ -54,13 +51,19 @@ export type NotificationUpdate = Tables['notifications']['Update'];
 
 // Extended Types with Relations
 export interface Profile extends ProfileRow {
-  user?: User;
+  student_profile?: StudentProfile;
+  teacher_profile?: TeacherProfile;
 }
 
-export interface User extends UserRow {
-  profile?: Profile;
-  teacher_subjects?: TeacherSubject[];
-  lessons?: Lesson[];
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+  role: 'student' | 'teacher' | 'admin';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Category {
@@ -72,8 +75,7 @@ export interface Category {
 }
 
 export interface Subject extends SubjectRow {
-  category_id?: string; // Reference to the category
-  category?: Category; // Optional relationship to the category
+  category?: Category;
   parent?: Subject;
   children?: Subject[];
   teacher_subjects?: TeacherSubject[];
@@ -81,12 +83,12 @@ export interface Subject extends SubjectRow {
 }
 
 export interface TeacherSubject extends TeacherSubjectRow {
-  teacher?: User;
+  teacher?: Profile;
   subject?: Subject;
 }
 
 export interface Lesson extends LessonRow {
-  teacher?: User;
+  teacher?: Profile;
   subject?: Subject;
   schedules?: LessonSchedule[];
 }
@@ -97,7 +99,7 @@ export interface LessonSchedule extends LessonScheduleRow {
 }
 
 export interface Booking extends BookingRow {
-  student?: User;
+  student?: Profile;
   schedule?: LessonSchedule;
   review?: Review;
   messages?: Message[];
@@ -105,16 +107,16 @@ export interface Booking extends BookingRow {
 
 export interface Review extends ReviewRow {
   booking?: Booking;
-  student?: User;
+  student?: Profile;
 }
 
 export interface Message extends MessageRow {
   booking?: Booking;
-  sender?: User;
+  sender?: Profile;
 }
 
 export interface Notification extends NotificationRow {
-  user?: User;
+  user?: Profile;
 }
 
 // Common interfaces
@@ -145,4 +147,27 @@ export interface UserProfile {
   role: 'student' | 'teacher' | 'admin';
   created_at: string;
   updated_at: string;
+}
+
+// Add specific profile types
+export interface StudentProfile {
+  id: string;
+  interests?: string[] | null;
+  learning_goals?: string[] | null;
+  preferred_languages?: string[] | null;
+  study_schedule?: Json | null;
+  profile?: Profile;
+}
+
+export interface TeacherProfile {
+  id: string;
+  availability?: Json | null;
+  certificates?: string[] | null;
+  education?: string[] | null;
+  experience?: string[] | null;
+  hourly_rate: number;
+  rating?: number | null;
+  specializations?: string[] | null;
+  total_reviews?: number | null;
+  profile?: Profile;
 } 

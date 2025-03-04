@@ -1,8 +1,6 @@
 "use client";
 import { useState } from 'react';
-import { doc, getDoc, runTransaction } from 'firebase/firestore';
-import { db } from '@/lib/firebase/client';
-import { auth } from '@/lib/firebase/client';
+import { useUser } from '@clerk/nextjs';
 import { PaymentModalProps } from '../types';
 import { usePayment } from '../hooks';
 import { toast } from 'react-hot-toast';
@@ -17,17 +15,22 @@ export function PaymentModal({
 }: Readonly<PaymentModalProps>) {
   const { processPayment, processing, error: paymentError } = usePayment();
   const [error, setError] = useState<string | null>(null);
+  const { user, isLoaded } = useUser();
 
   if (!isOpen) return null;
 
   const handlePayment = async () => {
-    if (!auth.currentUser) {
+    if (!isLoaded) {
+      return; // Wait for user data to load
+    }
+    
+    if (!user) {
       setError("Lūdzu piesakieties, lai veiktu maksājumu");
       return;
     }
 
     try {
-      const success = await processPayment(lessonId, timeSlot, auth.currentUser.uid, price);
+      const success = await processPayment(lessonId, timeSlot, user.id, price);
       if (success) {
         onPaymentComplete();
         onClose();

@@ -57,3 +57,11 @@ export const mapUIRoleToStorageRole = (uiRole: UIRole): UserRole => {
 export const mapStorageRoleToUIRole = (storageRole: UserRole): UIRole => {
   return storageRole === 'teacher' ? 'pasniedzējs' : 'skolēns';
 };
+
+export interface AuthUser {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  imageUrl?: string;
+}

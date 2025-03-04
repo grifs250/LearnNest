@@ -50,7 +50,30 @@ export default function ProfilePage() {
           if (error.code === 'PGRST116') {
             try {
               const newProfile = await initializeUserProfile(user);
-              setProfile(newProfile);
+              // Create a proper UserProfile object with all required fields
+              const userProfile: UserProfile = {
+                id: newProfile.id,
+                user_id: newProfile.user_id,
+                email: newProfile.email,
+                full_name: newProfile.full_name,
+                profile_type: newProfile.role as 'student' | 'teacher' | 'admin',
+                avatar_url: newProfile.avatar_url || null,
+                url_slug: newProfile.id,
+                page_title: newProfile.full_name,
+                page_description: newProfile.bio || null,
+                teacher_bio: null,
+                teacher_rate: null,
+                teacher_experience_years: null,
+                teacher_specializations: null,
+                teacher_education: null,
+                teacher_certificates: null,
+                student_goals: null,
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: null
+              };
+              
+              setProfile(userProfile);
               toast.success('Profile created successfully');
             } catch (initError) {
               console.error('Profile initialization error:', initError);

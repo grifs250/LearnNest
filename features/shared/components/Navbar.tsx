@@ -1,26 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { UserButton, useUser, SignInButton } from "@clerk/nextjs";
 
 export default function Navbar() {
   const pathname = usePathname();
   const { user, isLoaded } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure component is mounted to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isTeacher = user?.publicMetadata?.role === 'teacher';
   const isStudent = user?.publicMetadata?.role === 'student';
 
   const publicNavItems = [
     { label: "Kā tas strādā?", href: "#how-it-works" },
-    { label: "Mācību priekšmeti", href: "#subjects" },
-    { label: "Valodu kursi", href: "#languages" },
-    { label: "IT kursi", href: "#it" },
-    { label: "BUJ", href: "/buj" },
+    { label: "Mācību priekšmeti", href: "#mācību priekšmeti" },
+    { label: "Valodu kursi", href: "#valodu kursi" },
+    { label: "IT kursi", href: "#it kursi" },
+    { label: "BUJ", href: "#buj" },
     { label: "Kontakti", href: "#contact" },
   ];
 
@@ -32,6 +38,30 @@ export default function Navbar() {
   }
 
   const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
+
+  // Auth button component that handles loading state
+  const AuthButton = () => {
+    if (!mounted) return null;
+    
+    if (!isLoaded) {
+      return (
+        <button className="btn btn-sm btn-neutral px-4" disabled>
+          <span className="loading loading-spinner loading-xs mr-1" aria-hidden="true"></span>
+          Ielādē...
+        </button>
+      );
+    }
+
+    return user ? (
+      <UserButton afterSignOutUrl="/" />
+    ) : (
+      <SignInButton mode="modal">
+        <button className="btn btn-sm btn-neutral px-4">
+          🔑 Pieslēgties
+        </button>
+      </SignInButton>
+    );
+  };
 
   return (
     <div>
@@ -73,15 +103,7 @@ export default function Navbar() {
               </Link>
             )
           ))}
-          {isLoaded && (
-            user ? (
-              <UserButton afterSignOutUrl="/" />
-            ) : (
-              <Link href="/login" className="btn btn-primary">
-                Pieslēgties
-              </Link>
-            )
-          )}
+          <AuthButton />
         </div>
       </nav>
 
@@ -109,19 +131,7 @@ export default function Navbar() {
             )
           ))}
           <div className="flex justify-center">
-            {isLoaded && (
-              user ? (
-                <UserButton afterSignOutUrl="/" />
-              ) : (
-                <Link
-                  href="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="btn btn-sm btn-ghost hover:btn-ghost-focus"
-                >
-                  Pieslēgties
-                </Link>
-              )
-            )}
+            <AuthButton />
           </div>
         </div>
       )}

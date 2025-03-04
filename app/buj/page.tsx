@@ -20,16 +20,19 @@ export default function BujPage() {
   ];
 
   return (
-    <main className="bg-white p-8 ">
-      <h1 className="text-2xl font-bold mb-4">Biežāk Uzdotie Jautājumi (BUJ)</h1>
-      <div>
+    <div className="max-w-3xl mx-auto">
+      <div className="space-y-4">
         {faqs.map((faq, idx) => (
-          <details key={idx} className="mb-4 bg-gray-100 p-4 rounded-md">
-            <summary className="cursor-pointer font-semibold">{faq.q}</summary>
-            <p className="mt-2 text-gray-700">{faq.a}</p>
+          <details key={idx} className="collapse collapse-arrow bg-base-100 rounded-lg">
+            <summary className="collapse-title text-lg font-medium">
+              {faq.q}
+            </summary>
+            <div className="collapse-content">
+              <p>{faq.a}</p>
+            </div>
           </details>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

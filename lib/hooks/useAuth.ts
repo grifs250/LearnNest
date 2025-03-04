@@ -4,12 +4,12 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { useSupabase } from '@/lib/hooks/useSupabase'
-import { AuthUser, UserRole } from '@/features/auth/types/types'
+import { UserRole } from '@/features/auth/types/types'
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true)
   const [session, setSession] = useState<Session | null>(null)
-  const { user, loading, signOut } = useSupabase()
+  const { user, isLoading: userLoading, signOut } = useSupabase()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,26 +25,28 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [supabase.auth])
 
+  // Get role from user profile
+  const userRole = user?.profile?.role || null;
+  
   const isAuthenticated = !!user
-  const isTeacher = (user as AuthUser)?.user_metadata?.role === 'teacher'
-  const isStudent = (user as AuthUser)?.user_metadata?.role === 'student'
-  const isAdmin = (user as AuthUser)?.user_metadata?.role === 'admin'
+  const isTeacher = userRole === 'teacher'
+  const isStudent = userRole === 'student'
+  const isAdmin = userRole === 'admin'
 
   const checkRole = (role: UserRole) => {
-    return (user as AuthUser)?.user_metadata?.role === role
+    return userRole === role;
   }
 
   return {
-    isLoading,
+    isLoading: isLoading || userLoading,
     session,
     supabase,
     user,
-    loading,
     isAuthenticated,
     isTeacher,
     isStudent,
     isAdmin,
     checkRole,
-    signOut,
+    signOut
   }
 } 

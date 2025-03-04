@@ -1,5 +1,5 @@
 // Create a wrapper around Clerk's auth functionality
-import { currentUser } from '@clerk/nextjs';
+import { currentUser } from '@clerk/nextjs/server';
 
 // Export a function that matches the signature of what we're using
 export async function auth() {

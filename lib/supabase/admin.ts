@@ -1,5 +1,7 @@
 import { createSupabaseAdmin, adminQuery, adminStorage, getPublicUrl } from './server';
 import type { Database } from '@/types/database';
+import { createClient } from '@supabase/supabase-js';
+import { supabaseConfig } from './config';
 
 // Compatibility layer for code using the old supabaseAdmin approach
 export const supabaseAdmin = {
@@ -28,4 +30,24 @@ export const supabaseAdmin = {
 // Direct access to the admin client for more complex operations
 export async function getAdminClient() {
   return createSupabaseAdmin();
+}
+
+/**
+ * Create a Supabase admin client with service role key
+ * WARNING: This should only be used on the server in controlled environments
+ * Never expose the service role key to the client
+ */
+export function createSupabaseAdminClient() {
+  const { url, serviceKey } = supabaseConfig;
+
+  if (!url || !serviceKey) {
+    throw new Error('Missing Supabase URL or service role key');
+  }
+
+  return createClient<Database>(url, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
 } 

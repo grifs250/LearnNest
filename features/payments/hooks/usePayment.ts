@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Payment } from '../types';
-import { supabase } from '@/lib/supabase/db';
+import { supabase } from '@/lib/supabase/client';
 
 export function usePayment() {
   const [processing, setProcessing] = useState(false);

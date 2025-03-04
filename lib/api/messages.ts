@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Message } from '@/types/supabase';
+import type { Message as DbMessage } from '@/types/supabase';
 
 interface ThreadProfile {
   id: string;
@@ -12,7 +12,7 @@ interface MessageThread {
   booking_id: string;
   student: ThreadProfile;
   teacher: ThreadProfile;
-  latest_message: Message;
+  latest_message: DbMessage;
 }
 
 interface BookingWithMessages {
@@ -27,7 +27,16 @@ interface BookingWithMessages {
       };
     };
   };
-  messages: Message[];
+  messages: DbMessage[];
+}
+
+interface Message {
+  id: string;
+  booking_id: string;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  sender_id: string;
 }
 
 // Get messages for a booking
@@ -116,50 +125,73 @@ export const getRecentMessageThreads = async (userId: string): Promise<MessageTh
     .from('bookings')
     .select(`
       id,
-      student:student_id(
-        profile:id(
-          id,
-          full_name,
-          avatar_url
-        )
+      student_id,
+      profiles!student_id (
+        id,
+        full_name,
+        avatar_url
       ),
-      schedule:schedule_id(
-        lesson:lesson_id(
-          teacher:teacher_id(
-            profile:id(
-              id,
-              full_name,
-              avatar_url
-            )
+      schedule:schedule_id (
+        lesson:lesson_id (
+          teacher_id,
+          profiles!teacher_id (
+            id,
+            full_name,
+            avatar_url
           )
         )
       ),
-      messages!inner(
+      messages (
         id,
         content,
         created_at,
         is_read,
-        sender_id
+        sender_id,
+        booking_id
       )
     `)
-    .or(`student_id.eq.${userId},schedule.lesson.teacher_id.eq.${userId}`)
+    .eq('student_id', userId)
+    .or(`teacher_id.eq.${userId}`)
     .order('created_at', { ascending: false })
     .limit(20);
 
   if (error) throw error;
 
-  const bookings = data as BookingWithMessages[];
+  // Map the complex nested data structure to our simpler MessageThread interface
+  const threads: MessageThread[] = data.map((item: any) => {
+    // Get the student profile
+    const studentProfile: ThreadProfile = {
+      id: item.profiles?.[0]?.id,
+      full_name: item.profiles?.[0]?.full_name,
+      avatar_url: item.profiles?.[0]?.avatar_url
+    };
+    
+    // Get the teacher profile
+    const teacherProfile: ThreadProfile = {
+      id: item.schedule?.[0]?.lesson?.[0]?.profiles?.[0]?.id,
+      full_name: item.schedule?.[0]?.lesson?.[0]?.profiles?.[0]?.full_name,
+      avatar_url: item.schedule?.[0]?.lesson?.[0]?.profiles?.[0]?.avatar_url
+    };
+    
+    // Get the latest message
+    const latestMessage = item.messages?.length > 0 ? item.messages[0] : null;
+    
+    return {
+      booking_id: item.id,
+      student: studentProfile,
+      teacher: teacherProfile,
+      latest_message: latestMessage ? {
+        id: latestMessage.id,
+        content: latestMessage.content,
+        created_at: latestMessage.created_at,
+        is_read: latestMessage.is_read,
+        sender_id: latestMessage.sender_id,
+        booking_id: latestMessage.booking_id
+      } as DbMessage : {} as DbMessage
+    };
+  });
 
-  return bookings.map(booking => ({
-    booking_id: booking.id,
-    student: booking.student.profile,
-    teacher: booking.schedule.lesson.teacher.profile,
-    latest_message: booking.messages.reduce((latest, current) => {
-      if (!latest.created_at) return current;
-      if (!current.created_at) return latest;
-      return new Date(current.created_at) > new Date(latest.created_at) ? current : latest;
-    })
-  }));
+  return threads;
 };
 
 // Delete message

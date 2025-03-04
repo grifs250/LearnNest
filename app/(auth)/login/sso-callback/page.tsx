@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
-export default function SSOCallback() {
+// This component uses useSearchParams, so it needs to be wrapped in Suspense
+function SSOCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
@@ -34,5 +35,21 @@ export default function SSOCallback() {
         <p className="mt-4">Notiek autentifikācija...</p>
       </div>
     </div>
+  );
+}
+
+// Main page component that wraps the content in a Suspense boundary
+export default function SSOCallback() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="loading loading-spinner loading-lg"></div>
+          <p className="mt-4">Ielādē...</p>
+        </div>
+      </div>
+    }>
+      <SSOCallbackContent />
+    </Suspense>
   );
 } 

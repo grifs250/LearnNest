@@ -1,22 +1,18 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import type { CookieOptions } from '@supabase/ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createClient as supabaseCreateClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// Throw an error if the environment variables are not set
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
 /**
- * Create a Supabase client for Server Components
+ * Create a Supabase client for server components
+ * This client automatically handles cookies for auth
  */
 export async function createServerSupabaseClient() {
   return createServerClient<Database>(
@@ -42,38 +38,38 @@ export async function createServerSupabaseClient() {
 }
 
 /**
- * Create a Supabase client for browser with Row Level Security
+ * Create a standard Supabase client
  */
 export async function createClient() {
-  return createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey);
+  return supabaseCreateClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
 /**
- * Create a Supabase client using Clerk JWT for authentication
+ * Create a Supabase client with Clerk token
  */
 export async function createClerkSupabaseClient(clerkToken?: string) {
   if (clerkToken) {
-    return createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    return supabaseCreateClient<Database>(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
-          Authorization: `Bearer ${clerkToken}`,
-        },
-      },
+          Authorization: `Bearer ${clerkToken}`
+        }
+      }
     });
   }
   
-  return createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey);
+  return supabaseCreateClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
 /**
- * Create a Supabase client with admin privileges
+ * Create a Supabase admin client with service role key
  */
 export async function createSupabaseAdmin() {
   if (!supabaseServiceKey) {
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable');
   }
   
-  return createSupabaseClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return supabaseCreateClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -84,23 +80,37 @@ export async function createSupabaseAdmin() {
 /**
  * Execute a query with admin privileges
  */
-export async function adminQuery(tableName: string) {
+export async function adminQuery<T extends keyof Database['public']['Tables']>(
+  table: T
+) {
   const adminClient = await createSupabaseAdmin();
-  return adminClient.from(tableName);
+  return adminClient.from(table);
 }
 
 /**
  * Get a storage client with admin privileges
  */
-export async function adminStorage(bucketName: string) {
+export async function adminStorage(bucket: string) {
   const adminClient = await createSupabaseAdmin();
-  return adminClient.storage.from(bucketName);
+  return adminClient.storage.from(bucket);
 }
 
 /**
  * Get a public URL for a file in storage
  */
-export async function getPublicUrl(bucketName: string, path: string) {
+export async function getPublicUrl(bucket: string, path: string) {
   const adminClient = await createSupabaseAdmin();
-  return adminClient.storage.from(bucketName).getPublicUrl(path);
+  return adminClient.storage.from(bucket).getPublicUrl(path);
+}
+
+/**
+ * Legacy admin functions for migration scripts
+ */
+export async function getSupabaseAdmin() {
+  const admin = await createSupabaseAdmin();
+  return {
+    from: async <T extends keyof Database['public']['Tables']>(table: T) => {
+      return admin.from(table);
+    }
+  };
 } 

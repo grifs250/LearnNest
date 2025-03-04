@@ -8,7 +8,20 @@ export interface Message {
   content: string;
   is_read: boolean;
   created_at: string;
-  sender?: User & {
-    profile?: Profile;
-  };
+  sender?: User;
+  recipient?: User;
+}
+
+export interface Thread {
+  id: string;
+  participants: Profile[];
+  messages: Message[];
+  lastMessage?: Message;
+  unreadCount: number;
+}
+
+export interface ThreadProfile {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
 } 

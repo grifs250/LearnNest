@@ -40,6 +40,10 @@ export function EditLessonModal({ lesson, isOpen, onClose }: EditLessonModalProp
     setIsLoading(true);
 
     try {
+      if (!supabase) {
+        throw new Error("Supabase client not available");
+      }
+      
       const { error } = await supabase
         .from('lessons')
         .update({

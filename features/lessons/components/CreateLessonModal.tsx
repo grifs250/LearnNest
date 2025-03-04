@@ -26,7 +26,7 @@ export function CreateLessonModal({
     <div className="modal modal-open">
       <div className="modal-box max-w-2xl">
         <h3 className="font-bold text-lg mb-4">Izveidot jaunu nodarbību</h3>
-        <LessonForm onLessonCreated={handleSuccess} />
+        <LessonForm onSubmit={handleSuccess} />
         <div className="modal-action">
           <button className="btn" onClick={onClose}>Aizvērt</button>
         </div>

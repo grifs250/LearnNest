@@ -13,6 +13,18 @@ interface ChatProps {
   bookingId: string;
 }
 
+// Type adapter to ensure compatibility with our API responses
+const adaptMessage = (dbMessage: any): Message => ({
+  id: dbMessage.id,
+  booking_id: dbMessage.booking_id,
+  sender_id: dbMessage.sender_id,
+  content: dbMessage.content,
+  is_read: dbMessage.is_read === null ? false : !!dbMessage.is_read,
+  created_at: dbMessage.created_at,
+  updated_at: dbMessage.updated_at || null,
+  sender: dbMessage.sender || undefined
+});
+
 export function Chat({ bookingId }: ChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,7 +47,10 @@ export function Chat({ bookingId }: ChatProps) {
   useEffect(() => {
     if (bookingId) {
       fetchMessages(
-        () => getBookingMessages(bookingId),
+        async () => {
+          const apiMessages = await getBookingMessages(bookingId);
+          return apiMessages.map(adaptMessage);
+        },
         {
           errorMessage: 'Failed to load messages',
           showErrorToast: true
@@ -60,7 +75,7 @@ export function Chat({ bookingId }: ChatProps) {
           table: 'messages',
           filter: `booking_id=eq.${bookingId}`
         }, (payload) => {
-          setMessages(prev => [...prev, payload.new as Message]);
+          setMessages(prev => [...prev, adaptMessage(payload.new)]);
         })
         .subscribe();
 
@@ -84,11 +99,14 @@ export function Chat({ bookingId }: ChatProps) {
 
     try {
       await sendMessageApi(
-        () => sendMessage({
-          booking_id: bookingId,
-          sender_id: user.id,
-          content: newMessage.trim()
-        }),
+        async () => {
+          const response = await sendMessage({
+            booking_id: bookingId,
+            sender_id: user.id,
+            content: newMessage.trim()
+          });
+          return adaptMessage(response);
+        },
         {
           successMessage: 'Message sent',
           errorMessage: 'Failed to send message'
@@ -114,7 +132,10 @@ export function Chat({ bookingId }: ChatProps) {
         <p className="text-red-600">{fetchError.message}</p>
         <button
           onClick={() => fetchMessages(
-            () => getBookingMessages(bookingId),
+            async () => {
+              const apiMessages = await getBookingMessages(bookingId);
+              return apiMessages.map(adaptMessage);
+            },
             {
               errorMessage: 'Failed to load messages',
               showErrorToast: true

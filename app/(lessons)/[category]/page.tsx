@@ -7,6 +7,7 @@ interface CategoryPageProps {
   params: {
     category: string;
   };
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {

@@ -1,209 +1,184 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
-import type { WorkHours, TimeRange } from '../types';
-import type { Booking } from '../types';
-import { addDays, format, parse, startOfWeek } from 'date-fns';
+import { toast } from 'react-hot-toast';
+import { format, addMinutes, isBefore, isAfter } from 'date-fns';
+import { TimeRange, WorkHours } from '@/features/bookings/types';
+
+interface BookingScheduleData {
+  schedule_id: string;
+  lesson_schedules: {
+    start_time: string;
+    end_time: string;
+  } | null;
+}
 
 interface TimeSlotPickerProps {
-  workHours: WorkHours;
-  lessonLength: number;
-  onTimeSlotSelect: (timeSlot: string) => void;
-  selectedTimeSlot?: string;
-  mode?: 'booking' | 'scheduling';
-  bookedTimes?: Record<string, {
-    scheduleId: string;
-    studentId: string;
-    status: string;
-    createdAt: string;
-    updatedAt: string;
-  } | null>;
-  teacherId?: string;
+  teacherId: string;
+  selectedDate: Date;
+  onTimeSelected: (time: string) => void;
+  workHours?: WorkHours;
+  slotDuration?: number; // in minutes
 }
 
 export function TimeSlotPicker({
+  teacherId,
+  selectedDate,
+  onTimeSelected,
   workHours,
-  lessonLength,
-  onTimeSlotSelect,
-  selectedTimeSlot,
-  mode = 'booking',
-  bookedTimes = {},
-  teacherId
+  slotDuration = 60,
 }: TimeSlotPickerProps) {
-  const { supabase } = useClerkSupabase();
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const { supabase, isLoading } = useClerkSupabase();
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      if (!teacherId) return;
+    const fetchBookingsAndGenerateSlots = async () => {
+      if (!supabase) {
+        toast.error('Database connection not available');
+        setLoading(false);
+        return;
+      }
 
       try {
-        const { data: bookings, error } = await supabase
+        // Get booked slots for the teacher on the selected date
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        const { data: bookedSlotsData, error } = await supabase
           .from('bookings')
           .select(`
-            *,
-            schedule:lesson_schedules(*)
+            schedule_id,
+            lesson_schedules:schedule_id (
+              start_time,
+              end_time
+            )
           `)
-          .eq('schedule.lesson.teacher_id', teacherId)
-          .gte('schedule.start_time', currentWeekStart.toISOString())
-          .lte('schedule.start_time', addDays(currentWeekStart, 7).toISOString());
+          .eq('teacher_id', teacherId)
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString());
+          
+        if (error) {
+          throw error;
+        }
 
-        if (error) throw error;
+        // Convert the data to the expected format
+        const bookedSlots: BookingScheduleData[] = Array.isArray(bookedSlotsData) 
+          ? bookedSlotsData.map(item => ({
+              schedule_id: item.schedule_id,
+              lesson_schedules: item.lesson_schedules && Array.isArray(item.lesson_schedules) && item.lesson_schedules.length > 0
+                ? {
+                    start_time: item.lesson_schedules[0].start_time,
+                    end_time: item.lesson_schedules[0].end_time
+                  }
+                : null
+            }))
+          : [];
 
-        // Process bookings and update available slots
-        const bookedSlots = new Set(
-          bookings?.map(booking => booking.schedule?.start_time) || []
-        );
-
-        // Generate available slots based on work hours and booked slots
-        const newAvailableSlots = generateAvailableTimeSlots(
-          workHours,
-          lessonLength,
-          bookedSlots
-        );
-
-        setAvailableSlots(newAvailableSlots);
+        // Get the day of week
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const dayOfWeek = dayNames[selectedDate.getDay()] as keyof WorkHours;
+        
+        // Determine working hours for the selected day
+        let dayWorkHours: TimeRange | null = null;
+        
+        if (workHours && workHours[dayOfWeek]) {
+          dayWorkHours = workHours[dayOfWeek];
+        } else {
+          // Default work hours if not specified (9 AM to 5 PM)
+          const defaultStart = new Date(selectedDate);
+          defaultStart.setHours(9, 0, 0, 0);
+          
+          const defaultEnd = new Date(selectedDate);
+          defaultEnd.setHours(17, 0, 0, 0);
+          
+          dayWorkHours = {
+            start: defaultStart.toISOString(),
+            end: defaultEnd.toISOString()
+          };
+        }
+        
+        if (!dayWorkHours) {
+          // No work hours for this day
+          setAvailableSlots([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Generate all possible time slots based on work hours
+        const slots: string[] = [];
+        let currentSlot = new Date(dayWorkHours.start);
+        const endTime = new Date(dayWorkHours.end);
+        
+        while (isBefore(currentSlot, endTime)) {
+          const slotEnd = addMinutes(currentSlot, slotDuration);
+          
+          // Check if the slot is not booked
+          const isBooked = bookedSlots.some(booking => {
+            if (!booking.lesson_schedules) return false;
+            
+            const bookingStart = new Date(booking.lesson_schedules.start_time);
+            const bookingEnd = new Date(booking.lesson_schedules.end_time);
+            
+            return (
+              (isBefore(currentSlot, bookingEnd) && isAfter(slotEnd, bookingStart)) ||
+              (isBefore(bookingStart, slotEnd) && isAfter(bookingEnd, currentSlot))
+            );
+          });
+          
+          if (!isBooked) {
+            slots.push(currentSlot.toISOString());
+          }
+          
+          currentSlot = slotEnd;
+        }
+        
+        setAvailableSlots(slots);
       } catch (error) {
         console.error('Error fetching bookings:', error);
+        toast.error('Failed to load available time slots');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBookings();
-  }, [supabase, teacherId, currentWeekStart, workHours, lessonLength]);
-
-  const generateAvailableTimeSlots = (
-    workHours: WorkHours,
-    lessonLength: number,
-    bookedSlots: Set<string>
-  ): string[] => {
-    const slots: string[] = [];
-    const now = new Date();
-
-    // Generate slots for the next 7 days
-    for (let day = 0; day < 7; day++) {
-      const date = addDays(currentWeekStart, day);
-      const dayName = format(date, 'EEEE').toLowerCase();
-      const dayConfig = workHours[dayName];
-
-      if (dayConfig?.enabled && dayConfig.timeSlots) {
-        for (const timeSlot of dayConfig.timeSlots) {
-          const startTime = new Date(date);
-          startTime.setHours(
-            parseInt(timeSlot.start.split(':')[0]),
-            parseInt(timeSlot.start.split(':')[1]),
-            0,
-            0
-          );
-          
-          const endTime = new Date(date);
-          endTime.setHours(
-            parseInt(timeSlot.end.split(':')[0]),
-            parseInt(timeSlot.end.split(':')[1]),
-            0,
-            0
-          );
-
-          // Generate slots within the time range
-          let currentSlot = startTime;
-          while (currentSlot < endTime) {
-            const slotString = currentSlot.toISOString();
-
-            // Skip if slot is in the past or is booked
-            if (currentSlot > now && !bookedSlots.has(slotString)) {
-              slots.push(slotString);
-            }
-
-            // Move to next slot based on lesson length
-            currentSlot = new Date(currentSlot.getTime() + lessonLength * 60000);
-          }
-        }
-      }
+    if (!isLoading && selectedDate) {
+      fetchBookingsAndGenerateSlots();
     }
+  }, [supabase, isLoading, teacherId, selectedDate, workHours, slotDuration]);
 
-    return slots;
+  const handleSelectTime = (time: string) => {
+    setSelectedTime(time);
+    onTimeSelected(time);
   };
 
-  const handlePreviousWeek = () => {
-    setCurrentWeekStart((prev: Date) => addDays(prev, -7));
-  };
-
-  const handleNextWeek = () => {
-    setCurrentWeekStart((prev: Date) => addDays(prev, 7));
-  };
-
-  if (loading) {
+  if (isLoading || loading) {
     return <div>Loading available time slots...</div>;
   }
 
+  if (!supabase) {
+    return <div>Unable to connect to the database. Please try again later.</div>;
+  }
+
+  if (availableSlots.length === 0) {
+    return <div>No available time slots for the selected date.</div>;
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="grid grid-cols-3 gap-2 mt-4">
+      {availableSlots.map((slot) => (
         <button
-          onClick={handlePreviousWeek}
-          className="btn btn-ghost btn-sm"
+          key={slot}
+          className={`btn ${selectedTime === slot ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => handleSelectTime(slot)}
         >
-          Previous Week
+          {format(new Date(slot), 'HH:mm')}
         </button>
-        <span className="font-semibold">
-          Week of {format(currentWeekStart, 'MMM d, yyyy')}
-        </span>
-        <button
-          onClick={handleNextWeek}
-          className="btn btn-ghost btn-sm"
-        >
-          Next Week
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-4">
-        {Array.from({ length: 7 }, (_, i) => {
-          const date = addDays(currentWeekStart, i);
-          const daySlots = availableSlots.filter(slot => 
-            new Date(slot).toDateString() === date.toDateString()
-          );
-
-          return (
-            <div key={i} className="space-y-2">
-              <div className="text-center font-semibold">
-                {format(date, 'EEE')}
-                <br />
-                {format(date, 'MMM d')}
-              </div>
-              <div className="space-y-1">
-                {daySlots.map(slot => {
-                  const isSelected = selectedTimeSlot === slot;
-                  const isBooked = bookedTimes[slot] !== null;
-
-                  return (
-                    <button
-                      key={slot}
-                      onClick={() => onTimeSlotSelect(slot)}
-                      disabled={isBooked}
-                      className={`
-                        w-full px-2 py-1 text-sm rounded
-                        ${isSelected ? 'bg-primary text-primary-content' : 
-                          isBooked ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 
-                          'bg-base-200 hover:bg-base-300'}
-                      `}
-                    >
-                      {format(new Date(slot), 'HH:mm')}
-                    </button>
-                  );
-                })}
-                {daySlots.length === 0 && (
-                  <div className="text-center text-sm text-gray-500">
-                    No slots
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      ))}
     </div>
   );
 } 

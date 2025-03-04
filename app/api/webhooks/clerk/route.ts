@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     
     // Handle the different webhook events
     if (eventType === 'user.created' || eventType === 'user.updated') {
-      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
+      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, public_metadata } = evt.data;
       
       // Generate URL slug from name or email
       const fullName = `${first_name || ''} ${last_name || ''}`.trim();
@@ -59,20 +59,23 @@ export async function POST(req: Request) {
         ? fullName.toLowerCase().replace(/\s+/g, '-') 
         : email.split('@')[0];
       
+      // Get the user's role from metadata (prefer public over unsafe)
+      const role = (public_metadata?.role || unsafe_metadata?.role || 'student') as string;
+      
       // Get Supabase admin client
       const supabase = await createSupabaseAdmin();
       
       const { error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .upsert({
           user_id: id,
           email: email,
           full_name: fullName,
           avatar_url: image_url,
           is_active: true,
-          profile_type: 'student', // Default profile type
+          role: role,
           url_slug: urlSlug,
-          page_title: fullName || 'User Profile',
+          created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
       
@@ -90,7 +93,7 @@ export async function POST(req: Request) {
       
       // Mark user as inactive in Supabase
       const { error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('user_id', id);
       

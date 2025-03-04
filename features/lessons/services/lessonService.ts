@@ -35,6 +35,36 @@ export const lessonService = {
     return data;
   },
 
+  async fetchLessonsBySubject(category: string): Promise<DbLesson[]> {
+    const supabase = await createServerSupabaseClient();
+    
+    // First, get all subject IDs in the given category
+    const { data: subjectIds, error: subjectError } = await supabase
+      .from('subjects')
+      .select('id')
+      .eq('category', category);
+    
+    if (subjectError) throw subjectError;
+    
+    if (!subjectIds || subjectIds.length === 0) {
+      return [];
+    }
+    
+    // Now get all lessons with those subject IDs
+    const { data, error } = await supabase
+      .from('lessons')
+      .select(`
+        *,
+        teacher:profiles!teacher_id(*),
+        subject:subjects(*)
+      `)
+      .eq('is_active', true)
+      .in('subject_id', subjectIds.map(s => s.id));
+
+    if (error) throw error;
+    return data || [];
+  },
+
   async createLesson(lessonData: Omit<DbLesson, 'id' | 'created_at' | 'updated_at'>): Promise<DbLesson> {
     const supabase = await createServerSupabaseClient();
     const { data, error } = await supabase

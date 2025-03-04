@@ -1,28 +1,29 @@
 import type { UserResource } from '@clerk/types';
 import { createClient } from '@/lib/supabase/client';
-import type { Profile, ProfileMetadata } from '@/features/lessons/types';
+import type { Profile } from '@/lib/types/database.types';
 import type { SupabaseError } from '@/lib/types/supabase';
 import { formatClerkId } from './user';
 
 export async function initializeUserProfile(user: UserResource): Promise<Profile> {
   const supabase = createClient();
 
-  const metadata: ProfileMetadata = {
+  const metadata: Record<string, any> = {
     education: '',
     experience: '',
     specializations: [],
     languages: [],
-    hourlyRate: 0,
+    hourly_rate: 0,
   };
 
   const profileData: Partial<Profile> = {
     id: formatClerkId(user.id),
     full_name: user.fullName || '',
-    email: user.emailAddresses[0].emailAddress,
+    email: user.emailAddresses[0]?.emailAddress || '',
+    user_id: formatClerkId(user.id),
     avatar_url: user.imageUrl,
     role: 'student', // Default role
-    updated_at: new Date().toISOString(),
-    metadata,
+    is_active: true,
+    metadata
   };
 
   try {
@@ -48,7 +49,7 @@ export async function initializeUserProfile(user: UserResource): Promise<Profile
 
     return {
       ...data,
-      metadata: data.metadata as ProfileMetadata,
+      metadata: data.metadata as Record<string, any>,
     } as Profile;
   } catch (error) {
     const err = error as Error;

@@ -6,6 +6,7 @@ import { useClerkSupabase } from "@/lib/hooks/useClerkSupabase";
 import { useUser } from "@clerk/nextjs";
 import { TimeSlotPicker } from "@/features/bookings/components";
 import type { Lesson, TeacherProfile } from "@/features/lessons/types";
+import { WorkHours, TimeRange } from "@/features/bookings/types";
 import { toast } from "react-hot-toast";
 import { createClient } from '@/lib/supabase/client';
 import { formatClerkId } from "@/lib/utils";
@@ -16,7 +17,23 @@ interface LessonDetailsProps {
   readonly lessonId: string;
 }
 
-async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: Lesson; teacher: TeacherProfile}> {
+interface ScheduleWithBookings {
+  id: string;
+  start_time: string;
+  end_time: string;
+  bookings?: Array<{
+    student_id: string;
+    status: string;
+    created_at?: string;
+    updated_at?: string;
+  }>;
+}
+
+interface ExtendedLesson extends Lesson {
+  lesson_schedules?: ScheduleWithBookings[];
+}
+
+async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: ExtendedLesson; teacher: TeacherProfile}> {
   const supabase = createClient();
   
   // Fetch lesson with its schedules, bookings and teacher
@@ -37,7 +54,7 @@ async function fetchLessonAndTeacher(lessonId: string): Promise<{lesson: Lesson;
   if (!lessonData) throw new Error('Lesson not found');
 
   return {
-    lesson: lessonData as Lesson,
+    lesson: lessonData as ExtendedLesson,
     teacher: lessonData.teacher as TeacherProfile
   };
 }
@@ -48,9 +65,10 @@ export function LessonDetails({ category, subjectId, lessonId }: LessonDetailsPr
   const oldTimeSlot = searchParams.get('oldTimeSlot');
   const { user } = useUser();
   const { supabase } = useClerkSupabase();
-  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [lesson, setLesson] = useState<ExtendedLesson | null>(null);
   const [teacher, setTeacher] = useState<TeacherProfile | null>(null);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>();
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | undefined>(undefined);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,8 +92,8 @@ export function LessonDetails({ category, subjectId, lessonId }: LessonDetailsPr
     fetchData();
   }, [lessonId]);
 
-  const handleTimeSelect = (timeSlot: string) => {
-    setSelectedTimeSlot(timeSlot);
+  const handleTimeSelected = (time: string) => {
+    setSelectedTimeSlot(time);
   };
 
   const handleBook = async (scheduleId: string) => {
@@ -98,8 +116,10 @@ export function LessonDetails({ category, subjectId, lessonId }: LessonDetailsPr
         .from('lesson_schedules')
         .insert({
           lesson_id: lesson.id,
-          start_time: selectedTimeSlot,
-          end_time: new Date(new Date(selectedTimeSlot).getTime() + (lesson.duration || 60) * 60000).toISOString(),
+          start_time: selectedTimeSlot ? selectedTimeSlot : new Date().toISOString(),
+          end_time: selectedTimeSlot 
+            ? new Date(new Date(selectedTimeSlot).getTime() + (lesson.duration || 60) * 60000).toISOString()
+            : new Date(new Date().getTime() + (lesson.duration || 60) * 60000).toISOString(),
           is_available: false
         })
         .select()
@@ -129,6 +149,25 @@ export function LessonDetails({ category, subjectId, lessonId }: LessonDetailsPr
   if (error) return <div className="p-8 text-center">{error}</div>;
   if (!lesson || !teacher) return <div className="p-8 text-center">Lesson not found</div>;
 
+  // Extract teacher information from the profile with fallbacks
+  const teacherBio = teacher.teacher_bio || teacher.page_description || '';
+  const teacherEducation = teacher.teacher_education || [];
+  const teacherExperience = teacher.teacher_experience_years || null;
+  
+  // Create a structured workHours object for the TimeSlotPicker
+  const defaultTimeRange: TimeRange = { start: '09:00', end: '17:00' };
+  const weekendTimeRange: TimeRange = { start: '10:00', end: '15:00' };
+  
+  const workHours: WorkHours = {
+    monday: defaultTimeRange,
+    tuesday: defaultTimeRange,
+    wednesday: defaultTimeRange,
+    thursday: defaultTimeRange,
+    friday: defaultTimeRange,
+    saturday: weekendTimeRange,
+    sunday: weekendTimeRange
+  };
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-base-100 rounded-2xl shadow-lg overflow-hidden">
@@ -167,50 +206,44 @@ export function LessonDetails({ category, subjectId, lessonId }: LessonDetailsPr
                 </div>
               </div>
             </div>
-            {teacher.bio && (
-              <p className="text-gray-600 mb-4">{teacher.bio}</p>
+            {teacherBio && (
+              <p className="text-gray-600 mb-4">{teacherBio}</p>
             )}
-            {teacher.metadata?.education && (
+            {teacherEducation && teacherEducation.length > 0 && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Education</h3>
-                <p className="text-gray-600">{teacher.metadata.education}</p>
+                <ul className="text-gray-600 list-disc pl-5">
+                  {teacherEducation.map((edu, index) => (
+                    <li key={index}>{edu}</li>
+                  ))}
+                </ul>
               </div>
             )}
-            {teacher.metadata?.experience && (
+            {teacherExperience && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Experience</h3>
-                <p className="text-gray-600">{teacher.metadata.experience}</p>
+                <p className="text-gray-600">{teacherExperience} years</p>
               </div>
             )}
           </div>
 
           <div className="booking-section">
             <h3 className="text-xl font-semibold mb-6">Choose a Time</h3>
-            <div className="booking-alerts mb-4"></div>
+            <div className="booking-alerts mb-4">
+              <input
+                type="date"
+                className="input input-bordered w-full"
+                value={selectedDate.toISOString().split('T')[0]}
+                onChange={(e) => setSelectedDate(new Date(e.target.value))}
+              />
+            </div>
             <div>
               <TimeSlotPicker
-                workHours={teacher.metadata?.workHours ?? {}}
-                lessonLength={lesson.duration || 60}
-                onTimeSlotSelect={handleTimeSelect}
-                selectedTimeSlot={selectedTimeSlot}
-                mode="booking"
-                bookedTimes={(lesson.lesson_schedules || []).reduce((acc, schedule) => ({
-                  ...acc,
-                  [schedule.id]: schedule.bookings?.[0] ? {
-                    scheduleId: schedule.id,
-                    studentId: schedule.bookings[0].student_id,
-                    status: schedule.bookings[0].status,
-                    createdAt: schedule.bookings[0].created_at || '',
-                    updatedAt: schedule.bookings[0].updated_at || ''
-                  } : null
-                }), {} as Record<string, {
-                  scheduleId: string;
-                  studentId: string;
-                  status: string;
-                  createdAt: string;
-                  updatedAt: string;
-                } | null>)}
                 teacherId={lesson.teacher_id}
+                selectedDate={selectedDate}
+                onTimeSelected={handleTimeSelected}
+                workHours={workHours}
+                slotDuration={lesson.duration || 60}
               />
               {selectedTimeSlot && (
                 <button

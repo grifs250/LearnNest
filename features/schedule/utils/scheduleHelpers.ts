@@ -1,6 +1,6 @@
 // import { db } from "@/lib/firebase/client";
 // import { doc, updateDoc } from "firebase/firestore";
-import { supabase } from '@/lib/supabase/db';
+import { supabase } from '@/lib/supabase/client';
 import { WorkHours } from "../types";
 import { toast } from 'react-hot-toast';
 import type { Database } from '../../../types/supabase.types';

@@ -2,163 +2,189 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from "@clerk/nextjs";
-import { useBookings } from "../hooks/useBookings";
-import { toast } from "react-hot-toast";
-import type { Booking, BookingStatus } from "../types";
-import { createClient, formatClerkId } from "@/lib/utils/supabaseClient";
+import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
+import { formatClerkId } from '@/lib/utils/helpers';
+import { LocalBooking as Booking, LocalBookingStatus as BookingStatus } from '@/features/bookings/types';
+import { toast } from 'react-hot-toast';
 
 interface StudentBookingsProps {
   userId: string; // Clerk ID
 }
 
 export function StudentBookings({ userId }: StudentBookingsProps) {
-  const router = useRouter();
-  const { user } = useUser();
-  const { getUserBookings, cancelBooking, loading } = useBookings();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { supabase } = useClerkSupabase();
 
   useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const supabase = createClient();
-        const formattedId = formatClerkId(userId);
-        
-        const { data, error } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            schedule:lesson_schedules(*),
-            lesson:lessons(*)
-          `)
-          .eq('student_id', formattedId);
-          
-        if (error) {
-          throw error;
-        }
-
-        if (data && Array.isArray(data)) {
-          // Transform the data to match the Booking type
-          const formattedBookings: Booking[] = data.map((item: any) => ({
-            id: item.id || "",
-            student_id: item.student_id || "",
-            schedule_id: item.schedule_id || "",
-            lesson_schedule_id: item.lesson_schedule_id || "",
-            status: (item.status as BookingStatus) || "pending",
-            payment_status: item.payment_status || "pending",
-            created_at: item.created_at,
-            updated_at: item.updated_at,
-            metadata: item.metadata,
-            amount: item.amount,
-            schedule: item.schedule,
-            lessons: {
-              title: item.lesson?.title || "Untitled Lesson",
-              id: item.lesson?.id || ""
-            }
-          }));
-          
-          setBookings(formattedBookings);
-        }
-      } catch (error) {
-        console.error("Error fetching bookings:", error);
-        toast.error('Failed to load bookings');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user?.id || userId) {
+    if (userId) {
       fetchBookings();
     }
-  }, [user?.id, userId]);
+  }, [userId]);
 
-  const handleCancel = async (bookingId: string) => {
+  const fetchBookings = async () => {
     try {
-      await cancelBooking(bookingId);
-      // Refresh bookings after cancellation
-      const updatedBookings = await getUserBookings();
-      if (updatedBookings && Array.isArray(updatedBookings)) {
-        setBookings(updatedBookings);
+      setLoading(true);
+
+      if (!supabase) {
+        toast.error('Database connection not available');
+        setLoading(false);
+        return;
+      }
+
+      const formattedId = formatClerkId(userId);
+      
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          lesson_schedule:schedule_id (
+            *,
+            lesson:lesson_id (
+              *
+            )
+          )
+        `)
+        .eq('student_id', formattedId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && Array.isArray(data)) {
+        const transformedBookings = data.map(booking => ({
+          ...booking,
+          // Map properties to match what the component expects
+          lesson: booking.lesson_schedule?.lesson || null,
+          schedule: booking.lesson_schedule || null,
+          amount: booking.amount || (booking.lesson_schedule?.lesson?.price || 0)
+        })) as Booking[];
+        
+        setBookings(transformedBookings);
       } else {
         setBookings([]);
       }
-      toast.success('Booking cancelled successfully');
     } catch (error) {
-      toast.error('Failed to cancel booking');
+      console.error('Error fetching student bookings:', error);
+      toast.error('Failed to load bookings');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (isLoading || loading) {
-    return <div>Ielādē rezervācijas...</div>;
-  }
+  const handleCancel = async (bookingId: string) => {
+    try {
+      if (!supabase) {
+        toast.error('Database connection not available');
+        return;
+      }
 
-  if (!bookings.length) {
+      // Support both spellings in our API
+      const status: BookingStatus = 'cancelled';
+
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status })
+        .eq('id', bookingId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Nodarbība atcelta');
+      fetchBookings();
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast.error('Neizdevās atcelt nodarbību');
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="text-center py-8">
-        <h3 className="text-lg font-semibold mb-2">Vēl nav rezervāciju</h3>
-        <p className="text-gray-600">Sāc izpētīt nodarbības, lai rezervētu savu pirmo sesiju!</p>
-        <button
-          onClick={() => router.push('/lessons')}
-          className="btn btn-primary mt-4"
-        >
-          Pārlūkot nodarbības
-        </button>
+      <div className="flex justify-center items-center h-40">
+        <div className="loading loading-spinner loading-lg"></div>
       </div>
     );
   }
 
+  if (bookings.length === 0) {
+    return (
+      <div className="card bg-base-100 shadow-lg">
+        <div className="card-body">
+          <h2 className="card-title">Nav rezervētu nodarbību</h2>
+          <p>Jums pašlaik nav nevienas rezervētas nodarbības.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="btn btn-primary mt-4"
+          >
+            Meklēt nodarbības
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Function to determine if the booking is cancelled (supports both spellings)
+  const isCancelled = (status: BookingStatus) => status === 'cancelled' || status === 'canceled';
+
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 md:grid-cols-2">
       {bookings.map((booking) => (
-        <div key={booking.id} className="card bg-base-200 shadow-sm">
+        <div key={booking.id} className="card bg-base-100 shadow-lg">
           <div className="card-body">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold">
-                  {booking.lessons?.title || 'Untitled Lesson'}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {new Date(booking.schedule?.start_time || '').toLocaleString()}
-                </p>
-                <div className="mt-2">
-                  <span className={`badge ${
-                    booking.status === 'confirmed' ? 'badge-success' :
-                    booking.status === 'canceled' ? 'badge-error' :
-                    booking.status === 'completed' ? 'badge-info' :
-                    'badge-warning'
-                  }`}>
-                    {booking.status === 'confirmed' ? 'Apstiprināts' :
-                     booking.status === 'canceled' ? 'Atcelts' :
-                     booking.status === 'completed' ? 'Pabeigts' :
-                     'Gaida apstiprinājumu'}
+            <div>
+              <h3 className="text-lg font-semibold">
+                {booking.lesson?.title || 'Untitled Lesson'}
+              </h3>
+              <p className="text-sm text-gray-600">
+                {booking.schedule?.start_time 
+                  ? new Date(booking.schedule.start_time).toLocaleString() 
+                  : 'Time not available'}
+              </p>
+              <div className="mt-2">
+                <span
+                  className={`badge ${
+                    booking.status === 'confirmed'
+                      ? 'badge-success'
+                      : isCancelled(booking.status)
+                      ? 'badge-error'
+                      : booking.status === 'completed'
+                      ? 'badge-info'
+                      : 'badge-warning'
+                  }`}
+                >
+                  {booking.status === 'confirmed'
+                    ? 'Apstiprināts'
+                    : isCancelled(booking.status)
+                    ? 'Atcelts'
+                    : booking.status === 'completed'
+                    ? 'Pabeigts'
+                    : 'Gaida apstiprinājumu'}
+                </span>
+                {booking.amount && (
+                  <span className="badge ml-2">
+                    ${booking.amount}
                   </span>
-                  {booking.amount && (
-                    <span className="badge ml-2">
-                      ${booking.amount}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {booking.status === 'pending' && (
-                  <button
-                    onClick={() => handleCancel(booking.id)}
-                    className="btn btn-error btn-sm"
-                    disabled={loading}
-                  >
-                    Atcelt
-                  </button>
-                )}
-                {booking.status === 'confirmed' && (
-                  <button
-                    onClick={() => router.push(`/lessons/meet/${booking.id}`)}
-                    className="btn btn-primary btn-sm"
-                  >
-                    Pievienoties nodarbībai
-                  </button>
                 )}
               </div>
+            </div>
+            <div className="card-actions justify-end mt-4">
+              <button
+                onClick={() => router.push(`/student/bookings/${booking.id}`)}
+                className="btn btn-primary btn-sm"
+              >
+                Detaļas
+              </button>
+              {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                <button
+                  onClick={() => handleCancel(booking.id)}
+                  className="btn btn-outline btn-error btn-sm"
+                >
+                  Atcelt
+                </button>
+              )}
             </div>
           </div>
         </div>

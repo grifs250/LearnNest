@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { Lesson } from "../types";
+import { Lesson, DbLesson } from "../types";
 import { lessonService } from "../services";
 import { toast } from "react-hot-toast";
 
@@ -14,6 +14,31 @@ interface LessonsContextType {
 }
 
 const LessonsContext = createContext<LessonsContextType | undefined>(undefined);
+
+// Convert DbLesson to Lesson
+const convertDbLessonToLesson = (dbLesson: DbLesson): Lesson => {
+  return {
+    id: dbLesson.id,
+    title: dbLesson.title,
+    description: dbLesson.description || null,
+    price: dbLesson.price,
+    duration: dbLesson.duration,
+    subject_id: dbLesson.subject_id,
+    teacher_id: dbLesson.teacher_id,
+    image_url: null,
+    video_url: null,
+    is_active: dbLesson.is_active ?? false,
+    is_featured: false,
+    is_online: false,
+    max_students: dbLesson.max_students ?? 1,
+    created_at: dbLesson.created_at || new Date().toISOString(),
+    updated_at: dbLesson.updated_at,
+    location: null,
+    difficulty_level: null,
+    language: 'lv', // Default to Latvian
+    tags: null
+  };
+};
 
 export function LessonsProvider({ children }: { children: React.ReactNode }) {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -28,7 +53,9 @@ export function LessonsProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       setError(null);
       const data = await lessonService.fetchLessonsBySubject(currentCategory);
-      setLessons(data);
+      // Convert DbLesson[] to Lesson[]
+      const convertedLessons = data.map((dbLesson: any) => convertDbLessonToLesson(dbLesson));
+      setLessons(convertedLessons);
     } catch (err) {
       console.error("Error fetching lessons:", err);
       setError("Failed to load lessons");

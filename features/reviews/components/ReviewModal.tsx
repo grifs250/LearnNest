@@ -28,6 +28,11 @@ export function ReviewModal({ bookingId, teacherId, onClose }: ReviewModalProps)
       return;
     }
 
+    if (!supabase) {
+      toast.error('Database connection not available');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { error } = await supabase

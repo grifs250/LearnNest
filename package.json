@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --project tsconfig.check.json",
     "supabase:types": "npx supabase gen types typescript --project-id kyxnqapwvsdbdxhppohv > types/supabase.types.ts"
   },
   "dependencies": {
@@ -25,7 +25,9 @@
     "clsx": "^2.1.1",
     "constants-browserify": "^1.0.0",
     "crypto-browserify": "^3.12.1",
+    "cssnano": "^7.0.6",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.7",
     "events": "^3.3.0",
     "lucide-react": "^0.474.0",
     "next": "^15.1.6",

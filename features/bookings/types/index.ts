@@ -1,11 +1,22 @@
+/**
+ * Booking-related types for MāciesTe application
+ */
+
 import { BaseEntity } from '@/features/shared/types';
 import { User } from '@/features/auth/types/types';
 import { UserProfile } from '@/types/database';
 import type { Database } from '@/types/supabase.types';
+import type { 
+  Booking as DatabaseBooking,
+  BookingStatus,
+  BookingWithDetails,
+  LessonSchedule as DatabaseLessonSchedule,
+  PaymentStatus,
+  UserProfile as SupabaseUserProfile
+} from '@/types/database';
 
 // Core enum types from the database
-export type BookingStatus = 'pending' | 'confirmed' | 'canceled' | 'completed';
-export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
+export type { BookingStatus, PaymentStatus };
 
 // Database table types
 export type DbBooking = Database['public']['Tables']['bookings']['Row'];
@@ -28,30 +39,21 @@ export interface Schedule extends DbSchedule {
   bookings?: DbBooking[];
 }
 
-export interface Booking {
-  id: string;
-  student_id: string;
-  schedule_id: string;
-  lesson_schedule_id?: string;
-  payment_id?: string;
-  notes?: string;
-  status: BookingStatus;
-  payment_status: PaymentStatus;
-  created_at: string | null;
-  updated_at: string | null;
-  metadata?: any;
-  schedule?: any;
-  student?: UserProfile;
-  amount?: number;
-  lessons?: {
+// Booking type used in the components
+export interface Booking extends DatabaseBooking {
+  schedule?: DatabaseLessonSchedule;
+  lesson_schedule?: DatabaseLessonSchedule;
+  lesson?: {
+    id: string;
     title: string;
-    id: string;
+    description: string | null;
+    price: number;
+    duration: number;
+    image_url: string | null;
   };
-  profiles?: {
-    full_name: string;
-    id: string;
-  };
-  booking_time?: string;
+  teacher?: Pick<SupabaseUserProfile, 'full_name' | 'avatar_url'>;
+  student?: Pick<SupabaseUserProfile, 'full_name' | 'avatar_url'>;
+  amount?: number;
 }
 
 // Input types for operations
@@ -93,32 +95,34 @@ export interface BookingSummary {
 
 // Time and schedule related types
 export interface TimeRange {
-  start: string;
-  end: string;
+  start: string; // ISO string
+  end: string;   // ISO string
 }
 
 export interface WorkHours {
-  [key: string]: {
-    enabled: boolean;
-    timeSlots: TimeRange[];
-  };
+  monday: TimeRange | null;
+  tuesday: TimeRange | null;
+  wednesday: TimeRange | null;
+  thursday: TimeRange | null;
+  friday: TimeRange | null;
+  saturday: TimeRange | null;
+  sunday: TimeRange | null;
 }
 
 // Lesson availability
 export interface Vacancy {
   id: string;
+  lesson_id: string;
   start_time: string;
   end_time: string;
   is_available: boolean;
-  lesson?: {
+  lessons?: {
     id: string;
     title: string;
-    description: string | null;
+    description: string;
     price: number;
-    duration: number;
+    teacher_id: string;
   };
-  created_at: string | null;
-  updated_at: string | null;
 }
 
 // Additional types needed by components
@@ -181,4 +185,36 @@ export interface BookingRequest {
       description: string | null;
     };
   };
+}
+
+// Type for booking data from Supabase join query
+export interface BookingWithScheduleData {
+  id: string;
+  student_id: string;
+  schedule_id: string;
+  status: BookingStatus;
+  payment_status: PaymentStatus;
+  payment_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+  lesson_schedules?: {
+    id: string;
+    lesson_id: string;
+    start_time: string;
+    end_time: string;
+    is_available: boolean;
+    lessons?: {
+      id: string;
+      title: string;
+      description: string | null;
+      price: number;
+      teacher_id: string;
+    };
+  } | null;
+  profiles?: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+  } | null;
 } 

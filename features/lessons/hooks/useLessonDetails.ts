@@ -2,8 +2,33 @@
 
 import { useState, useEffect } from "react";
 import { lessonService } from "../services/lessonService";
-import { Lesson, TeacherData } from "../types";
+import { Lesson, TeacherData, DbLesson } from "../types";
 import { toast } from "react-hot-toast";
+
+// Convert any lesson data to Lesson
+const convertToLesson = (lessonData: any): Lesson => {
+  return {
+    id: lessonData.id,
+    title: lessonData.title,
+    description: lessonData.description || null,
+    price: lessonData.price,
+    duration: lessonData.duration,
+    subject_id: lessonData.subject_id,
+    teacher_id: lessonData.teacher_id,
+    image_url: null,
+    video_url: null,
+    is_active: lessonData.is_active ?? false,
+    is_featured: false,
+    is_online: false,
+    max_students: lessonData.max_students ?? 1,
+    created_at: lessonData.created_at || new Date().toISOString(),
+    updated_at: lessonData.updated_at,
+    location: null,
+    difficulty_level: null,
+    language: 'lv', // Default to Latvian
+    tags: null
+  };
+};
 
 export function useLessonDetails(
   category: string,
@@ -19,8 +44,13 @@ export function useLessonDetails(
     async function fetchDetails() {
       try {
         setLoading(true);
-        const { lesson, teacherData } = await lessonService.fetchLessonAndTeacher(lessonId);
-        setLesson(lesson);
+        const { lesson: lessonData, teacherData } = await lessonService.fetchLessonAndTeacher(lessonId);
+        
+        if (lessonData) {
+          const convertedLesson = convertToLesson(lessonData);
+          setLesson(convertedLesson);
+        }
+        
         setTeacher(teacherData);
       } catch (err) {
         console.error("Error fetching lesson details:", err);

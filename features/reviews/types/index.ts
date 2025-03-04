@@ -1,5 +1,7 @@
-import { Booking } from '@/features/bookings/types';
-import { User } from '@/features/auth/types/types';
+import { DbBooking } from '@/features/bookings/types';
+import type { Database } from '@/types/supabase.types';
+
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export interface Review {
   id: string;
@@ -11,9 +13,9 @@ export interface Review {
   is_public: boolean;
   created_at: string;
   updated_at: string;
-  booking?: Booking;
-  student?: User;
-  teacher?: User;
+  booking?: DbBooking;
+  student?: Profile;
+  teacher?: Profile;
 }
 
 export interface ReviewSummary {

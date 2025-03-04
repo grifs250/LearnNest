@@ -1,146 +1,150 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
-import type { BookingStatus, Booking } from '../types';
+import { formatClerkId } from '@/lib/utils/helpers';
+import type { LocalBooking, LocalBookingStatus } from '../types';
 import { toast } from 'react-hot-toast';
 
-export function useBookings() {
-  const [loading, setLoading] = useState(false);
-  const { user } = useUser();
+interface UseBookingsProps {
+  userId?: string;
+  status?: LocalBookingStatus;
+  role?: 'student' | 'teacher';
+}
+
+export const useBookings = ({ userId, status, role = 'student' }: UseBookingsProps = {}) => {
+  const [bookings, setBookings] = useState<LocalBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const { supabase } = useClerkSupabase();
 
-  const createBooking = async (
-    scheduleId: string,
-    amount: number,
-    metadata?: Record<string, any>
-  ) => {
-    if (!user) {
-      throw new Error('User must be logged in to create a booking');
+  useEffect(() => {
+    if (userId) {
+      fetchBookings();
     }
+  }, [userId, status, role]);
 
-    setLoading(true);
+  const fetchBookings = async () => {
     try {
-      const { error } = await supabase
+      setLoading(true);
+
+      if (!supabase) {
+        throw new Error('Database connection not available');
+      }
+
+      const formattedId = userId ? formatClerkId(userId) : undefined;
+      
+      let query = supabase
         .from('bookings')
-        .insert({
-          schedule_id: scheduleId,
-          student_id: user.id,
-          status: 'pending',
-          amount,
-          payment_status: 'pending',
-          metadata
-        });
+        .select(`
+          *,
+          lesson_schedule:lesson_schedule_id (
+            *,
+            lesson:lesson_id (
+              *,
+              teacher:teacher_id (*)
+            )
+          ),
+          student:student_id (
+            *,
+            profile:user_id (*)
+          )
+        `);
 
-      if (error) throw error;
+      if (formattedId) {
+        if (role === 'student') {
+          query = query.eq('student_id', formattedId);
+        } else {
+          query = query.eq('teacher_id', formattedId);
+        }
+      }
 
-      // Update schedule availability
-      const { error: scheduleError } = await supabase
-        .from('lesson_schedules')
-        .update({ is_available: false })
-        .eq('id', scheduleId);
+      if (status) {
+        query = query.eq('status', status);
+      }
 
-      if (scheduleError) throw scheduleError;
+      const { data, error: supabaseError } = await query.order('created_at', { ascending: false });
 
-      toast.success('Booking created successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create booking');
-      throw error;
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      if (data) {
+        const transformedBookings = data.map(booking => ({
+          ...booking,
+          lesson: booking.lesson_schedule?.lesson,
+          schedule: booking.lesson_schedule,
+          profiles: role === 'student' 
+            ? booking.lesson_schedule?.lesson?.teacher
+            : booking.student?.profile,
+          booking_time: booking.lesson_schedule?.start_time || booking.created_at
+        })) as LocalBooking[];
+        
+        setBookings(transformedBookings);
+      }
+      
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      console.error('Error fetching bookings:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const cancelBooking = async (bookingId: string) => {
-    if (!user) {
-      throw new Error('User must be logged in to cancel a booking');
-    }
-
-    setLoading(true);
     try {
-      // Get the booking first to check permissions
-      const { data: booking, error: bookingError } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', bookingId)
-        .single();
-
-      if (bookingError) throw bookingError;
-
-      // Check if user owns this booking
-      if (booking.student_id !== user.id) {
-        throw new Error('Not authorized to cancel this booking');
+      if (!supabase) {
+        throw new Error('Database connection not available');
       }
 
-      // Update booking status
-      const { error: updateError } = await supabase
+      const { error: supabaseError } = await supabase
         .from('bookings')
-        .update({ 
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
+        .update({ status: 'cancelled' as LocalBookingStatus })
         .eq('id', bookingId);
 
-      if (updateError) throw updateError;
+      if (supabaseError) {
+        throw supabaseError;
+      }
 
-      // Make schedule available again
-      const { error: scheduleError } = await supabase
-        .from('lesson_schedules')
-        .update({ 
-          is_available: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', booking.schedule_id);
-
-      if (scheduleError) throw scheduleError;
-
-      toast.success('Booking cancelled successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to cancel booking');
-      throw error;
-    } finally {
-      setLoading(false);
+      await fetchBookings();
+      return { success: true };
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      return { success: false, error: err };
     }
   };
 
-  const getUserBookings = async (status?: BookingStatus): Promise<Booking[]> => {
-    if (!user) {
-      throw new Error('User must be logged in to view bookings');
-    }
-
+  const updateBookingStatus = async (bookingId: string, status: LocalBookingStatus) => {
     try {
-      const query = supabase
-        .from('bookings')
-        .select(`
-          *,
-          schedule:lesson_schedules (
-            *,
-            lesson:lessons (*)
-          ),
-          student:profiles (*)
-        `)
-        .eq('student_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (status) {
-        query.eq('status', status);
+      if (!supabase) {
+        throw new Error('Database connection not available');
       }
 
-      const { data, error } = await query;
+      const { error: supabaseError } = await supabase
+        .from('bookings')
+        .update({ status })
+        .eq('id', bookingId);
 
-      if (error) throw error;
-      return data as unknown as Booking[];
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to fetch bookings');
-      throw error;
+      if (supabaseError) {
+        throw supabaseError;
+      }
+
+      await fetchBookings();
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating booking status:', err);
+      return { success: false, error: err };
     }
   };
 
   return {
+    bookings,
     loading,
-    createBooking,
+    error,
+    fetchBookings,
     cancelBooking,
-    getUserBookings
+    updateBookingStatus
   };
-} 
+}; 

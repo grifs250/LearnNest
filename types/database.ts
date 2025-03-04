@@ -73,7 +73,7 @@ export interface Database {
 // Enum types for the application
 export type UserRole = 'student' | 'teacher' | 'admin';
 
-export type BookingStatus = 'pending' | 'confirmed' | 'canceled' | 'completed';
+export type BookingStatus = 'pending' | 'confirmed' | 'canceled' | 'cancelled' | 'completed';
 
 export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 

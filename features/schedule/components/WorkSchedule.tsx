@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { auth } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+// import { auth } from "@/lib/firebase/client";
+// import { doc, getDoc } from "firebase/firestore";
 import { WorkScheduleProps, TimeSlotRowProps, WorkHours, TimeRange, DAYS } from "../types";
 import { saveSchedule } from "../utils/scheduleHelpers";
 import { toast } from "react-hot-toast";
+import { useUser } from '@clerk/nextjs';
+import { useClerkSupabase } from "@/lib/hooks/useClerkSupabase";
 
 function TimeSlotRow({ slot, dayId, index, canDelete, onTimeChange, onRemove }: TimeSlotRowProps) {
   return (
@@ -41,6 +43,8 @@ function TimeSlotRow({ slot, dayId, index, canDelete, onTimeChange, onRemove }: 
 }
 
 export function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {}) {
+  const { user } = useUser();
+  const { supabase, isLoading } = useClerkSupabase();
   const [schedule, setSchedule] = useState<WorkHours>(() => {
     const defaultSchedule: WorkHours = {};
     DAYS.forEach(day => {
@@ -56,23 +60,58 @@ export function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {}) {
 
   useEffect(() => {
     async function loadSchedule() {
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!user || !supabase || isLoading) return;
 
       try {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
+        // Fetch the teacher's work hours from Supabase
+        const { data, error } = await supabase
+          .from('teacher_work_hours')
+          .select('*')
+          .eq('teacher_id', user.id)
+          .single();
         
-        if (docSnap.exists() && docSnap.data().workHours) {
-          setSchedule(docSnap.data().workHours);
+        if (error) {
+          console.error("Error fetching schedule:", error);
+          return;
+        }
+        
+        if (data) {
+          // Convert from Supabase format to WorkHours format
+          const workHoursFromDB: WorkHours = {};
+          
+          DAYS.forEach(day => {
+            const dayKey = `day_${day.id}` as keyof typeof data;
+            const dayData = data[dayKey];
+            
+            if (dayData) {
+              try {
+                workHoursFromDB[day.id] = JSON.parse(dayData as string);
+              } catch (e) {
+                // Default if parsing fails
+                workHoursFromDB[day.id] = {
+                  enabled: false,
+                  timeSlots: [{ start: "09:00", end: "17:00" }]
+                };
+              }
+            } else {
+              // Default if no data exists
+              workHoursFromDB[day.id] = {
+                enabled: false,
+                timeSlots: [{ start: "09:00", end: "17:00" }]
+              };
+            }
+          });
+          
+          setSchedule(workHoursFromDB);
         }
       } catch (error) {
         console.error("Error loading schedule:", error);
         toast.error("Neizdevās ielādēt grafiku");
       }
     }
+    
     loadSchedule();
-  }, []);
+  }, [user, supabase, isLoading]);
 
   const handleToggleDay = (dayId: number) => {
     setSchedule(prev => ({
@@ -117,15 +156,30 @@ export function WorkSchedule({ initialWorkHours }: WorkScheduleProps = {}) {
   };
 
   const handleSave = async () => {
-    const user = auth.currentUser;
-    if (!user) {
+    if (!user || !supabase) {
       toast.error("Nav pieejams lietotājs");
       return;
     }
 
     setSaving(true);
     try {
-      await saveSchedule(schedule, user.uid);
+      // Create an object with day_0, day_1, etc. fields that contain stringified schedule
+      const workHoursData: Record<string, string> = {};
+      
+      DAYS.forEach(day => {
+        workHoursData[`day_${day.id}`] = JSON.stringify(schedule[day.id]);
+      });
+      
+      // Update or insert the work hours in Supabase
+      const { error } = await supabase
+        .from('teacher_work_hours')
+        .upsert({
+          teacher_id: user.id,
+          ...workHoursData
+        });
+      
+      if (error) throw error;
+      
       toast.success("Darba grafiks saglabāts!");
     } catch (error) {
       console.error("Error saving schedule:", error);

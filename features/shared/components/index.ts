@@ -9,4 +9,5 @@ export type { ToastType } from './ui/Toast';
 
 export * from './UserInfoModal';
 export * from './Navbar';
-export * from './Footer'; 
+export * from './Footer';
+export { default as BujSection } from './BujSection'; 

@@ -5,6 +5,7 @@ import { Subject, Lesson, LessonWithProfile } from '@/types/database';
 import { dbService } from '@/lib/supabase/db';
 import LoadingSpinner from '@/shared/components/ui/LoadingSpinner';
 
+// Interface for Next.js App Router page component
 interface SubjectPageProps {
   params: {
     category: string;
@@ -15,6 +16,7 @@ interface SubjectPageProps {
   };
 }
 
+// In Next.js App Router, page components can be async
 export default async function SubjectPage({ params, searchParams }: SubjectPageProps) {
   // Fetch subject data
   const subject = await fetchSubject(params.subjectId);

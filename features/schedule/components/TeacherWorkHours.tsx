@@ -1,17 +1,18 @@
 "use client";
 
-import { db } from "@/lib/firebase/client";
-import { doc, updateDoc } from "firebase/firestore";
-import { TeacherWorkHoursProps, TimeRange, DAYS } from "../types";
+// import { db } from "@/lib/firebase/client";
+// import { doc, updateDoc } from "firebase/firestore";
+import { supabase } from "@/lib/supabase/client";
+import { TeacherWorkHoursProps, TimeRange, DAYS, WorkHours } from "../types";
 import { useWorkHours } from "../hooks/useWorkHours";
 import { toast } from "react-hot-toast";
 
 export function TeacherWorkHours({ teacherId }: TeacherWorkHoursProps) {
-  const { workHours, setWorkHours, loading } = useWorkHours(teacherId);
+  const { workHours, loading, updateWorkHours } = useWorkHours();
 
   const handleWorkHoursUpdate = async (dayId: number, range: TimeRange) => {
     try {
-      const updatedWorkHours = {
+      const updatedWorkHours: Partial<WorkHours> = {
         ...workHours,
         [dayId]: {
           enabled: true,
@@ -19,11 +20,14 @@ export function TeacherWorkHours({ teacherId }: TeacherWorkHoursProps) {
         }
       };
 
-      await updateDoc(doc(db, "users", teacherId), {
-        workHours: updatedWorkHours
+      // Use the updateWorkHours function from the hook instead of Firebase updateDoc
+      await updateWorkHours({
+        [`day_${dayId}`]: JSON.stringify({
+          enabled: true,
+          timeSlots: [range]
+        })
       });
       
-      setWorkHours(updatedWorkHours);
       toast.success('Darba laiks atjaunināts!');
     } catch (error) {
       console.error("Error updating work hours:", error);
@@ -39,6 +43,35 @@ export function TeacherWorkHours({ teacherId }: TeacherWorkHoursProps) {
     );
   }
 
+  // Convert the database format (day_0, day_1, etc.) to the WorkHours format expected by the UI
+  const formattedWorkHours: WorkHours = {};
+  
+  if (workHours) {
+    DAYS.forEach(day => {
+      const dayKey = `day_${day.id}` as keyof typeof workHours;
+      const dayData = workHours[dayKey];
+      
+      if (dayData) {
+        try {
+          const parsedData = JSON.parse(dayData as string);
+          formattedWorkHours[day.id] = parsedData;
+        } catch (e) {
+          // If JSON parsing fails, set default values
+          formattedWorkHours[day.id] = {
+            enabled: false,
+            timeSlots: [{ start: '09:00', end: '17:00' }]
+          };
+        }
+      } else {
+        // Default value if no data exists
+        formattedWorkHours[day.id] = {
+          enabled: false,
+          timeSlots: [{ start: '09:00', end: '17:00' }]
+        };
+      }
+    });
+  }
+
   return (
     <div className="space-y-4">
       {DAYS.map(day => (
@@ -49,9 +82,9 @@ export function TeacherWorkHours({ teacherId }: TeacherWorkHoursProps) {
               <input
                 type="time"
                 className="input input-bordered"
-                value={workHours[day.id]?.timeSlots[0]?.start || '09:00'}
+                value={formattedWorkHours[day.id]?.timeSlots[0]?.start || '09:00'}
                 onChange={(e) => {
-                  const currentRange = workHours[day.id]?.timeSlots[0] || { start: '09:00', end: '17:00' };
+                  const currentRange = formattedWorkHours[day.id]?.timeSlots[0] || { start: '09:00', end: '17:00' };
                   handleWorkHoursUpdate(day.id, { ...currentRange, start: e.target.value });
                 }}
               />
@@ -59,9 +92,9 @@ export function TeacherWorkHours({ teacherId }: TeacherWorkHoursProps) {
               <input
                 type="time"
                 className="input input-bordered"
-                value={workHours[day.id]?.timeSlots[0]?.end || '17:00'}
+                value={formattedWorkHours[day.id]?.timeSlots[0]?.end || '17:00'}
                 onChange={(e) => {
-                  const currentRange = workHours[day.id]?.timeSlots[0] || { start: '09:00', end: '17:00' };
+                  const currentRange = formattedWorkHours[day.id]?.timeSlots[0] || { start: '09:00', end: '17:00' };
                   handleWorkHoursUpdate(day.id, { ...currentRange, end: e.target.value });
                 }}
               />

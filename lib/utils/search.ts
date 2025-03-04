@@ -13,50 +13,52 @@ export interface SearchResult {
 }
 
 /**
- * Search across multiple tables using the text search indexes
+ * Search across teachers, lessons, and subjects
  */
 export async function searchAll(query: string): Promise<SearchResult[]> {
-  if (!query || query.trim().length < 2) {
-    return [];
-  }
-
   const supabase = createClient();
-  const formattedQuery = query.trim();
   
-  // Execute searches in parallel
-  const [teacherResults, lessonResults, subjectResults] = await Promise.all([
-    searchTeachers(formattedQuery, supabase),
-    searchLessons(formattedQuery, supabase),
-    searchSubjects(formattedQuery, supabase)
+  // Run all searches concurrently
+  const [teachers, lessons, subjects] = await Promise.all([
+    searchTeachers(query, supabase),
+    searchLessons(query, supabase),
+    searchSubjects(query, supabase)
   ]);
   
-  // Combine and sort results by relevance
+  // Combine and sort results
   return [
-    ...teacherResults,
-    ...lessonResults, 
-    ...subjectResults
-  ];
+    ...teachers,
+    ...lessons, 
+    ...subjects
+  ].sort((a, b) => {
+    // Sort by relevance (simple implementation - could be improved)
+    if (a.title.toLowerCase().includes(query.toLowerCase())) return -1;
+    if (b.title.toLowerCase().includes(query.toLowerCase())) return 1;
+    return 0;
+  });
 }
 
 async function searchTeachers(query: string, supabase = createClient()) {
   const { data } = await supabase
     .from('profiles')
-    .select('id, full_name, bio, avatar_url')
+    .select(`
+      id, 
+      full_name, 
+      bio, 
+      avatar_url,
+      role
+    `)
     .eq('role', 'teacher')
-    .textSearch(
-      'full_name,bio', 
-      query, 
-      { config: 'simple' }
-    )
-    .limit(5);
-    
-  return (data || []).map(teacher => ({
-    id: teacher.id,
-    title: teacher.full_name,
-    description: teacher.bio,
+    .ilike('full_name', `%${query}%`)
+    .limit(10);
+  
+  return (data || []).map(profile => ({
+    id: profile.id,
+    title: profile.full_name,
+    description: profile.bio,
     type: 'teacher' as const,
-    url: `/teachers/${teacher.id}`,
-    imageUrl: teacher.avatar_url
+    url: `/teachers/${profile.id}`,
+    imageUrl: profile.avatar_url
   }));
 }
 
@@ -68,26 +70,19 @@ async function searchLessons(query: string, supabase = createClient()) {
       title, 
       description,
       teacher_id,
-      profiles:teacher_id (full_name, avatar_url),
-      subjects:subject_id (name)
+      subject_id
     `)
-    .textSearch(
-      'title,description', 
-      query, 
-      { config: 'simple' }
-    )
-    .eq('is_active', true)
+    .ilike('title', `%${query}%`)
     .limit(10);
     
+  // For simplicity, we'll just return basic lesson info
   return (data || []).map(lesson => ({
     id: lesson.id,
     title: lesson.title,
     description: lesson.description,
     type: 'lesson' as const,
     url: `/lessons/${lesson.id}`,
-    imageUrl: null,
-    teacherName: lesson.profiles?.full_name,
-    subjectName: lesson.subjects?.name
+    imageUrl: null
   }));
 }
 
@@ -98,24 +93,17 @@ async function searchSubjects(query: string, supabase = createClient()) {
       id, 
       name, 
       description,
-      slug,
-      categories:category_id (name, slug)
+      slug
     `)
-    .textSearch(
-      'name,description', 
-      query, 
-      { config: 'simple' }
-    )
-    .eq('is_active', true)
-    .limit(5);
-    
+    .ilike('name', `%${query}%`)
+    .limit(10);
+  
   return (data || []).map(subject => ({
     id: subject.id,
     title: subject.name,
     description: subject.description,
     type: 'subject' as const,
-    url: `/${subject.categories?.slug || 'subjects'}/${subject.slug}`,
-    imageUrl: null,
-    categoryName: subject.categories?.name
+    url: `/subjects/${subject.slug || subject.id}`,
+    imageUrl: null
   }));
 } 
