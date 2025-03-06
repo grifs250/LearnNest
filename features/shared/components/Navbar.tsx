@@ -12,7 +12,7 @@ import { useUser } from "@clerk/nextjs";
 const UserButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.UserButton), {
   ssr: false,
   loading: () => (
-    <button className="btn btn-sm btn-neutral px-3">
+    <button className="btn btn-sm btn-neutral px-3" disabled>
       <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
       <span className="sr-only">Ielādē...</span>
     </button>
@@ -22,7 +22,7 @@ const UserButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.UserBut
 const SignInButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.SignInButton), {
   ssr: false,
   loading: () => (
-    <button className="btn btn-sm btn-neutral px-3">
+    <button className="btn btn-sm btn-neutral px-3" disabled>
       <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
       <span className="sr-only">Ielādē...</span>
     </button>
@@ -40,8 +40,47 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
-  const isTeacher = user?.publicMetadata?.role === 'teacher';
-  const isStudent = user?.publicMetadata?.role === 'student';
+  // Close mobile menu when pathname changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Check if the current page is the landing page
+  const isLandingPage = pathname === "/";
+
+  // Links for the navbar
+  const links = [
+    { name: "Sākums", href: "/", icon: <Home size={16} /> },
+    { name: "Par mums", href: "/#about", icon: <Info size={16} /> },
+    { name: "Priekšmeti", href: "/#subjects", icon: <Book size={16} /> },
+    { name: "BUJ", href: "/#faq", icon: <HelpCircle size={16} /> },
+    { name: "Kontakti", href: "/#kontakti", icon: <Phone size={16} /> },
+  ];
+
+  // Auth button component that handles loading state
+  const AuthButton = () => {
+    if (!mounted) return null;
+    
+    if (!isLoaded) {
+      return (
+        <button className="btn btn-sm btn-neutral px-3" disabled>
+          <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
+          <span className="sr-only">Ielādē...</span>
+        </button>
+      );
+    }
+
+    return user ? (
+      <UserButton afterSignOutUrl="/" />
+    ) : (
+      <SignInButton mode="modal">
+        <button className="btn btn-sm btn-neutral px-3">
+          <span className="hidden sm:inline">🔑 Pieslēgties</span>
+          <span className="sm:hidden">🔑</span>
+        </button>
+      </SignInButton>
+    );
+  };
 
   // Basic nav items with icons for better UX
   const publicNavItems = [
@@ -72,14 +111,14 @@ export default function Navbar() {
   ];
 
   let dashboardItems: Array<{ label: string; shortLabel: string; href: string; icon: React.ReactNode }> = [];
-  if (isTeacher) {
+  if (user?.publicMetadata?.role === 'teacher') {
     dashboardItems = [{ 
       label: "Mana Klase", 
       shortLabel: "Klase",
       href: "/teacher", 
       icon: <Home size={16} className="mr-1" /> 
     }];
-  } else if (isStudent) {
+  } else if (user?.publicMetadata?.role === 'student') {
     dashboardItems = [{ 
       label: "Manas Stundas", 
       shortLabel: "Stundas",
@@ -89,31 +128,6 @@ export default function Navbar() {
   }
 
   const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
-
-  // Auth button component that handles loading state
-  const AuthButton = () => {
-    if (!mounted) return null;
-    
-    if (!isLoaded) {
-      return (
-        <button className="btn btn-sm btn-neutral px-3" disabled>
-          <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
-          <span className="sr-only">Ielādē...</span>
-        </button>
-      );
-    }
-
-    return user ? (
-      <UserButton afterSignOutUrl="/" />
-    ) : (
-      <SignInButton mode="modal">
-        <button className="btn btn-sm btn-neutral px-3">
-          <span className="hidden sm:inline">🔑 Pieslēgties</span>
-          <span className="sm:hidden">🔑</span>
-        </button>
-      </SignInButton>
-    );
-  };
 
   return (
     <div className="sticky top-0 z-50">

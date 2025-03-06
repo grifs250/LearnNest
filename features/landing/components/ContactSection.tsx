@@ -1,17 +1,25 @@
 /**
  * Contact section of the landing page
  * Simple server component that displays contact information
+ * SEO-optimized with structured data markup for organization contact info
+ * and proper semantic HTML elements
  */
 export default function ContactSection() {
   const currentYear = new Date().getFullYear();
   
   return (
-    <section className="py-12 bg-base-200" id="kontakti">
+    <section className="py-12 bg-base-200" id="kontakti" aria-labelledby="contact-title">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-10">Kontakti</h2>
+        <h2 id="contact-title" className="text-3xl font-bold text-center mb-10">Kontakti</h2>
         
         <div className="max-w-4xl mx-auto">
-          <div className="bg-base-100 shadow-lg rounded-xl overflow-hidden">
+          {/* Contact card with semantic markup and structured data */}
+          <div 
+            className="bg-base-100 shadow-lg rounded-xl overflow-hidden"
+            itemScope 
+            itemType="https://schema.org/Organization"
+          >
+            <meta itemProp="name" content="MāciesTe" />
             <div className="grid grid-cols-1 md:grid-cols-3">
               <div className="p-6 border-b md:border-b-0 md:border-r border-base-300 flex flex-col items-center text-center">
                 <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4" aria-hidden="true">
@@ -21,7 +29,7 @@ export default function ContactSection() {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">E-pasts</h3>
-                <a href="mailto:info@macieste.lv" className="text-primary hover:underline">info@macieste.lv</a>
+                <a href="mailto:info@macieste.lv" className="text-primary hover:underline" itemProp="email">info@macieste.lv</a>
               </div>
               
               <div className="p-6 border-b md:border-b-0 md:border-r border-base-300 flex flex-col items-center text-center">
@@ -31,7 +39,7 @@ export default function ContactSection() {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Tālrunis</h3>
-                <a href="tel:+37120000000" className="text-secondary hover:underline">+371 2000 0000</a>
+                <a href="tel:+37120000000" className="text-secondary hover:underline" itemProp="telephone">+371 2000 0000</a>
               </div>
               
               <div className="p-6 flex flex-col items-center text-center">
@@ -41,7 +49,13 @@ export default function ContactSection() {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Adrese</h3>
-                <p className="text-base-content">Brīvības iela 100, Rīga, LV-1011</p>
+                <div itemProp="address" itemScope itemType="https://schema.org/PostalAddress">
+                  <p className="text-base-content">
+                    <span itemProp="streetAddress">Brīvības iela 100</span>, 
+                    <span itemProp="addressLocality">Rīga</span>, 
+                    <span itemProp="postalCode">LV-1011</span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>

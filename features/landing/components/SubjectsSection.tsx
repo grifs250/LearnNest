@@ -15,8 +15,9 @@ interface CategoryGroup {
 
 /**
  * Subjects section of the landing page
- * Optimized version that pre-processes data on the server 
- * and minimizes client-side state changes
+ * Displays subjects grouped by category with availability information
+ * SEO-optimized with semantic HTML, proper headings hierarchy,
+ * accessible elements, and structured data organization
  */
 export default function SubjectsSection({ subjects }: SubjectsSectionProps) {
   // Use useMemo to compute this once instead of on every render
@@ -114,7 +115,7 @@ export default function SubjectsSection({ subjects }: SubjectsSectionProps) {
           {availability.status === 'available' ? (
             <>
               <div className="flex items-center text-sm text-success font-medium">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span className="leading-none">{availability.count}</span>
@@ -157,8 +158,8 @@ export default function SubjectsSection({ subjects }: SubjectsSectionProps) {
   };
 
   return (
-    <section className="py-12 bg-base-200" id="subjects">
-        <h2 className="text-3xl font-bold text-center mb-10">Mācību Priekšmeti</h2>
+    <section className="py-12 bg-base-200" id="subjects" aria-labelledby="subjects-title">
+        <h2 id="subjects-title" className="text-3xl font-bold text-center mb-10">Mācību Priekšmeti</h2>
         
         {/* Container for better mobile display */}
         <div className="container mx-auto px-4">
@@ -169,9 +170,10 @@ export default function SubjectsSection({ subjects }: SubjectsSectionProps) {
               id={`category-${group.category.id}`} 
               className="py-10 bg-base-200 border-t border-base-300"
               data-category-name={group.category.name}
+              aria-labelledby={`category-title-${group.category.id}`}
             >
               <div className="container mx-auto px-4">
-                <h2 className="text-2xl font-bold mb-8">{group.category.name}</h2>
+                <h2 id={`category-title-${group.category.id}`} className="text-2xl font-bold mb-8">{group.category.name}</h2>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {group.subjects.map((subject) => renderSubjectCard(subject))}
@@ -183,7 +185,7 @@ export default function SubjectsSection({ subjects }: SubjectsSectionProps) {
           {/* Empty state if no subjects */}
           {Object.values(subjectsByCategory).length === 0 && (
             <div className="text-center py-12">
-              <div className="text-4xl mb-4 opacity-50">📚</div>
+              <div className="text-4xl mb-4 opacity-50" aria-hidden="true">📚</div>
               <h3 className="text-xl font-semibold">Drīzumā būs pieejami mācību priekšmeti</h3>
               <p className="mt-2 text-base-content/70">Mēs strādājam, lai pievienotu vairāk mācību priekšmetu.</p>
             </div>

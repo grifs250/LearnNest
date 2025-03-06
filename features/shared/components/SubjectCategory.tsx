@@ -2,7 +2,7 @@
 
 import { Category, Subject } from '@/types/models';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 
 interface SubjectCategoryProps {
   category: Category;
@@ -12,12 +12,14 @@ interface SubjectCategoryProps {
 /**
  * Component for displaying a category of subjects
  * Used on the landing page to display subjects grouped by category
- * Optimized version with useMemo to reduce unnecessary re-renders
+ * Supports smooth scrolling via ID-based anchors
  */
 export default function SubjectCategory({ category, subjects }: SubjectCategoryProps) {
-  // Pre-process subjects with useMemo instead of useState + useEffect
-  const processedSubjects = useMemo(() => {
-    return subjects.map(subject => {
+  const [processedSubjects, setProcessedSubjects] = useState<Subject[]>([]);
+  
+  // Process subjects once on mount to extract lesson_count from metadata if needed
+  useEffect(() => {
+    const enhanced = subjects.map(subject => {
       // Try to get lesson count from direct property
       let lessonCount = subject.lesson_count;
       
@@ -45,6 +47,8 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
         lesson_count: lessonCount ?? 0
       };
     });
+    
+    setProcessedSubjects(enhanced);
   }, [subjects]);
 
   // Function to check if lessons are actually available in the database
@@ -70,6 +74,15 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
       badgeClass: 'badge-success text-xs',
       count: lessonCount
     };
+  };
+
+  // Debug function to log subject data
+  const logSubjectData = (subject: Subject) => {
+    console.log(`Subject ${subject.name}:`, {
+      id: subject.id,
+      lesson_count: subject.lesson_count,
+      metadata: subject.metadata
+    });
   };
 
   return (

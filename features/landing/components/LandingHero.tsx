@@ -5,6 +5,7 @@ import { SignUpButtons } from '@/features/auth/components';
 /**
  * Hero section of the landing page
  * Contains the main headline, description, and signup buttons
+ * SEO-optimized with semantic HTML and clear hierarchical structure
  */
 export default function LandingHero() {
   return (

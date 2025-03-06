@@ -1,12 +1,9 @@
 "use client";
 
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-/**
- * SignUpButtons component for landing page
- * Optimized to reduce bundle size and improve interactivity
- */
 export const SignUpButtons = () => {
   const router = useRouter();
   const [loadingRole, setLoadingRole] = useState<'student' | 'teacher' | null>(null);
@@ -34,10 +31,7 @@ export const SignUpButtons = () => {
           {loadingRole === 'student' ? (
             <span className="loading loading-spinner loading-md"></span>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 group-hover:translate-x-1 transition-transform">
-              <path d="M5 12h14"></path>
-              <path d="m12 5 7 7-7 7"></path>
-            </svg>
+            <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
           )}
         </button>
       </div>
@@ -55,10 +49,7 @@ export const SignUpButtons = () => {
           {loadingRole === 'teacher' ? (
             <span className="loading loading-spinner loading-md"></span>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 group-hover:translate-x-1 transition-transform">
-              <path d="M5 12h14"></path>
-              <path d="m12 5 7 7-7 7"></path>
-            </svg>
+            <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
           )}
         </button>
       </div>
