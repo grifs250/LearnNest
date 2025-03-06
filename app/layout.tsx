@@ -7,6 +7,7 @@ import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";
 import { Toaster } from 'react-hot-toast';
+import ClientInitializer from '@/features/shared/components/ClientInitializer';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -39,10 +40,60 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="lv" suppressHydrationWarning>
+      <html 
+        lang="lv" 
+        suppressHydrationWarning
+        className="js-focus-visible"
+        data-js-focus-visible="true"
+        style={{ 
+          colorScheme: 'light dark',
+        }}
+      >
+        {/* Next.js manages the head element */}
         <body className={inter.className}>
+          {/* Theme detection script - executed inline to prevent flash */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  try {
+                    // Attempt to get theme from cookie
+                    const cookies = document.cookie.split(';');
+                    let theme = null;
+                    
+                    // Parse cookies for theme
+                    for(let i = 0; i < cookies.length; i++) {
+                      const cookie = cookies[i].trim();
+                      if(cookie.startsWith('theme=')) {
+                        theme = cookie.substring('theme='.length);
+                        break;
+                      }
+                    }
+                    
+                    // If no cookie, try localStorage
+                    if(!theme && typeof localStorage !== 'undefined') {
+                      theme = localStorage.getItem('theme');
+                    }
+                    
+                    // Apply theme or use system preference
+                    if(theme === 'dark' || theme === 'light') {
+                      document.documentElement.setAttribute('data-theme', theme);
+                    } else if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                      document.documentElement.setAttribute('data-theme', 'dark');
+                    } else {
+                      document.documentElement.setAttribute('data-theme', 'light');
+                    }
+                  } catch(e) {
+                    // Fallback to light theme
+                    document.documentElement.setAttribute('data-theme', 'light');
+                  }
+                })();
+              `
+            }}
+          />
           <ThemeProvider>
             <ErrorBoundary>
+              <ClientInitializer />
               <Navbar />
               <main className="min-h-screen bg-base-100">
                 {children}

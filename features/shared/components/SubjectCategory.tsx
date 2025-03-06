@@ -16,39 +16,46 @@ interface SubjectCategoryProps {
  */
 export default function SubjectCategory({ category, subjects }: SubjectCategoryProps) {
   const [processedSubjects, setProcessedSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Process subjects once on mount to extract lesson_count from metadata if needed
   useEffect(() => {
-    const enhanced = subjects.map(subject => {
-      // Try to get lesson count from direct property
-      let lessonCount = subject.lesson_count;
-      
-      // If not available and metadata exists, try to get from metadata
-      if (lessonCount === undefined && subject.metadata) {
-        try {
-          // Need to typecast metadata to access properties safely
-          const metadata = subject.metadata as Record<string, any>;
-          if (metadata && typeof metadata === 'object' && 'lesson_count' in metadata) {
-            const metadataCount = metadata.lesson_count;
-            if (metadataCount !== undefined) {
-              lessonCount = typeof metadataCount === 'string' 
-                ? parseInt(metadataCount) 
-                : metadataCount as number;
+    // Use a setTimeout to ensure we don't block rendering of other components
+    const processTimer = setTimeout(() => {
+      const enhanced = subjects.map(subject => {
+        // Try to get lesson count from direct property
+        let lessonCount = subject.lesson_count;
+        
+        // If not available and metadata exists, try to get from metadata
+        if (lessonCount === undefined && subject.metadata) {
+          try {
+            // Need to typecast metadata to access properties safely
+            const metadata = subject.metadata as Record<string, any>;
+            if (metadata && typeof metadata === 'object' && 'lesson_count' in metadata) {
+              const metadataCount = metadata.lesson_count;
+              if (metadataCount !== undefined) {
+                lessonCount = typeof metadataCount === 'string' 
+                  ? parseInt(metadataCount) 
+                  : metadataCount as number;
+              }
             }
+          } catch (error) {
+            console.error('Error parsing metadata lesson count:', error);
           }
-        } catch (error) {
-          console.error('Error parsing metadata lesson count:', error);
         }
-      }
+        
+        // Return enhanced subject with lesson_count set properly
+        return {
+          ...subject,
+          lesson_count: lessonCount ?? 0
+        };
+      });
       
-      // Return enhanced subject with lesson_count set properly
-      return {
-        ...subject,
-        lesson_count: lessonCount ?? 0
-      };
-    });
+      setProcessedSubjects(enhanced);
+      setIsLoading(false);
+    }, 0);
     
-    setProcessedSubjects(enhanced);
+    return () => clearTimeout(processTimer);
   }, [subjects]);
 
   // Function to check if lessons are actually available in the database
@@ -76,14 +83,35 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
     };
   };
 
-  // Debug function to log subject data
-  const logSubjectData = (subject: Subject) => {
-    console.log(`Subject ${subject.name}:`, {
-      id: subject.id,
-      lesson_count: subject.lesson_count,
-      metadata: subject.metadata
-    });
-  };
+  // Loading skeleton UI
+  if (isLoading) {
+    return (
+      <section 
+        id={`category-${category.id}`} 
+        className="py-8 border-t border-base-300 mt-4 first:mt-0 first:border-t-0 animate-pulse"
+      >
+        <h3 className="text-2xl font-bold mb-6">{category.name}</h3>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, index) => (
+            <div key={index} className="card bg-base-200 shadow-sm border border-base-300">
+              <div className="card-body p-5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="h-6 bg-base-300 rounded w-24"></div>
+                  <div className="h-4 bg-base-300 rounded w-16"></div>
+                </div>
+                <div className="mt-2 h-10 bg-base-300 rounded"></div>
+                <div className="mt-3 flex justify-between items-center">
+                  <div className="h-4 bg-base-300 rounded w-20"></div>
+                  <div className="h-4 bg-base-300 rounded w-16"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section 

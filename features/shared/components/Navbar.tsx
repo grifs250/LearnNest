@@ -8,6 +8,7 @@ import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
 import { Menu, X, Book, HelpCircle, Phone, Home, Info, Sun, Moon } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useTheme } from "@/app/themeProvider";
+import { isLoggedInFromCookie, getUserRoleFromCookie } from "@/lib/utils/cookies";
 
 // Dynamically import Clerk components to reduce initial bundle size
 const UserButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.UserButton), {
@@ -35,12 +36,39 @@ export default function Navbar() {
   const { user, isLoaded } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, isThemeReady } = useTheme();
+
+  // Quick auth state from cookie for instant UI decisions
+  const [cookieAuthState, setCookieAuthState] = useState<boolean | null>(null);
+  const [cookieUserRole, setCookieUserRole] = useState<'student' | 'teacher' | null>(null);
 
   // Ensure component is mounted to prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
+    // Check cookies for fast initial rendering
+    setCookieAuthState(isLoggedInFromCookie());
+    setCookieUserRole(getUserRoleFromCookie());
   }, []);
+
+  // Fast initial auth check before Clerk loads
+  const getInitialAuthState = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    
+    // First check localStorage (fastest)
+    const localAuth = localStorage.getItem('mt_auth_state') === 'true' || 
+                     localStorage.getItem('hasSession') === 'true';
+    if (localAuth) return true;
+    
+    // Then check cookies
+    const cookieAuth = document.cookie.includes('mt_auth_state=true');
+    return cookieAuth;
+  };
+  
+  // Initial state from storage
+  const [cachedAuthState] = useState<boolean>(getInitialAuthState());
+  
+  // Use the fast initial state until Clerk loads
+  const isLoggedIn = isLoaded ? !!user : cachedAuthState;
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -59,28 +87,28 @@ export default function Navbar() {
     { name: "Kontakti", href: "/#kontakti", icon: <Phone size={16} /> },
   ];
 
-  // Auth button component that handles loading state
+  // Auth button component that's available instantly
   const AuthButton = () => {
-    if (!mounted) return null;
+    // Instead of conditionally rendering based on client-side state,
+    // we'll render both versions but hide one with CSS
+    // This ensures the button is clickable instantly 
     
-    if (!isLoaded) {
-      return (
-        <button className="btn btn-sm btn-neutral px-3" disabled>
-          <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
-          <span className="sr-only">Ielādē...</span>
-        </button>
-      );
-    }
-
-    return user ? (
-      <UserButton afterSignOutUrl="/" />
-    ) : (
-      <SignInButton mode="modal">
-        <button className="btn btn-sm btn-neutral px-3">
-          <span className="hidden sm:inline">🔑 Pieslēgties</span>
-          <span className="sm:hidden">🔑</span>
-        </button>
-      </SignInButton>
+    return (
+      <div className="w-full md:w-auto">
+        {/* Static version always visible during SSR */}
+        <div className={`${isLoggedIn ? 'hidden' : ''}`}>
+          <Link
+            href="/login"
+            className="btn btn-sm btn-primary"
+            prefetch={true}
+          >
+            Ieiet
+          </Link>
+        </div>
+        
+        {/* User button only shown when logged in */}
+        {isLoggedIn && <UserButton afterSignOutUrl="/" />}
+      </div>
     );
   };
 
@@ -131,20 +159,28 @@ export default function Navbar() {
 
   const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
 
-  // Theme toggle button
+  // Theme toggle button with improved server/client consistency
   const ThemeToggle = () => {
-    if (!mounted) return null;
+    const { theme, toggleTheme, isThemeReady } = useTheme();
     
     return (
-      <button 
-        className="btn btn-sm btn-ghost"
+      <button
         onClick={toggleTheme}
-        aria-label={theme === 'light' ? 'Tumšais režīms' : 'Gaišais režīms'}
+        className="btn btn-sm btn-ghost rounded-btn"
+        aria-label="Toggle theme"
       >
-        {theme === 'light' ? (
-          <Moon size={16} className="text-primary-content" />
+        {/* Render placeholder until theme is ready */}
+        {!isThemeReady ? (
+          <div className="h-5 w-5">
+            {/* Empty div placeholder during SSR and hydration */}
+          </div>
         ) : (
-          <Sun size={16} className="text-primary-content" />
+          /* Show correct icon based on current theme */
+          theme === 'dark' ? (
+            <Sun className="h-5 w-5" />
+          ) : (
+            <Moon className="h-5 w-5" />
+          )
         )}
       </button>
     );

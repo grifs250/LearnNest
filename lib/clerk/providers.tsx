@@ -4,6 +4,25 @@ import { ClerkProvider as BaseClerkProvider } from '@clerk/nextjs';
 import { ReactNode, useEffect, useState } from 'react';
 import { latvianLocalization } from './localization';
 
+// Define the full appearance type for TypeScript
+type ClerkAppearance = {
+  elements: {
+    formButtonPrimary?: string;
+    card?: string;
+    formFieldInput?: string;
+    footerActionLink?: string;
+    identityPreview?: string;
+    [key: string]: string | undefined;
+  };
+  variables: {
+    colorPrimary: string;
+    colorText?: string;
+    borderRadius?: string;
+    [key: string]: string | undefined;
+  };
+  baseTheme?: any;
+};
+
 /**
  * Custom ClerkProvider with Latvian localization and custom styling
  * 
@@ -13,38 +32,43 @@ import { latvianLocalization } from './localization';
  * - Email template configuration
  * - Optimized routing
  * - Dynamic theme loading for reduced bundle size
+ * - Fast loading with minimal initial configuration
  */
 export function ClerkProvider({ children }: { children: ReactNode }) {
-  // Initialize with basic appearance settings to avoid bundle bloat
-  const [appearance, setAppearance] = useState({
+  // Initialize with minimal appearance settings to speed up initial load
+  const [appearance, setAppearance] = useState<ClerkAppearance>({
     elements: {
       formButtonPrimary: 
         'bg-indigo-600 hover:bg-indigo-500 text-sm normal-case',
       card: 'rounded-md shadow-md',
-      formFieldInput: 'rounded border-gray-300',
-      footerActionLink: 'text-indigo-600 hover:text-indigo-500',
-      identityPreview: 'bg-indigo-100 border-indigo-600',
     },
     variables: {
-      colorPrimary: '#4f46e5', // Indigo 600
-      colorText: '#1f2937', // Gray 800
-      borderRadius: '0.375rem',
+      colorPrimary: '#4f46e5',
     },
   });
 
-  // Dynamically load themes if needed
+  // Load additional theme settings only after the page has rendered
   useEffect(() => {
-    // Only load the theme in browser environment
-    if (typeof window !== 'undefined') {
-      import('@clerk/themes').then(({ dark }) => {
-        setAppearance(current => ({
-          ...current,
-          baseTheme: dark,
-        }));
-      }).catch(err => {
-        console.error('Failed to load Clerk themes:', err);
+    // Use setTimeout to delay non-critical appearance settings
+    const timer = setTimeout(() => {
+      setAppearance({
+        elements: {
+          formButtonPrimary: 
+            'bg-indigo-600 hover:bg-indigo-500 text-sm normal-case',
+          card: 'rounded-md shadow-md',
+          formFieldInput: 'rounded border-gray-300',
+          footerActionLink: 'text-indigo-600 hover:text-indigo-500',
+          identityPreview: 'bg-indigo-100 border-indigo-600',
+        },
+        variables: {
+          colorPrimary: '#4f46e5', // Indigo 600
+          colorText: '#1f2937', // Gray 800
+          borderRadius: '0.375rem', // 6px
+        },
       });
-    }
+    }, 300); // Delay by 300ms to prioritize core content loading
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return (
