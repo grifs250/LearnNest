@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { fetchSubjects } from '@/features/lessons/services/subjectService';
 import { jsonLdScriptProps } from 'react-schemaorg';
-import { Organization, WebSite } from 'schema-dts';
+import { Organization, WebSite, WithContext } from 'schema-dts';
 
 // Import the static component directly
 import { LandingHero } from '@/features/landing/components';
@@ -76,18 +76,21 @@ export default async function LandingPage() {
     <>
       {/* Structured data for SEO */}
       <script
-        {...jsonLdScriptProps<WebSite>({
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "MāciesTe",
-          url: "https://macieste.lv",
-          description: "Mācību platforma, kas savieno studentus ar profesionāliem pasniedzējiem tiešsaistē.",
-          potentialAction: {
-            "@type": "SearchAction",
-            target: "https://macieste.lv/search?q={search_term_string}",
-            "query-input": "required name=search_term_string",
-          },
-        })}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "MāciesTe",
+            "url": "https://macieste.lv",
+            "description": "Mācību platforma, kas savieno studentus ar profesionāliem pasniedzējiem tiešsaistē.",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://macieste.lv/search?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          })
+        }}
+        type="application/ld+json"
       />
       
       <script

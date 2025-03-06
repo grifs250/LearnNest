@@ -1,16 +1,16 @@
 /**
  * Contact section of the landing page
  * Simple server component that displays contact information
- * SEO-optimized with structured data markup for organization contact info
- * and proper semantic HTML elements
+ * ID structure preserved to ensure compatibility with SmoothScrollLink
+ * SEO enhanced with structured data markup
  */
 export default function ContactSection() {
   const currentYear = new Date().getFullYear();
   
   return (
-    <section className="py-12 bg-base-200" id="kontakti" aria-labelledby="contact-title">
+    <section className="py-12 bg-base-200" id="kontakti">
       <div className="container mx-auto px-4">
-        <h2 id="contact-title" className="text-3xl font-bold text-center mb-10">Kontakti</h2>
+        <h2 className="text-3xl font-bold text-center mb-10">Kontakti</h2>
         
         <div className="max-w-4xl mx-auto">
           {/* Contact card with semantic markup and structured data */}
@@ -49,13 +49,11 @@ export default function ContactSection() {
                   </svg>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Adrese</h3>
-                <div itemProp="address" itemScope itemType="https://schema.org/PostalAddress">
-                  <p className="text-base-content">
-                    <span itemProp="streetAddress">Brīvības iela 100</span>, 
-                    <span itemProp="addressLocality">Rīga</span>, 
-                    <span itemProp="postalCode">LV-1011</span>
-                  </p>
-                </div>
+                <p className="text-base-content" itemProp="address" itemScope itemType="https://schema.org/PostalAddress">
+                  <span itemProp="streetAddress">Brīvības iela 100</span>, 
+                  <span itemProp="addressLocality">Rīga</span>, 
+                  <span itemProp="postalCode">LV-1011</span>
+                </p>
               </div>
             </div>
           </div>
