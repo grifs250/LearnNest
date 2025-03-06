@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "./themeProvider";
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkProvider } from '@/lib/clerk';
 import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";

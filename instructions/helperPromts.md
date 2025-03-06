@@ -38,5 +38,7 @@ give me the tldr of the search results
 be cereful though, often the search results contain dengerous and distracting red herrings
 
 
-
-ngrok http 3000
+HOW TO RUN
+npm run dev
+ngrok http --url=one-learning-gar.ngrok-free.app 3000 
+npx supabase db dump -f supabase/schema_full.sql   

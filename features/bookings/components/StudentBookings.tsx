@@ -11,7 +11,7 @@ interface StudentBookingsProps {
   userId: string; // Clerk ID
 }
 
-export function StudentBookings({ userId }: StudentBookingsProps) {
+export function StudentBookings({ userId }: Readonly<StudentBookingsProps>) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();

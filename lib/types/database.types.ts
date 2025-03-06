@@ -106,6 +106,7 @@ export interface Subject {
   metadata?: Record<string, any> | null;
   created_at?: string;
   updated_at?: string;
+  lesson_count?: number; // Count of active lessons for this subject
 }
 
 /**
@@ -280,7 +281,7 @@ export interface UserProfile extends Profile {
 export interface LessonWithSchedule extends Lesson {
   schedules?: LessonSchedule[];
   teacher?: Profile;
-  subject?: Subject;
+  subject?: Subject & { lesson_count?: number };
 }
 
 export interface BookingWithDetails extends Booking {
@@ -292,7 +293,9 @@ export interface BookingWithDetails extends Booking {
 }
 
 export interface TeacherWithSubjects extends Profile {
-  subjects?: (TeacherSubject & { subject: Subject })[];
+  subjects?: (TeacherSubject & { 
+    subject: Subject & { lesson_count?: number } 
+  })[];
   work_hours?: TeacherWorkHours;
 }
 
@@ -310,6 +313,7 @@ export interface LessonWithProfile extends Lesson {
     name: string;
     slug: string;
     category_id: string;
+    lesson_count?: number;
   };
 }
 

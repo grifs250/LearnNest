@@ -211,6 +211,25 @@ $$;
 ALTER FUNCTION "public"."get_current_user_id"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_lesson_counts_by_subject"() RETURNS TABLE("subject_id" "text", "count" bigint)
+    LANGUAGE "sql" SECURITY DEFINER
+    AS $$
+  -- Get count of active lessons for each subject
+  SELECT 
+    l.subject_id,
+    COUNT(l.id)::bigint as count
+  FROM 
+    lessons l
+  WHERE 
+    l.is_active = true
+  GROUP BY 
+    l.subject_id;
+$$;
+
+
+ALTER FUNCTION "public"."get_lesson_counts_by_subject"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."get_teacher_availability"("teacher_id" "uuid", "start_date" "date", "end_date" "date") RETURNS TABLE("date" "date", "available_slots" "jsonb")
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -332,6 +351,55 @@ $$;
 
 
 ALTER FUNCTION "public"."log_profile_changes"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_subject_lesson_count"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  affected_subject_id text;
+  current_count bigint;
+  current_metadata jsonb;
+  updated_metadata jsonb;
+BEGIN
+  -- Get affected subject_id based on the operation
+  IF (TG_OP = 'DELETE') THEN
+    affected_subject_id := OLD.subject_id;
+  ELSE
+    affected_subject_id := NEW.subject_id;
+  END IF;
+  
+  -- Get current count of active lessons for this subject
+  SELECT COUNT(id)::bigint INTO current_count
+  FROM lessons
+  WHERE subject_id = affected_subject_id
+  AND is_active = true;
+  
+  -- Get current metadata
+  SELECT COALESCE(metadata, '{}'::jsonb) INTO current_metadata
+  FROM subjects
+  WHERE id = affected_subject_id;
+  
+  -- Update metadata with lesson count
+  updated_metadata := jsonb_set(
+    current_metadata, 
+    '{lesson_count}', 
+    to_jsonb(current_count)
+  );
+  
+  -- Update the subject with new count
+  UPDATE subjects
+  SET 
+    metadata = updated_metadata,
+    updated_at = NOW()
+  WHERE id = affected_subject_id;
+  
+  RETURN NULL;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_subject_lesson_count"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
@@ -1039,6 +1107,10 @@ CREATE INDEX "idx_lessons_subject" ON "public"."lessons" USING "btree" ("subject
 
 
 
+CREATE INDEX "idx_lessons_subject_id_is_active" ON "public"."lessons" USING "btree" ("subject_id", "is_active");
+
+
+
 CREATE INDEX "idx_lessons_teacher" ON "public"."lessons" USING "btree" ("teacher_id");
 
 
@@ -1196,6 +1268,10 @@ CREATE OR REPLACE TRIGGER "profiles_audit_trigger" AFTER INSERT OR DELETE OR UPD
 
 
 CREATE OR REPLACE TRIGGER "update_profiles_updated_at" BEFORE UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_subject_lesson_count_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."lessons" FOR EACH ROW EXECUTE FUNCTION "public"."update_subject_lesson_count"();
 
 
 
@@ -1591,6 +1667,12 @@ GRANT ALL ON FUNCTION "public"."get_current_user_id"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."get_lesson_counts_by_subject"() TO "anon";
+GRANT ALL ON FUNCTION "public"."get_lesson_counts_by_subject"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_lesson_counts_by_subject"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."get_teacher_availability"("teacher_id" "uuid", "start_date" "date", "end_date" "date") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_teacher_availability"("teacher_id" "uuid", "start_date" "date", "end_date" "date") TO "service_role";
 
@@ -1816,6 +1898,12 @@ GRANT ALL ON FUNCTION "public"."unaccent_lexize"("internal", "internal", "intern
 GRANT ALL ON FUNCTION "public"."unaccent_lexize"("internal", "internal", "internal", "internal") TO "anon";
 GRANT ALL ON FUNCTION "public"."unaccent_lexize"("internal", "internal", "internal", "internal") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."unaccent_lexize"("internal", "internal", "internal", "internal") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "service_role";
 
 
 

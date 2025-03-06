@@ -4,13 +4,19 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { Subject } from '@/types/models';
 import type { Category } from '../types';
 
+interface LessonCount {
+  subject_id: string;
+  count: string; // PostgreSQL count returns a string
+}
+
 /**
- * Fetch all active subjects with their categories
+ * Fetch all active subjects with their categories and lesson counts
  */
 export async function fetchSubjects(): Promise<Subject[]> {
   const supabase = await createServerSupabaseClient();
   
-  const { data, error } = await supabase
+  // First, get all subjects with their categories
+  const { data: subjects, error } = await supabase
     .from('subjects')
     .select(`
       *,
@@ -28,7 +34,43 @@ export async function fetchSubjects(): Promise<Subject[]> {
     return [];
   }
 
-  return data as Subject[];
+  // Now get lesson counts for each subject using a raw query
+  const { data: lessonCounts, error: countError } = await supabase
+    .rpc('get_lesson_counts_by_subject');
+
+  if (countError) {
+    console.error('Error fetching lesson counts:', countError);
+  }
+
+  // Create a lookup map for lesson counts from RPC
+  const countMap = new Map<string, number>();
+  if (lessonCounts) {
+    lessonCounts.forEach((item: LessonCount) => {
+      countMap.set(item.subject_id, parseInt(item.count));
+    });
+  }
+
+  // Enrich subject data with lesson counts from both sources
+  const enrichedSubjects = subjects.map(subject => {
+    // Check both sources for lesson count:
+    // 1. From RPC function
+    const rpcCount = countMap.get(subject.id) || 0;
+    
+    // 2. From metadata - this is our backup source
+    const metadataCount = subject.metadata?.lesson_count 
+      ? parseInt(subject.metadata.lesson_count.toString()) 
+      : 0;
+    
+    // Use the RPC count if available, otherwise use metadata
+    const finalCount = rpcCount > 0 ? rpcCount : metadataCount;
+    
+    return {
+      ...subject,
+      lesson_count: finalCount
+    };
+  });
+
+  return enrichedSubjects as Subject[];
 }
 
 /**
@@ -55,7 +97,32 @@ export async function fetchSubjectById(id: string): Promise<Subject | null> {
     return null;
   }
 
-  return data as Subject;
+  // Get lesson count for this subject using a simpler query
+  const { count, error: countError } = await supabase
+    .from('lessons')
+    .select('*', { count: 'exact', head: true })
+    .eq('subject_id', id)
+    .eq('is_active', true);
+
+  if (countError) {
+    console.error('Error fetching lesson count:', countError);
+  }
+
+  // Also check metadata if available
+  const metadataCount = data.metadata?.lesson_count 
+    ? parseInt(data.metadata.lesson_count.toString()) 
+    : 0;
+
+  // Use count from query if available, otherwise use metadata
+  const finalCount = count !== null ? count : metadataCount;
+
+  // Enrich subject with lesson count
+  const enrichedSubject = {
+    ...data,
+    lesson_count: finalCount
+  };
+
+  return enrichedSubject as Subject;
 }
 
 /**

@@ -9,9 +9,16 @@ interface SmoothScrollLinkProps {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
+  offset?: number;
 }
 
-export default function SmoothScrollLink({ href, children, className = '', onClick }: SmoothScrollLinkProps) {
+export default function SmoothScrollLink({ 
+  href, 
+  children, 
+  className = '', 
+  onClick,
+  offset = 0
+}: SmoothScrollLinkProps) {
   const router = useRouter();
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -25,7 +32,17 @@ export default function SmoothScrollLink({ href, children, className = '', onCli
     if (href.startsWith('#')) {
       const element = document.querySelector(href);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+        // Get the element's position
+        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+        
+        // Apply the offset
+        const offsetPosition = elementPosition + offset;
+        
+        // Scroll to the adjusted position
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
       }
     } else {
       // If it's not a hash link, use the router

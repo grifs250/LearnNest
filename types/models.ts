@@ -23,6 +23,7 @@ export type Subject = Tables['subjects']['Row'] & {
   parent?: Subject;
   children?: Subject[];
   category?: Category | null;
+  lesson_count?: number; // Number of active lessons for this subject
 };
 export type TeacherSubject = Tables['teacher_subjects']['Row'] & {
   subject: Subject;

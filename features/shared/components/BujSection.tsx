@@ -51,9 +51,9 @@ const BujSection = () => {
         <details 
           key={index} 
           className="group bg-white shadow rounded-lg overflow-hidden"
-          open={index === 0} // First item open by default for SEO
+          // open={index === 0} // First item open by default for SEO
         >
-          <summary className="flex justify-between items-center p-6 bg-base-200 cursor-pointer list-none">
+          <summary className="flex justify-between items-center px-6 py-4 bg-base-200 cursor-pointer list-none">
             <h3 className="text-lg font-medium">{faq.question}</h3>
             <div className="transition-transform group-open:rotate-180">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

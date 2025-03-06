@@ -10,4 +10,5 @@ export type { ToastType } from './ui/Toast';
 export * from './UserInfoModal';
 export * from './Navbar';
 export * from './Footer';
-export { default as BujSection } from './BujSection'; 
+export { default as BujSection } from './BujSection';
+export { default as SubjectCategory } from './SubjectCategory'; 
