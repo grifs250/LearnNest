@@ -6,5 +6,5 @@
 export { default as LandingHero } from './LandingHero';
 export { default as HowItWorksSection } from './HowItWorksSection';
 export { default as SubjectsSection } from './SubjectsSection';
-export { default as FAQSection } from './FAQSection';
+export { default as BujSectionWrapper } from './BujSectionWrapper';
 export { default as ContactSection } from './ContactSection'; 

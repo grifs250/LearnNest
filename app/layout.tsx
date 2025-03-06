@@ -6,7 +6,7 @@ import { ClerkProvider } from '@/lib/clerk';
 import { ToastContainer } from "@/features/shared/components/ui/ToastContainer";
 import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";
-import { Toaster } from 'react-hot-toast'
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: 'https://macieste.lv/og-image.jpg',
+        url: 'https://macieste.lv/images/og-image.jpg',
         width: 1200,
         height: 630,
         alt: 'MāciesTe - Tiešsaistes mācību platforma',
@@ -39,18 +39,18 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="lv">
+      <html lang="lv" suppressHydrationWarning>
         <body className={inter.className}>
           <ThemeProvider>
             <ErrorBoundary>
               <Navbar />
-              <main className="min-h-screen">
+              <main className="min-h-screen bg-base-100">
                 {children}
               </main>
               <ToastContainer />
             </ErrorBoundary>
+            <Toaster position="top-center" />
           </ThemeProvider>
-          <Toaster position="top-center" />
         </body>
       </html>
     </ClerkProvider>

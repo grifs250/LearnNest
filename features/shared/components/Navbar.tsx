@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
-import { Menu, X, Book, HelpCircle, Phone, Home, Info } from "lucide-react";
+import { Menu, X, Book, HelpCircle, Phone, Home, Info, Sun, Moon } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { useTheme } from "@/app/themeProvider";
 
 // Dynamically import Clerk components to reduce initial bundle size
 const UserButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.UserButton), {
@@ -34,6 +35,7 @@ export default function Navbar() {
   const { user, isLoaded } = useUser();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   // Ensure component is mounted to prevent hydration mismatch
   useEffect(() => {
@@ -129,6 +131,25 @@ export default function Navbar() {
 
   const navItems = user ? [...dashboardItems, ...publicNavItems] : publicNavItems;
 
+  // Theme toggle button
+  const ThemeToggle = () => {
+    if (!mounted) return null;
+    
+    return (
+      <button 
+        className="btn btn-sm btn-ghost"
+        onClick={toggleTheme}
+        aria-label={theme === 'light' ? 'Tumšais režīms' : 'Gaišais režīms'}
+      >
+        {theme === 'light' ? (
+          <Moon size={16} className="text-primary-content" />
+        ) : (
+          <Sun size={16} className="text-primary-content" />
+        )}
+      </button>
+    );
+  };
+
   return (
     <div className="sticky top-0 z-50">
       <nav className="navbar bg-primary text-primary-content shadow-md">
@@ -175,6 +196,7 @@ export default function Navbar() {
             )
           ))}
           <AuthButton />
+          <ThemeToggle />
         </div>
       </nav>
 
@@ -204,6 +226,7 @@ export default function Navbar() {
           ))}
           <div className="flex justify-center mt-2">
             <AuthButton />
+            <ThemeToggle />
           </div>
         </div>
       )}

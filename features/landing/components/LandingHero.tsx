@@ -5,18 +5,20 @@ import { SignUpButtons } from '@/features/auth/components';
 /**
  * Hero section of the landing page
  * Contains the main headline, description, and signup buttons
- * SEO-optimized with semantic HTML and clear hierarchical structure
+ * Using DaisyUI components for consistent styling in both light and dark modes
  */
 export default function LandingHero() {
   return (
-    <header className="hero bg-primary text-primary-content py-20 px-8 text-center flex flex-col items-center">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold mb-6">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>
-        <p className="text-xl mb-12 max-w-2xl mx-auto">MāciesTe ir platforma, kas savieno studentus ar profesionāliem pasniedzējiem tiešsaistē. Elastīgs grafiks, individuāla pieeja un garantēta kvalitāte.</p>
-        <div className="mt-6">
-          <SignUpButtons />
+    <div className="hero bg-primary text-primary-content min-h-[70vh]">
+      <div className="hero-content text-center py-16 px-8">
+        <div className="max-w-4xl">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">Tavs ceļš uz efektīvām tiešsaistes mācībām 🚀</h1>
+          <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">MāciesTe ir platforma, kas savieno studentus ar profesionāliem pasniedzējiem tiešsaistē. Elastīgs grafiks, individuāla pieeja un garantēta kvalitāte.</p>
+          <div className="mt-6">
+            <SignUpButtons />
+          </div>
         </div>
       </div>
-    </header>
+    </div>
   );
 } 

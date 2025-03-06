@@ -1,14 +1,16 @@
-/**
- * BujSection - SEO-friendly Frequently Asked Questions component
- * 
- * This component implements a list of FAQs using semantic HTML and
- * ensures the first question is open by default for better SEO.
- * Using the <details> and <summary> elements allows for an accessible 
- * accordion without JavaScript/state.
- */
+'use client';
 
-// Define the component as a Server Component for better SEO performance
+import { useState } from 'react';
+
+/**
+ * BujSection - Frequently Asked Questions component using DaisyUI 
+ * 
+ * This component implements a list of FAQs with enhanced UI
+ * featuring smooth animations, better spacing, and visual indicators.
+ */
 const BujSection = () => {
+  const [activeIndex, setActiveIndex] = useState(0);
+
   // Common FAQs in Latvian
   const faqs = [
     {
@@ -46,25 +48,52 @@ const BujSection = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-3xl mx-auto">
       {faqs.map((faq, index) => (
-        <details 
+        <div 
           key={index} 
-          className="group bg-white shadow rounded-lg overflow-hidden"
-          // open={index === 0} // First item open by default for SEO
+          className={`group mb-4 rounded-xl border border-base-300 overflow-hidden transition-all duration-300 ${
+            activeIndex === index ? 'shadow-md' : 'hover:shadow-sm'
+          }`}
         >
-          <summary className="flex justify-between items-center px-6 py-4 bg-base-200 cursor-pointer list-none">
-            <h3 className="text-lg font-medium">{faq.question}</h3>
-            <div className="transition-transform group-open:rotate-180">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          <button
+            className="w-full text-left px-6 py-4 bg-base-200 flex justify-between items-center"
+            onClick={() => setActiveIndex(index === activeIndex ? -1 : index)}
+            aria-expanded={activeIndex === index}
+            aria-controls={`faq-content-${index}`}
+          >
+            <span className="text-lg font-medium">{faq.question}</span>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-base-content transition-all duration-300 ${
+              activeIndex === index ? 'bg-primary text-primary-content transform rotate-180' : 'bg-base-300'
+            }`}>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="3" 
+                strokeLinecap="round" 
+                strokeLinejoin="round"
+                className={`transition-transform duration-300 ${activeIndex === index ? 'rotate-180' : ''}`}
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </div>
-          </summary>
-          <div className="p-6">
-            <p>{faq.answer}</p>
+          </button>
+          
+          <div 
+            id={`faq-content-${index}`}
+            className={`overflow-hidden transition-all duration-300 ease-in-out ${
+              activeIndex === index ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+            }`}
+          >
+            <div className="px-6 py-5 bg-base-100 border-t border-base-300">
+              <p className="leading-relaxed">{faq.answer}</p>
+            </div>
           </div>
-        </details>
+        </div>
       ))}
     </div>
   );

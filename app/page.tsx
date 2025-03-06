@@ -17,7 +17,7 @@ const SubjectsSection = dynamic(() => import('@/features/landing/components/Subj
   ssr: true,
 });
 
-const FAQSection = dynamic(() => import('@/features/landing/components/FAQSection'), {
+const BujSectionWrapper = dynamic(() => import('@/features/landing/components/BujSectionWrapper'), {
   ssr: true,
 });
 
@@ -132,7 +132,7 @@ export default async function LandingPage() {
         </Suspense>
         
         <Suspense fallback={<SectionSkeleton />}>
-          <FAQSection />
+          <BujSectionWrapper />
         </Suspense>
         
         <Suspense fallback={<SectionSkeleton />}>
