@@ -103,7 +103,7 @@ export default function SignUpForm({ role: initialRole }: SignUpFormProps) {
   const roleBgColor = role === "teacher" ? "bg-secondary" : "bg-accent";
   
   return (
-    <div className="w-full max-w-md mx-auto p-6 bg-base-100 rounded-xl shadow-xl">
+    <div className="w-full max-w-md mx-auto p-6 bg-base-300 rounded-xl shadow-xl">
       <h2 className="text-2xl font-bold mb-2 text-center flex items-center justify-center gap-2">
         <span className="text-3xl">{roleIcon}</span> 
         <span>Reģistrēties kā {role === "teacher" ? "pasniedzējam" : "studentam"}</span>
