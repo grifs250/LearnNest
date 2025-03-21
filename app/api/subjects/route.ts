@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import supabase from '@/lib/supabase/client';
 import { Subject } from '@/types/database';
 // Check if the admin file exists and import it correctly
 // import { adminFunction } from '@/lib/firebase/admin'; // Uncomment and correct if needed
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Set up the query
     let query = supabase.from('subjects').select('*')
       .eq('is_active', true)
-      .order('display_order', { ascending: true });
+      .order('name');
     
     // Add the category filter if it exists
     if (categoryId) {

@@ -10,5 +10,9 @@ export default function CategoryTemplate({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <main className="min-h-screen bg-base-100">
+      {children}
+    </main>
+  );
 } 

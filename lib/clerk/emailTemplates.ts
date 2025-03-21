@@ -11,6 +11,12 @@ const verificationEmailTemplate = fs.readFileSync(
   'utf8'
 );
 
+// Read password reset template
+const resetPasswordEmailTemplate = fs.readFileSync(
+  path.join(process.cwd(), 'lib/clerk/emails/reset-password.html'),
+  'utf8'
+);
+
 // Configuration object for Clerk email templates
 export const clerkEmailTemplates = {
   // Verification email template
@@ -21,7 +27,7 @@ export const clerkEmailTemplates = {
     },
     resetPassword: {
       subject: "Atjaunojiet savu paroli | MāciesTe",
-      // Can be expanded with a custom template later
+      htmlTemplate: resetPasswordEmailTemplate,
     },
     inviteOrganizationMember: {
       subject: "Jūs esat uzaicināts pievienoties MāciesTe",

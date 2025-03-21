@@ -1,103 +1,106 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import type { Booking } from '@/types/supabase.types';
+import { createServerClient } from '@/lib/supabase/server';
+import type { Booking, BookingWithDetails } from '@/types/database';
 
-export async function getBooking(bookingId: string): Promise<Booking> {
-  const supabase = await createServerSupabaseClient();
+export async function fetchUserBookings(userId: string): Promise<BookingWithDetails[]> {
+  const supabase = await createServerClient();
   
+  // Use the stored procedure to get bookings with details
   const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      schedule:lesson_schedules(*),
-      student:profiles(*)
-    `)
-    .eq('id', bookingId)
-    .single();
-
-  if (error || !data) {
-    throw new Error('Failed to fetch booking');
+    .rpc('get_student_bookings', { p_student_id: userId });
+  
+  if (error) {
+    console.error('Error fetching user bookings:', error);
+    return [];
   }
-
-  return data as Booking;
+  
+  return data;
 }
 
-export async function createBooking(
-  scheduleId: string,
-  studentId: string
-): Promise<Booking> {
-  const supabase = await createServerSupabaseClient();
+export async function fetchUpcomingBookings(userId: string): Promise<BookingWithDetails[]> {
+  const supabase = await createServerClient();
+  
+  // Get current date in ISO format
+  const now = new Date().toISOString();
+  
+  // Use the stored procedure to get bookings with details
+  const { data, error } = await supabase
+    .rpc('get_student_bookings', { p_student_id: userId })
+    .filter('schedule.start_time', 'gte', now);
+  
+  if (error) {
+    console.error('Error fetching upcoming bookings:', error);
+    return [];
+  }
+  
+  return data;
+}
+
+export async function fetchPastBookings(userId: string): Promise<BookingWithDetails[]> {
+  const supabase = await createServerClient();
+  
+  // Get current date in ISO format
+  const now = new Date().toISOString();
+  
+  // Use the stored procedure to get bookings with details
+  const { data, error } = await supabase
+    .rpc('get_student_bookings', { p_student_id: userId })
+    .filter('schedule.start_time', 'lt', now);
+  
+  if (error) {
+    console.error('Error fetching past bookings:', error);
+    return [];
+  }
+  
+  return data;
+}
+
+export async function createBooking(bookingData: Omit<Booking, 'id' | 'created_at' | 'updated_at'>): Promise<Booking | null> {
+  const supabase = await createServerClient();
   
   const { data, error } = await supabase
     .from('bookings')
-    .insert({
-      schedule_id: scheduleId,
-      student_id: studentId,
-      status: 'pending',
-    })
+    .insert(bookingData)
     .select()
     .single();
-
-  if (error) throw error;
+  
+  if (error) {
+    console.error('Error creating booking:', error);
+    return null;
+  }
+  
   return data;
 }
 
-export async function cancelBooking(bookingId: string): Promise<Booking> {
-  const supabase = await createServerSupabaseClient();
+export async function updateBookingStatus(bookingId: string, status: Booking['status']): Promise<Booking | null> {
+  const supabase = await createServerClient();
+  
   const { data, error } = await supabase
     .from('bookings')
-    .update({ status: 'cancelled' })
+    .update({ status })
     .eq('id', bookingId)
     .select()
     .single();
-
-  if (error) throw error;
+  
+  if (error) {
+    console.error('Error updating booking status:', error);
+    return null;
+  }
+  
   return data;
 }
 
-export async function getStudentBookings(studentId: string): Promise<Booking[]> {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      schedule:schedule_id (
-        *,
-        lesson:lesson_id (*)
-      )
-    `)
-    .eq('student_id', studentId);
-
-  if (error) throw error;
-  return data;
-}
-
-export async function getTeacherBookings(teacherId: string): Promise<Booking[]> {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('bookings')
-    .select(`
-      *,
-      schedule:schedule_id (*),
-      student:student_id (*)
-    `)
-    .eq('teacher_id', teacherId);
-
-  if (error) throw error;
-  return data;
-}
-
-export async function updateBookingStatus(
-  bookingId: string, 
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
-): Promise<void> {
-  const supabase = await createServerSupabaseClient();
+export async function cancelBooking(bookingId: string): Promise<boolean> {
+  const supabase = await createServerClient();
   
   const { error } = await supabase
     .from('bookings')
-    .update({ status })
+    .update({ status: 'cancelled' })
     .eq('id', bookingId);
-
+  
   if (error) {
-    throw new Error('Failed to update booking status');
+    console.error('Error cancelling booking:', error);
+    return false;
   }
+  
+  return true;
 } 

@@ -1,7 +1,7 @@
 import { Webhook } from 'svix';
 import { headers } from 'next/headers';
 import { WebhookEvent } from '@clerk/nextjs/server';
-import { createSupabaseAdmin } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
@@ -48,9 +48,12 @@ export async function POST(req: Request) {
     // Handle the different webhook events
     const eventType = evt.type;
     
+    // Get Supabase admin client
+    const supabase = await createAdminClient();
+    
     // Handle the different webhook events
-    if (eventType === 'user.created' || eventType === 'user.updated') {
-      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata, public_metadata } = evt.data;
+    if (eventType === 'user.created') {
+      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
       
       // Generate URL slug from name or email
       const fullName = `${first_name || ''} ${last_name || ''}`.trim();
@@ -59,12 +62,18 @@ export async function POST(req: Request) {
         ? fullName.toLowerCase().replace(/\s+/g, '-') 
         : email.split('@')[0];
       
-      // Get the user's role from metadata (prefer public over unsafe)
-      const role = (public_metadata?.role || unsafe_metadata?.role || 'student') as string;
-      
-      // Get Supabase admin client
-      const supabase = await createSupabaseAdmin();
-      
+      // Create metadata for the profile with profile_needs_setup flag
+      // This ensures new users are directed to the onboarding process
+      const metadata = {
+        profile_slug: urlSlug,
+        profile_created_at: new Date().toISOString(),
+        profile_needs_setup: true,
+        profile_completed: false
+      };
+
+      console.log("Creating new user profile with needs_setup flag");
+
+      // Create a new user profile with default role (will be selected during onboarding)
       const { error } = await supabase
         .from('profiles')
         .upsert({
@@ -73,15 +82,62 @@ export async function POST(req: Request) {
           full_name: fullName,
           avatar_url: image_url,
           is_active: true,
-          role: role,
-          url_slug: urlSlug,
+          role: 'student', // Default role until chosen in onboarding
+          metadata,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
       
       if (error) {
-        console.error('Error upserting user:', error);
-        return new Response('Error upserting user', { status: 500 });
+        console.error('Error creating user profile:', error);
+        return new Response('Error creating user profile', { status: 500 });
+      }
+    } else if (eventType === 'user.updated') {
+      const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data;
+      
+      // Get the email
+      const email = email_addresses[0]?.email_address || '';
+      const fullName = `${first_name || ''} ${last_name || ''}`.trim();
+      
+      // Get existing profile to merge metadata
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('metadata, role')
+        .eq('user_id', id)
+        .single();
+      
+      // Update data for the profile
+      const updateData: any = {
+        email: email,
+        full_name: fullName,
+        avatar_url: image_url,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Update role if it has changed in metadata
+      if (unsafe_metadata?.role) {
+        console.log(`Updating user role to: ${unsafe_metadata.role}`);
+        updateData.role = unsafe_metadata.role;
+      }
+      
+      // Update metadata if it exists from Clerk
+      if (existingProfile?.metadata) {
+        updateData.metadata = {
+          ...existingProfile.metadata,
+          // Update profile flags from metadata
+          profile_completed: unsafe_metadata?.profile_completed ?? existingProfile.metadata.profile_completed,
+          profile_needs_setup: unsafe_metadata?.profile_needs_setup ?? existingProfile.metadata.profile_needs_setup,
+        };
+      }
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('user_id', id);
+      
+      if (error) {
+        console.error('Error updating user profile:', error);
+        return new Response('Error updating user profile', { status: 500 });
       }
     }
     
@@ -89,7 +145,7 @@ export async function POST(req: Request) {
       const { id } = evt.data;
       
       // Get Supabase admin client
-      const supabase = await createSupabaseAdmin();
+      const supabase = await createAdminClient();
       
       // Mark user as inactive in Supabase
       const { error } = await supabase

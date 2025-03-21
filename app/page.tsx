@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import { fetchSubjects } from '@/features/lessons/services/subjectService';
+import { fetchSubjectsWithLessonCounts } from '@/features/lessons/services/subjectService';
 import { jsonLdScriptProps } from 'react-schemaorg';
 import { Organization, WebSite, WithContext } from 'schema-dts';
 
@@ -69,12 +69,12 @@ export const metadata: Metadata = {
 export const revalidate = 3600; // Cache for 1 hour
 
 export default async function LandingPage() {
-  // Pre-fetch subjects for SSR
-  const subjects = await fetchSubjects();
+  // Pre-fetch subjects for SSR with lesson counts
+  const subjects = await fetchSubjectsWithLessonCounts();
 
   return (
     <>
-      {/* Structured data for SEO */}
+      {/* Structured data for SEO - Statically defined with no variable values to prevent hydration issues */}
       <script
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
@@ -118,19 +118,22 @@ export default async function LandingPage() {
         })}
       />
       
-      <div className="min-h-screen bg-base-100">
+      {/* Main content - darker background like in kontakti page */}
+      <div className="min-h-screen bg-base-200">
         {/* Critical content - load immediately */}
         <LandingHero />
         
-        {/* Non-critical content - load on demand with suspense */}
+        {/* How It Works section first */}
         <Suspense fallback={<SectionSkeleton />}>
           <HowItWorksSection />
         </Suspense>
         
+        {/* Subjects section follows after How It Works */}
         <Suspense fallback={<SectionSkeleton />}>
           <SubjectsSection subjects={subjects} />
         </Suspense>
         
+        {/* Additional sections */}
         <Suspense fallback={<SectionSkeleton />}>
           <BujSectionWrapper />
         </Suspense>

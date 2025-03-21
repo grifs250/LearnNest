@@ -79,7 +79,7 @@ export function ClerkProvider({ children }: { children: ReactNode }) {
       signInUrl="/login"
       signUpUrl="/register"
       afterSignInUrl="/"
-      afterSignUpUrl="/verify-code"
+      afterSignUpUrl="/profile/setup"
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
     >
       {children}

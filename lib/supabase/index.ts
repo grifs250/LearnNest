@@ -1,20 +1,36 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@/types/database';
+/**
+ * This file re-exports all Supabase-related functionality
+ * for convenient imports elsewhere in the codebase.
+ */
 
-// Client-side Supabase client
-export const createClient = () => {
-  return createSupabaseClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-};
+/**
+ * Centralized exports for Supabase services
+ * Re-exporting client and server functionality for easier imports
+ */
 
-// Helper to format Clerk IDs for Supabase
-export const formatClerkId = (clerkId: string): string => {
-  // Ensure the ID is properly formatted for Supabase
-  // This might involve removing prefixes or ensuring consistent format
-  return clerkId;
-};
+// Re-export default client for the most common usage
+export { default as supabase } from './client';
 
-// Re-export server-related functions if needed
-export * from './server'; 
+// Re-export client-side functions
+export {
+  createClient,
+  createBrowserClient,
+  createClientWithToken,
+} from './client';
+
+// Re-export server-side functions
+export {
+  createServerClient,
+  createActionClient, 
+  createAdminClient,
+  getProfileByUserId,
+} from './server';
+
+// Browser client for client components 
+export { createBrowserClient } from './client';
+
+// Server client for server components and API routes
+export { createServerClient } from './server';
+
+// Admin client for authorized access (webhooks, etc.)
+export { createAdminClient } from './admin'; 

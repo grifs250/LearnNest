@@ -12,7 +12,6 @@ export default function ContactSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold">Kontakti</h2>
-          <p className="text-base-content/70 mt-2">Sazinieties ar mums jautājumu gadījumā</p>
         </div>
         
         <div className="max-w-4xl mx-auto">

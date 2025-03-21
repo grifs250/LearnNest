@@ -1,60 +1,64 @@
-import { Suspense } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { getSubjectById } from '@/features/lessons/services/subjectService';
 import { notFound } from 'next/navigation';
-import { SubjectClient } from './client';
-import { Subject, Lesson, LessonWithProfile } from '@/types/database';
-import { dbService } from '@/lib/supabase/db';
-import LoadingSpinner from '@/shared/components/ui/LoadingSpinner';
+import SubjectDetail from './client';
 
-// Interface for Next.js App Router page component
-interface SubjectPageProps {
-  params: {
-    category: string;
-    subjectId: string;
-  };
-  searchParams: {
-    [key: string]: string | string[] | undefined;
-  };
-}
+// Create a direct client to avoid dependency issues during fetching
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  }
+});
 
-// In Next.js App Router, page components can be async
-export default async function SubjectPage({ params, searchParams }: SubjectPageProps) {
-  // Fetch subject data
-  const subject = await fetchSubject(params.subjectId);
+export async function generateMetadata({ params }: { params: { subjectId: string } }) {
+  const subject = await getSubjectById(params.subjectId);
   
   if (!subject) {
-    return notFound();
+    return {
+      title: 'Priekšmets nav atrasts | MāciesTe',
+      description: 'Meklētais mācību priekšmets nav atrasts.',
+    };
   }
   
-  // Fetch related lessons
-  const lessons = await fetchLessons(subject.id);
+  return {
+    title: `${subject.name} | MāciesTe`,
+    description: subject.description || `Mācies ${subject.name} tiešsaistē ar kvalificētiem pasniedzējiem.`,
+  };
+}
+
+export default async function SubjectPage({ params }: { params: { subjectId: string, category: string } }) {
+  console.log('Fetching subject page data for:', params.subjectId);
   
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">{subject.name}</h1>
-      
-      <Suspense fallback={<LoadingSpinner />}>
-        <SubjectClient subject={subject} lessons={lessons} />
-      </Suspense>
-    </div>
-  );
-}
-
-async function fetchSubject(subjectId: string): Promise<Subject | null> {
-  try {
-    const subject = await dbService.getSubject(subjectId);
-    return subject;
-  } catch (error) {
-    console.error('Error fetching subject:', error);
-    return null;
+  // Fetch the subject
+  const subject = await getSubjectById(params.subjectId);
+  
+  if (!subject) {
+    console.error('Subject not found:', params.subjectId);
+    notFound();
   }
-}
-
-async function fetchLessons(subjectId: string): Promise<LessonWithProfile[]> {
-  try {
-    const lessons = await dbService.getLessonsWithProfiles({ subject_id: subjectId, is_active: true });
-    return lessons;
-  } catch (error) {
+  
+  // Get lessons for this subject
+  const { data: lessons, error } = await supabase
+    .from('lessons')
+    .select(`
+      *,
+      teacher:profiles(id, full_name, avatar_url)
+    `)
+    .eq('subject_id', params.subjectId)
+    .eq('is_active', true);
+    
+  if (error) {
     console.error('Error fetching lessons:', error);
-    return [];
   }
+  
+  // Return the client component with all data
+  return (
+    <SubjectDetail 
+      subject={subject} 
+      lessons={lessons || []} 
+    />
+  );
 } 

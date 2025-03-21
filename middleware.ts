@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import type { NextRequest } from 'next/server';
 
 /**
  * This middleware handles authentication using Clerk.
@@ -15,13 +16,18 @@ export default clerkMiddleware((auth, req) => {
     '/profile/setup(.*)',   // Profile setup page
     '/api/webhooks(.*)',    // Webhook endpoints
     '/buj(.*)',             // FAQ page
+    '/profiles/(.*)',       // Public profiles
     '/subjects/(.*)'        // Public subject listings
   ]);
-
+  
   // If the route is not public, protect it
   if (!isPublicRoute(req)) {
     auth.protect();
   }
+  
+  // Note: For Supabase JWT token handling, we've moved that to the 
+  // lib/supabase/client.ts file which creates clients with the
+  // appropriate Clerk JWT when needed.
 });
 
 export const config = {

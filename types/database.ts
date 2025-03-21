@@ -132,6 +132,11 @@ export interface Subject extends BaseEntity {
   category_id: string
   is_active: boolean
   display_order: number
+  
+  // UI-related properties (not stored in database)
+  lesson_count?: number
+  has_lessons?: boolean
+  category?: Category
 }
 
 // Lesson
@@ -193,4 +198,11 @@ export interface BookingWithDetails extends Booking {
 // Category with Subjects
 export interface CategoryWithSubjects extends Category {
   subjects: Subject[]
+}
+
+/**
+ * Subject with its category relation
+ */
+export interface SubjectWithCategory extends Subject {
+  category: Category | null;
 } 

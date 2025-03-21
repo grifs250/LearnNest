@@ -1,12 +1,21 @@
 'use client';
 
-import { Category, Subject } from '@/types/models';
+import { Category, Subject as BaseSubject } from '@/types/database';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
+// Extended Subject type with additional properties needed for UI
+interface SubjectWithMeta extends Omit<BaseSubject, 'category_id'> {
+  category_id?: string;
+  lesson_count?: number;
+  metadata?: any;
+  has_lessons?: boolean;
+  category?: Category;
+}
+
 interface SubjectCategoryProps {
   category: Category;
-  subjects: Subject[];
+  subjects: SubjectWithMeta[];
 }
 
 /**
@@ -15,54 +24,52 @@ interface SubjectCategoryProps {
  * Supports smooth scrolling via ID-based anchors
  */
 export default function SubjectCategory({ category, subjects }: SubjectCategoryProps) {
-  const [processedSubjects, setProcessedSubjects] = useState<Subject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [processedSubjects, setProcessedSubjects] = useState<SubjectWithMeta[]>([]);
+  // Use a client-ready state instead of loading to avoid hydration issues
+  const [isClientReady, setIsClientReady] = useState(false);
   
-  // Process subjects once on mount to extract lesson_count from metadata if needed
   useEffect(() => {
-    // Use a setTimeout to ensure we don't block rendering of other components
-    const processTimer = setTimeout(() => {
-      const enhanced = subjects.map(subject => {
-        // Try to get lesson count from direct property
-        let lessonCount = subject.lesson_count;
-        
-        // If not available and metadata exists, try to get from metadata
-        if (lessonCount === undefined && subject.metadata) {
-          try {
-            // Need to typecast metadata to access properties safely
-            const metadata = subject.metadata as Record<string, any>;
-            if (metadata && typeof metadata === 'object' && 'lesson_count' in metadata) {
-              const metadataCount = metadata.lesson_count;
-              if (metadataCount !== undefined) {
-                lessonCount = typeof metadataCount === 'string' 
-                  ? parseInt(metadataCount) 
-                  : metadataCount as number;
-              }
-            }
-          } catch (error) {
-            console.error('Error parsing metadata lesson count:', error);
-          }
-        }
-        
-        // Return enhanced subject with lesson_count set properly
-        return {
-          ...subject,
-          lesson_count: lessonCount ?? 0
-        };
-      });
-      
-      setProcessedSubjects(enhanced);
-      setIsLoading(false);
-    }, 0);
+    // Mark as client-ready immediately to avoid hydration mismatch
+    setIsClientReady(true);
     
-    return () => clearTimeout(processTimer);
+    // Process subjects to ensure consistent rendering
+    const enhanced = subjects.map(subject => {
+      // Try to get lesson count from direct property or default to 0
+      const lessonCount = subject.lesson_count ?? 0;
+      
+      // Return enhanced subject with lesson_count set properly
+      return {
+        ...subject,
+        lesson_count: lessonCount
+      };
+    });
+    
+    setProcessedSubjects(enhanced);
   }, [subjects]);
 
   // Function to check if lessons are actually available in the database
-  const getLessonAvailability = (subject: Subject) => {
-    // Use the lesson_count property if available
-    const lessonCount = subject.lesson_count ?? 0;
+  const getLessonAvailability = (subject: SubjectWithMeta) => {
+    // First check has_lessons flag if it exists
+    if (subject.has_lessons !== undefined) {
+      if (!subject.has_lessons) {
+        return {
+          status: 'unavailable',
+          label: 'Nav nodarbību',
+          badgeClass: 'badge-ghost text-xs',
+          count: 0
+        };
+      } else {
+        return {
+          status: 'available',
+          label: 'Pieejams', 
+          badgeClass: 'badge-success text-xs',
+          count: subject.lesson_count || 0
+        };
+      }
+    }
     
+    // Fall back to checking lesson count if has_lessons flag is not available
+    const lessonCount = subject.lesson_count ?? 0;
     const hasLessons = lessonCount > 0;
     
     if (!hasLessons) {
@@ -83,12 +90,12 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
     };
   };
 
-  // Loading skeleton UI
-  if (isLoading) {
+  // Show placeholder during SSR and initial client-side rendering
+  // Using a static (non-animated) skeleton to avoid hydration issues
+  if (!isClientReady) {
     return (
       <section 
-        id={`category-${category.id}`} 
-        className="py-8 border-t border-base-300 mt-4 first:mt-0 first:border-t-0 animate-pulse"
+        className="py-8 border-t border-base-300 mt-4 first:mt-0 first:border-t-0"
       >
         <h3 className="text-2xl font-bold mb-6">{category.name}</h3>
         
@@ -115,9 +122,7 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
 
   return (
     <section 
-      id={`category-${category.id}`} 
       className="py-8 border-t border-base-300 mt-4 first:mt-0 first:border-t-0"
-      data-category-name={category.name}
     >
       <h3 className="text-2xl font-bold mb-6">{category.name}</h3>
       
@@ -127,7 +132,7 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
           
           // Card styles based on availability
           const cardClasses = availability.status === 'unavailable'
-            ? "card bg-base-100 shadow-sm opacity-80 cursor-not-allowed transition-all border border-base-300"
+            ? "card bg-base-100 shadow-sm opacity-70 cursor-not-allowed transition-all border border-base-300"
             : "card bg-base-100 shadow-md hover:shadow-lg transition-all hover:-translate-y-1 border border-transparent hover:border-primary/20";
           
           // Create a card component with consistent structure regardless of availability
@@ -160,10 +165,17 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
                     </div>
                     
                     <span className="badge badge-primary badge-outline text-xs">
-                      Rezervējiet
+                      Skatīt
                     </span>
                   </>
-                ) : null}
+                ) : (
+                  <div className="flex items-center text-sm text-base-content/70">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Drīzumā būs pieejams</span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -174,7 +186,6 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
               <div 
                 key={subject.id}
                 className={cardClasses}
-                title="Šim priekšmetam nav pieejamas nodarbības"
               >
                 {cardContent}
               </div>
@@ -182,12 +193,15 @@ export default function SubjectCategory({ category, subjects }: SubjectCategoryP
           }
           
           // Otherwise render a clickable link
+          const href = subject.category 
+            ? `/${subject.category.name.toLowerCase()}/${subject.id}`
+            : `/subjects/${subject.id}`;
+            
           return (
             <Link 
               key={subject.id} 
-              href={`/subjects/${subject.id}`} 
+              href={href}
               className={cardClasses}
-              title={`Aplūkot ${subject.name} nodarbības`}
             >
               {cardContent}
             </Link>

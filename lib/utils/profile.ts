@@ -1,18 +1,24 @@
 import type { UserResource } from '@clerk/types';
 import { createClient } from '@/lib/supabase/client';
-import type { Profile } from '@/lib/types/database.types';
+import type { Profile, UserRole } from '@/lib/types/database.types';
 import type { SupabaseError } from '@/lib/types/supabase';
 import { formatClerkId } from './user';
 
 export async function initializeUserProfile(user: UserResource): Promise<Profile> {
   const supabase = createClient();
 
+  // Get the user role from metadata or default to student
+  const userRole = (user.unsafeMetadata?.role as UserRole) || 'student';
+
   const metadata: Record<string, any> = {
-    education: '',
-    experience: '',
-    specializations: [],
+    education: userRole === 'teacher' ? [] : '',
+    experience: userRole === 'teacher' ? [] : '',
+    specializations: userRole === 'teacher' ? [] : [],
     languages: [],
-    hourly_rate: 0,
+    hourly_rate: userRole === 'teacher' ? 0 : null,
+    learning_goals: userRole === 'student' ? [] : null,
+    profile_created_at: new Date().toISOString(),
+    profile_needs_setup: true,
   };
 
   const profileData: Partial<Profile> = {
@@ -21,7 +27,7 @@ export async function initializeUserProfile(user: UserResource): Promise<Profile
     email: user.emailAddresses[0]?.emailAddress || '',
     user_id: formatClerkId(user.id),
     avatar_url: user.imageUrl,
-    role: 'student', // Default role
+    role: userRole, // Use role from metadata
     is_active: true,
     metadata
   };

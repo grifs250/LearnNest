@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/features/shared/components/ErrorBoundary";
 import Navbar from "@/features/shared/components/Navbar";
 import { Toaster } from 'react-hot-toast';
 import ClientInitializer from '@/features/shared/components/ClientInitializer';
+import ProfileRedirectCheck from '@/features/shared/components/ProfileRedirectCheck';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -123,14 +124,21 @@ export default function RootLayout({
           <ThemeProvider>
             <ErrorBoundary>
               <ClientInitializer />
-              <Navbar />
-              <main className="min-h-screen bg-base-100">
-                {children}
-              </main>
+              <ProfileRedirectCheck>
+                <Navbar />
+                <main className="min-h-screen bg-base-100">
+                  {children}
+                </main>
+              </ProfileRedirectCheck>
               <ToastContainer />
             </ErrorBoundary>
-            <Toaster position="top-center" />
           </ThemeProvider>
+          <Toaster 
+            position="top-right" 
+            toastOptions={{
+              duration: 5000,
+            }}
+          />
         </body>
       </html>
     </ClerkProvider>

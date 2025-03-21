@@ -1,119 +1,83 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import dbService from '@/lib/supabase/db';
-import { CourseSections } from "@/features/lessons/components";
-import { useCategory } from "@/features/lessons/hooks";
-import Link from 'next/link';
-import Image from 'next/image';
 import { Category, Subject } from '@/types/database';
+import Link from 'next/link';
 
-// Add this interface
-interface CategoryParams {
-  category: string;
-}
-
-// Define CategoryWithSubjects type to ensure subjects property exists
-interface CategoryWithSubjects extends Category {
+interface CategoryDetailProps {
+  category: Category;
   subjects: Subject[];
+  subjectsWithLessons: Map<string, boolean>;
 }
 
-// Export all client components from a single file
-export const ClientComponents = {
-  CategoryContent: function({ params }: { params: CategoryParams }) {
-    const { category } = params;
-    const router = useRouter();
-    const { data: categoryData, isLoading, error } = useCategory(category);
-    
-    if (isLoading) {
-      return <div className="loading loading-spinner loading-lg"></div>;
-    }
-
-    if (error) {
-      return <div className="alert alert-error">
-        <span>{error.message || 'Radās kļūda ielādējot kategoriju'}</span>
-      </div>;
-    }
-
-    if (!categoryData) {
-      return <div className="alert alert-warning">
-        <span>Kategorija nav atrasta</span>
-      </div>;
-    }
-
-    // Ensure we have subjects array even if it's not in the response
-    const subjects = categoryData.subjects || [];
-    return <CourseSections subjects={subjects} />;
-  },
-  
-  CategoryFilters: function({ activeFilters, onChange }: { 
-    activeFilters: string[]; 
-    onChange: (filters: string[]) => void 
-  }) {
-    // Filter component implementation
-    return (
-      <div className="flex flex-wrap gap-2 my-4">
-        {/* Filter UI */}
-      </div>
-    );
-  }
-};
-
-interface CategoryClientProps {
-  categoryId: string;
-}
-
-export function CategoryClient({ categoryId }: CategoryClientProps) {
-  const { data: categoryData, isLoading } = useCategory(categoryId);
-  const router = useRouter();
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-4">
-        <div className="flex justify-center">
-          <span className="loading loading-spinner loading-lg text-primary"></span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!categoryData) {
-    return (
-      <div className="container mx-auto p-4 text-center">
-        <div className="bg-error/10 p-6 rounded-lg">
-          <h2 className="text-2xl font-bold text-error">Kategorija nav atrasta</h2>
-          <p className="mb-4">Diemžēl šāda kategorija neeksistē vai nav pieejama.</p>
-          <Link href="/" className="btn btn-primary">
-            Atgriezties uz sākumlapu
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return <CategoryContent categoryData={categoryData} />;
-}
-
-function CategoryContent({ categoryData }: { categoryData: any }) {
+/**
+ * Client component for displaying category details and subjects
+ */
+export default function CategoryDetail({ 
+  category, 
+  subjects, 
+  subjectsWithLessons 
+}: CategoryDetailProps) {
   return (
-    <div className="container mx-auto p-4">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{categoryData.name}</h1>
-        <p className="text-gray-600">{categoryData.description}</p>
-      </div>
+    <div className="container mx-auto px-4 py-8">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold">{category.name}</h1>
+        {category.description && (
+          <p className="mt-2 text-base-content/70">{category.description}</p>
+        )}
+      </header>
 
-      {categoryData.subjects && categoryData.subjects.length > 0 ? (
-        <CourseSections subjects={categoryData.subjects} />
-      ) : (
-        <div className="bg-base-200 p-6 rounded-lg text-center">
-          <h3 className="text-xl font-semibold mb-2">Nav atrasts neviens priekšmets</h3>
-          <p>
-            Šajā kategorijā pagaidām nav pieejami priekšmeti.
-            Lūdzu, apskatiet citas kategorijas vai mēģiniet vēlreiz vēlāk.
+      {subjects.length === 0 ? (
+        <div className="text-center py-10">
+          <p className="text-lg text-base-content/70">
+            Šajā kategorijā nav pieejamu priekšmetu.
           </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {subjects.map((subject) => {
+            const hasLessons = subjectsWithLessons.get(subject.id) || false;
+            
+            return hasLessons ? (
+              <Link 
+                key={subject.id} 
+                href={`/${category.name.toLowerCase()}/${subject.id}`}
+                className="card bg-base-100 shadow-lg hover:shadow-xl transition-all"
+              >
+                <div className="card-body p-6">
+                  <h2 className="card-title">{subject.name}</h2>
+                  {subject.description && (
+                    <p className="text-sm text-base-content/70 line-clamp-2">
+                      {subject.description}
+                    </p>
+                  )}
+                  <div className="mt-4 flex items-center text-success">
+                    <span className="mr-2">✓</span>
+                    <span>Pieejamas nodarbības</span>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <div 
+                key={subject.id} 
+                className="card bg-base-200 shadow-md cursor-not-allowed"
+              >
+                <div className="card-body p-6">
+                  <h2 className="card-title text-base-content/70">{subject.name}</h2>
+                  {subject.description && (
+                    <p className="text-sm text-base-content/50 line-clamp-2">
+                      {subject.description}
+                    </p>
+                  )}
+                  <div className="mt-4 flex items-center text-base-content/50">
+                    <span className="mr-2">ℹ️</span>
+                    <span>Nav pieejamu nodarbību</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
-}
+} 

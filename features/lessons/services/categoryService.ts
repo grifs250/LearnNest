@@ -1,32 +1,34 @@
-import { createServerSupabaseClient } from '@/lib/supabase/client';
-import type { Category } from '../types';
+import { createServerClient } from '@/lib/supabase/server';
+import type { Category } from '@/types/database';
 
-export const categoryService = {
-  async getCategories(): Promise<Category[]> {
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-      .from('categories')
-      .select(`
-        *,
-        subjects(*)
-      `);
-
-    if (error) throw error;
-    return data as Category[];
-  },
-
-  async getCategory(id: string): Promise<Category> {
-    const supabase = await createServerSupabaseClient();
-    const { data, error } = await supabase
-      .from('categories')
-      .select(`
-        *,
-        subjects(*)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) throw error;
-    return data as Category;
+export async function fetchCategories(): Promise<Category[]> {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('name');
+  
+  if (error) {
+    console.error('Error fetching categories:', error);
+    return [];
   }
-}; 
+  
+  return data;
+}
+
+export async function fetchCategoryById(id: string): Promise<Category | null> {
+  const supabase = await createServerClient();
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (error) {
+    console.error('Error fetching category:', error);
+    return null;
+  }
+  
+  return data;
+} 

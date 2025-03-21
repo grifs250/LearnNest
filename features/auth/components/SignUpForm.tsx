@@ -18,6 +18,7 @@ export default function SignUpForm({ role: initialRole }: SignUpFormProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
   const [error, setError] = useState("");
   const [passwordMatchError, setPasswordMatchError] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -86,13 +87,20 @@ export default function SignUpForm({ role: initialRole }: SignUpFormProps) {
         strategy: "email_code",
       });
       
-      // Redirect directly to Clerk's built-in verification page
-      router.push(`/verify-code`);
+      // Show verification message
+      setVerificationSent(true);
+      
+      // Use a forced navigation that will maintain our loading state
+      setTimeout(() => {
+        window.location.href = "/verify-code";
+      }, 1500); // Longer delay to show verification message
+      
+      // Don't turn off loading state
     } catch (err: any) {
       console.error("Error during sign up:", err);
       setError(err.message || "Radās kļūda reģistrācijas laikā. Lūdzu, mēģiniet vēlreiz.");
-    } finally {
       setIsLoading(false);
+      setVerificationSent(false);
     }
   };
   
@@ -139,6 +147,16 @@ export default function SignUpForm({ role: initialRole }: SignUpFormProps) {
         <div className="alert alert-error mb-6 shadow-md">
           <X className="w-5 h-5" />
           <span>{error}</span>
+        </div>
+      )}
+      
+      {verificationSent && (
+        <div className="alert alert-success mb-6 shadow-md">
+          <Mail className="w-5 h-5" />
+          <div>
+            <h3 className="font-bold">Verifikācijas e-pasts nosūtīts!</h3>
+            <p className="text-sm">Pārbaudiet savu e-pastu {email}</p>
+          </div>
         </div>
       )}
       
@@ -278,7 +296,11 @@ export default function SignUpForm({ role: initialRole }: SignUpFormProps) {
           {isLoading ? (
             <>
               <span className="loading loading-spinner loading-sm"></span>
-              <span>Lūdzu, uzgaidiet...</span>
+              {verificationSent ? (
+                <span>Verificējam jūsu e-pastu...</span>
+              ) : (
+                <span>Lūdzu, uzgaidiet...</span>
+              )}
             </>
           ) : (
             <>

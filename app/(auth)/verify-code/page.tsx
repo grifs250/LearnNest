@@ -21,9 +21,15 @@ export default function VerifyCodePage() {
   // If no signUp object, redirect back to sign up
   useEffect(() => {
     if (isLoaded && !signUp?.emailAddress) {
-      startTransition(() => {
-        router.push("/register");
-      });
+      // Add a message before redirecting
+      setError("No active registration found. Redirecting to registration page...");
+      
+      // Short delay to show message
+      setTimeout(() => {
+        startTransition(() => {
+          router.push("/register");
+        });
+      }, 1500);
     }
   }, [isLoaded, signUp, router, startTransition]);
   
@@ -58,7 +64,7 @@ export default function VerifyCodePage() {
         
         // Redirect with a transition for better performance
         startTransition(() => {
-          router.push("/");
+          router.push("/profile/setup");
         });
       }
     } catch (err: any) {
@@ -107,11 +113,21 @@ export default function VerifyCodePage() {
     }
   };
 
+  // Show page title based on state
+  let pageTitle = "Verificējiet savu e-pastu";
+  if (success) {
+    pageTitle = "Verifikācija veiksmīga!";
+  }
+  
   // Show optimized loading state
   if (!isLoaded || isPending) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="loading loading-spinner loading-lg"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-base-200 p-4">
+        <div className="max-w-md w-full mx-auto text-center">
+          <div className="loading loading-spinner loading-lg mb-4"></div>
+          <h2 className="text-xl font-bold">{pageTitle}</h2>
+          <p className="text-base-content/70 mt-2">Lūdzu, uzgaidiet...</p>
+        </div>
       </div>
     );
   }

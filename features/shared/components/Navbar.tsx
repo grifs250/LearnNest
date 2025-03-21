@@ -161,8 +161,10 @@ export default function Navbar() {
           </Link>
         </div>
         
-        {/* User button only shown when logged in */}
-        {isLoggedIn && <UserButton afterSignOutUrl="/" />}
+        {/* User button only shown when logged in - wrap in a div with hidden class when not logged in */}
+        <div className={isLoggedIn ? '' : 'hidden'}>
+          {isLoggedIn && <UserButton afterSignOutUrl="/" />}
+        </div>
       </div>
     );
   };
