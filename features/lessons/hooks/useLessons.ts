@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Lesson } from "@/types/database";
+import { Lesson } from "@/lib/types";
 import { dbService } from "@/lib/supabase/db";
 import { toast } from "react-hot-toast";
 

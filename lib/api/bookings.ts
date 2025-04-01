@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Booking, BookingStatus, PaymentStatus } from '@/types/supabase';
+import { Booking, BookingStatus, PaymentStatus } from '@/lib/types';
 import { Booking as BookingType } from '@/types/booking';
 
 // Get booking by ID

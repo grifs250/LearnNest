@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import type { Database } from '@/types/database';
+import type { Database } from '@/lib/types';
 
 type SearchableTable = 'profiles' | 'lessons' | 'subjects';
 

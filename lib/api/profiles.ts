@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Profile, TeacherProfile, StudentProfile, UserRole } from '@/types/supabase';
+import { Profile, TeacherProfile, StudentProfile, UserRole } from '@/lib/types';
 
 // Get base profile by ID
 export const getProfileById = async (userId: string) => {

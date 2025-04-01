@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import dbService from '@/lib/supabase/db';
 import { Chat } from '@/features/chat/components/Chat';
-import { Lesson } from '@/types/database';
+import { Lesson } from '@/lib/types';
 
 interface MeetParams {
   lessonId: string;

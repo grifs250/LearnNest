@@ -148,8 +148,8 @@ export default function Navbar() {
     
     return (
       <div className="w-full md:w-auto mt-4 md:mt-0 order-last md:order-none">
-        {/* Static version always visible during SSR */}
-        <div className={`${isLoggedIn ? 'hidden' : ''}`}>
+        {/* Login button - initially hidden for all users until client-side hydration */}
+        <div className="hidden" data-auth-login>
           <Link
             href="/login"
             className="btn btn-sm btn-neutral bg-base-200 hover:bg-base-300 text-base-content border-base-300 shadow-sm w-full md:w-auto"
@@ -161,10 +161,22 @@ export default function Navbar() {
           </Link>
         </div>
         
-        {/* User button only shown when logged in - wrap in a div with hidden class when not logged in */}
-        <div className={isLoggedIn ? '' : 'hidden'}>
-          {isLoggedIn && <UserButton afterSignOutUrl="/" />}
+        {/* User button - initially hidden for all users until client-side hydration */}
+        <div className="hidden" data-auth-user>
+          <UserButton afterSignOutUrl="/" />
         </div>
+
+        {/* Apply correct visibility after hydration */}
+        {mounted && (
+          <style jsx global>{`
+            [data-auth-login] {
+              display: ${isLoggedIn ? 'none' : 'block'};
+            }
+            [data-auth-user] {
+              display: ${isLoggedIn ? 'block' : 'none'};
+            }
+          `}</style>
+        )}
       </div>
     );
   };

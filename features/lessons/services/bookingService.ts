@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import type { Booking, BookingWithDetails } from '@/types/database';
+import type { Booking, BookingWithDetails } from '@/lib/types';
 
 export async function fetchUserBookings(userId: string): Promise<BookingWithDetails[]> {
   const supabase = await createServerClient();

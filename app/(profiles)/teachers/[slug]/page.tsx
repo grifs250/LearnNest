@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { generateDynamicMetadata } from '@/components/SEO/DynamicMetadata';
 import { notFound } from 'next/navigation';
 import TeacherProfile from '@/shared/components/TeacherProfile';
-import { UserProfile } from '@/types/database';
+import { UserProfile } from '@/lib/types';
 
 interface TeacherPageProps {
   params: {

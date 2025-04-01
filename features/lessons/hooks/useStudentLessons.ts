@@ -3,22 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import dbService from '@/lib/supabase/db';
-import { BookingWithDetails, BookingStatus } from '@/types/database';
+import { BookingWithDetails, BookingStatus, StudentLesson } from '@/lib/types';
 import { toast } from "react-hot-toast";
-
-// Define a StudentLesson type that represents what's shown in the UI
-export interface StudentLesson {
-  id: string;
-  bookingId: string;
-  subject: string;
-  teacherName: string;
-  teacherId: string;
-  date: string;
-  time: string;
-  status: BookingStatus;
-  category: string;
-  subjectId: string;
-}
 
 export function useStudentLessons() {
   const { isLoaded, user } = useUser();
@@ -44,7 +30,9 @@ export function useStudentLessons() {
       const transformedLessons = bookings.map(booking => {
         // Extract data from the booking and related entities
         const scheduleData = booking.schedule;
-        const lessonData = booking.lesson;
+        
+        // Safely access lesson data with type assertion 
+        const lessonData = booking.lesson as any;
         
         // Format date and time from schedule
         const scheduleDate = scheduleData ? new Date(scheduleData.start_time) : new Date();
@@ -58,17 +46,18 @@ export function useStudentLessons() {
           minute: '2-digit'
         });
 
+        // Create StudentLesson 
         return {
           id: booking.id,
           bookingId: booking.id,
           subject: lessonData?.title || 'Nezināms priekšmets',
           teacherName: lessonData?.teacher?.full_name || 'Nezināms pasniedzējs',
-          teacherId: '',  // Will need to get this from the lesson data later
+          teacherId: lessonData?.teacher?.id || '',
           date: dateStr,
           time: timeStr,
           status: booking.status,
-          category: '', // Will need to be updated if needed
-          subjectId: ''  // Will need to get this from the lesson data later
+          category: '', // Will be updated if needed with category data
+          subjectId: lessonData?.id || ''
         };
       });
 

@@ -302,13 +302,14 @@ instructions\proposedFileStructure.md (this is changing constantly, BUT IMPORTAN
 
 # IMPORTANT DEVELOPMENT GUIDELINES
 - ALL UI IS IN LATVIAN
+- ALL types is in /lib/types 
 - Test thoroughly file compatibility and ensure all files work together seamlessly
 - Write clean, readable, and well-structured code following DRY principles
 - Follow TypeScript and Next.js best practices and conventions
 - Ensure all TypeScript types are properly defined and errors are resolved
 - Use meaningful variable names and add appropriate comments
 - Implement proper error handling and logging
-- Follow the project's coding style and patterns
+- Follow the projects coding style and patterns
 - Use Clerk for all auth-related functionality
 - Use Supabase only for database and storage
 - Ensure RLS policies work with Clerk JWT

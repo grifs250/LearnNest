@@ -1,7 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { clerkClient } from '@clerk/nextjs/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 

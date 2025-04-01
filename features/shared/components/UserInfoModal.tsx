@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import { UserInfo, UserInfoModalProps } from '@/features/shared/types/user';
+import supabase from '@/lib/supabase/client';
+import { UserInfo, UserInfoModalProps } from '@/lib/types/features.types';
 import { toast } from 'react-hot-toast';
 
 export function UserInfoModal({ userId, isOpen, onClose }: UserInfoModalProps) {

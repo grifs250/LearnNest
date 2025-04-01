@@ -1,44 +1,166 @@
-// Database types based on schema_full.sql
+import type { Json, UserRole, BaseEntity, Metadata, Settings } from '@/lib/types/common.types';
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+// Database schema types
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: Profile;
+        Insert: ProfileInsert;
+        Update: ProfileUpdate;
+      };
+      student_profiles: {
+        Row: StudentProfile;
+        Insert: StudentProfileInsert;
+        Update: StudentProfileUpdate;
+      };
+      teacher_profiles: {
+        Row: TeacherProfile;
+        Insert: TeacherProfileInsert;
+        Update: TeacherProfileUpdate;
+      };
+      categories: {
+        Row: Category;
+        Insert: CategoryInsert;
+        Update: CategoryUpdate;
+      };
+      subjects: {
+        Row: Subject;
+        Insert: SubjectInsert;
+        Update: SubjectUpdate;
+      };
+      lessons: {
+        Row: Lesson;
+        Insert: LessonInsert;
+        Update: LessonUpdate;
+      };
+      lesson_schedules: {
+        Row: LessonSchedule;
+        Insert: LessonScheduleInsert;
+        Update: LessonScheduleUpdate;
+      };
+      bookings: {
+        Row: Booking;
+        Insert: BookingInsert;
+        Update: BookingUpdate;
+      };
+      reviews: {
+        Row: Review;
+        Insert: ReviewInsert;
+        Update: ReviewUpdate;
+      };
+      messages: {
+        Row: Message;
+        Insert: MessageInsert;
+        Update: MessageUpdate;
+      };
+      notifications: {
+        Row: Notification;
+        Insert: NotificationInsert;
+        Update: NotificationUpdate;
+      };
+      payment_intents: {
+        Row: PaymentIntent;
+        Insert: PaymentIntentInsert;
+        Update: PaymentIntentUpdate;
+      };
+      wallets: {
+        Row: Wallet;
+        Insert: WalletInsert;
+        Update: WalletUpdate;
+      };
+      wallet_transactions: {
+        Row: WalletTransaction;
+        Insert: WalletTransactionInsert;
+        Update: WalletTransactionUpdate;
+      };
+      teacher_subjects: {
+        Row: TeacherSubject;
+        Insert: TeacherSubjectInsert;
+        Update: TeacherSubjectUpdate;
+      };
+      teacher_work_hours: {
+        Row: TeacherWorkHours;
+        Insert: TeacherWorkHoursInsert;
+        Update: TeacherWorkHoursUpdate;
+      };
+      audit_log: {
+        Row: AuditLog;
+        Insert: AuditLogInsert;
+        Update: AuditLogUpdate;
+      };
+    };
+    Views: {
+      user_profiles: {
+        Row: UserProfile;
+        Insert: never;
+        Update: never;
+      };
+    };
+    Functions: {
+      get_current_user_id: {
+        Args: Record<PropertyKey, never>;
+        Returns: string;
+      };
+      get_user_role: {
+        Args: Record<PropertyKey, never>;
+        Returns: UserRole;
+      };
+      has_role: {
+        Args: { required_role: UserRole };
+        Returns: boolean;
+      };
+      is_teacher: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
+      get_teacher_availability: {
+        Args: {
+          teacher_id: string;
+          start_date: string;
+          end_date: string;
+        };
+        Returns: {
+          date: string;
+          available_slots: Json;
+        }[];
+      };
+      get_lesson_counts_by_subject: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          subject_id: string;
+          count: number;
+        }[];
+      };
+      get_teacher_lesson_count: {
+        Args: { teacher_profile_id: string };
+        Returns: number;
+      };
+    };
+    Enums: {
+      user_role: UserRole;
+      booking_status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+      payment_status: 'pending' | 'paid' | 'refunded' | 'failed';
+    };
+  }
+}
 
-// Enum types from database schema
-export type UserRole = 'student' | 'teacher' | 'admin';
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
-export type PaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
-export type TransactionType = 'deposit' | 'withdrawal' | 'payment' | 'refund' | 'payout';
-export type TransactionStatus = 'pending' | 'completed' | 'failed';
-
-// Base entity interfaces matching database schema
-
-/**
- * User profile in the system
- */
-export interface Profile {
-  id: string;
+// Profile types
+export interface Profile extends BaseEntity {
   user_id: string;
   email: string;
   full_name: string;
   role: UserRole;
   avatar_url?: string | null;
   bio?: string | null;
-  phone?: string | null;
-  timezone?: string;
-  language?: string;
   is_active: boolean;
-  metadata?: Record<string, any> | null;
-  settings?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
-  // Additional fields
+  created_at: string;
+  updated_at: string;
+  metadata?: Metadata;
+  settings?: Settings;
   hourly_rate?: number | null;
   learning_goals?: string[] | null;
+  phone?: string | null;
   age?: number | null;
   languages?: string[] | null;
   education_documents?: string[] | null;
@@ -49,53 +171,21 @@ export interface Profile {
   stripe_account_id?: string | null;
 }
 
-/**
- * Student-specific profile information
- */
-export interface StudentProfile {
-  id: string;
-  learning_goals?: string[] | null;
-  interests?: string[] | null;
-  preferred_languages?: string[] | null;
-  study_schedule?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
-}
+export type ProfileInsert = Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
+export type ProfileUpdate = Partial<ProfileInsert>;
 
-/**
- * Teacher-specific profile information
- */
-export interface TeacherProfile {
-  id: string;
-  education?: string[] | null;
-  experience?: string[] | null;
-  certificates?: string[] | null;
-  specializations?: string[] | null;
-  hourly_rate: number;
-  rating?: number | null;
-  total_reviews?: number;
-  availability?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-/**
- * Category of subjects
- */
-export interface Category {
-  id: string;
+// Category types
+export interface Category extends BaseEntity {
   name: string;
-  description: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  subjects?: Subject[];
+  description?: string | null;
+  display_order?: number;
 }
 
-/**
- * Subject within a category
- */
-export interface Subject {
-  id: string;
+export type CategoryInsert = Omit<Category, 'id' | 'created_at' | 'updated_at'>;
+export type CategoryUpdate = Partial<CategoryInsert>;
+
+// Subject types
+export interface Subject extends BaseEntity {
   name: string;
   slug: string;
   description?: string | null;
@@ -103,29 +193,14 @@ export interface Subject {
   is_active: boolean;
   parent_id?: string | null;
   category_id?: string | null;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
-  lesson_count?: number; // Count of active lessons for this subject
+  metadata?: Json;
 }
 
-/**
- * Teachers' subjects with experience and rates
- */
-export interface TeacherSubject {
-  teacher_id: string;
-  subject_id: string;
-  experience_years?: number;
-  hourly_rate?: number;
-  is_verified?: boolean;
-  created_at?: string;
-}
+export type SubjectInsert = Omit<Subject, 'id' | 'created_at' | 'updated_at'>;
+export type SubjectUpdate = Partial<SubjectInsert>;
 
-/**
- * Lesson offered by a teacher
- */
-export interface Lesson {
-  id: string;
+// Lesson types
+export interface Lesson extends BaseEntity {
   teacher_id: string;
   subject_id: string;
   title: string;
@@ -134,136 +209,172 @@ export interface Lesson {
   max_students: number;
   price: number;
   is_active: boolean;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
+  metadata?: Json;
 }
 
-/**
- * Scheduled time slots for lessons
- */
-export interface LessonSchedule {
-  id: string;
+export type LessonInsert = Omit<Lesson, 'id' | 'created_at' | 'updated_at'>;
+export type LessonUpdate = Partial<LessonInsert>;
+
+// Lesson schedule types
+export interface LessonSchedule extends BaseEntity {
   lesson_id: string;
   start_time: string;
   end_time: string;
   is_available: boolean;
-  created_at?: string;
-  updated_at?: string;
 }
 
-/**
- * Teacher's weekly work hours
- */
-export interface TeacherWorkHours {
-  id: string;
-  teacher_id: string;
-  day_0?: string | null; // Sunday
-  day_1?: string | null; // Monday
-  day_2?: string | null; // Tuesday
-  day_3?: string | null; // Wednesday
-  day_4?: string | null; // Thursday
-  day_5?: string | null; // Friday
-  day_6?: string | null; // Saturday
-  created_at?: string;
-  updated_at?: string;
-}
+export type LessonScheduleInsert = Omit<LessonSchedule, 'id' | 'created_at' | 'updated_at'>;
+export type LessonScheduleUpdate = Partial<LessonScheduleInsert>;
 
-/**
- * Booking for a lesson schedule
- */
-export interface Booking {
-  id: string;
+// Booking types
+export interface Booking extends BaseEntity {
   student_id: string;
   schedule_id: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  payment_status: 'pending' | 'paid' | 'refunded' | 'failed';
   amount: number;
-  status: BookingStatus;
-  payment_status: PaymentStatus;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
+  metadata?: Json;
 }
 
-/**
- * Review for a booking
- */
-export interface Review {
-  id: string;
+export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at'>;
+export type BookingUpdate = Partial<BookingInsert>;
+
+// Review types
+export interface Review extends BaseEntity {
   booking_id: string;
   student_id: string;
   teacher_id: string;
   rating: number;
-  comment?: string | null;
+  comment: string;
   is_public: boolean;
-  created_at?: string;
-  updated_at?: string;
+  booking?: Booking;
+  student?: Profile;
+  teacher?: Profile;
 }
 
-/**
- * Message between users
- */
-export interface Message {
-  id: string;
+export interface ReviewSummary {
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: Record<number, number>;
+}
+
+export type ReviewInsert = Omit<Review, 'id' | 'created_at' | 'updated_at'>;
+export type ReviewUpdate = Partial<ReviewInsert>;
+
+// Message types
+export interface Message extends BaseEntity {
   booking_id: string;
   sender_id: string;
   content: string;
   is_read: boolean;
-  created_at?: string;
+  sender?: Profile;
+  recipient?: Profile;
 }
 
-/**
- * Notification for a user
- */
-export interface Notification {
-  id: string;
+export type MessageInsert = Omit<Message, keyof BaseEntity>;
+export type MessageUpdate = Partial<MessageInsert>;
+
+// Thread types
+export interface Thread extends BaseEntity {
+  participants: Profile[];
+  messages: Message[];
+  lastMessage?: Message;
+  unreadCount: number;
+}
+
+export type ThreadInsert = Omit<Thread, keyof BaseEntity>;
+export type ThreadUpdate = Partial<ThreadInsert>;
+
+// Thread profile types
+export interface ThreadProfile extends Pick<Profile, 'id' | 'full_name' | 'avatar_url'> {}
+
+// Notification types
+export interface Notification extends BaseEntity {
   user_id: string;
   type: string;
   title: string;
   message: string;
   is_read: boolean;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
+  metadata?: Json;
 }
 
-/**
- * Payment intent
- */
-export interface PaymentIntent {
-  id: string;
+export type NotificationInsert = Omit<Notification, 'id' | 'created_at' | 'updated_at'>;
+export type NotificationUpdate = Partial<NotificationInsert>;
+
+// Payment intent types
+export interface PaymentIntent extends BaseEntity {
   stripe_payment_intent_id: string;
   booking_id?: string | null;
   amount: number;
   currency: string;
   status: string;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
-  updated_at?: string;
+  metadata?: Json;
 }
 
-/**
- * User wallet
- */
-export interface Wallet {
-  id: string;
+export type PaymentIntentInsert = Omit<PaymentIntent, 'id' | 'created_at' | 'updated_at'>;
+export type PaymentIntentUpdate = Partial<PaymentIntentInsert>;
+
+// Wallet types
+export interface Wallet extends BaseEntity {
   profile_id?: string | null;
   balance: number;
   currency: string;
-  created_at?: string;
-  updated_at?: string;
 }
 
-/**
- * Wallet transaction
- */
-export interface WalletTransaction {
-  id: string;
+export type WalletInsert = Omit<Wallet, 'id' | 'created_at' | 'updated_at'>;
+export type WalletUpdate = Partial<WalletInsert>;
+
+// Wallet transaction types
+export interface WalletTransaction extends BaseEntity {
   wallet_id?: string | null;
   amount: number;
-  type: TransactionType;
-  status: TransactionStatus;
-  metadata?: Record<string, any> | null;
-  created_at?: string;
+  type: 'deposit' | 'withdrawal' | 'payment' | 'refund' | 'payout';
+  status: 'pending' | 'completed' | 'failed';
+  metadata?: Json;
 }
+
+export type WalletTransactionInsert = Omit<WalletTransaction, 'id' | 'created_at' | 'updated_at'>;
+export type WalletTransactionUpdate = Partial<WalletTransactionInsert>;
+
+// Teacher subject types
+export interface TeacherSubject extends BaseEntity {
+  teacher_id: string;
+  subject_id: string;
+  experience_years?: number;
+  hourly_rate?: number;
+  is_verified?: boolean;
+}
+
+export type TeacherSubjectInsert = Omit<TeacherSubject, 'id' | 'created_at' | 'updated_at'>;
+export type TeacherSubjectUpdate = Partial<TeacherSubjectInsert>;
+
+// Teacher work hours types
+export interface TeacherWorkHours extends BaseEntity {
+  teacher_id: string;
+  day_0?: string | null;
+  day_1?: string | null;
+  day_2?: string | null;
+  day_3?: string | null;
+  day_4?: string | null;
+  day_5?: string | null;
+  day_6?: string | null;
+}
+
+export type TeacherWorkHoursInsert = Omit<TeacherWorkHours, 'id' | 'created_at' | 'updated_at'>;
+export type TeacherWorkHoursUpdate = Partial<TeacherWorkHoursInsert>;
+
+// Audit log types
+export interface AuditLog extends BaseEntity {
+  table_name: string;
+  record_id: string;
+  action: string;
+  old_data?: Json;
+  new_data?: Json;
+  changed_by: string;
+}
+
+export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>;
+export type AuditLogUpdate = Partial<AuditLogInsert>;
 
 // View types
 export interface UserProfile extends Profile {
@@ -273,15 +384,13 @@ export interface UserProfile extends Profile {
   profile_type: UserRole;
   url_slug: string;
   page_title: string;
-  rating?: number;
-  total_reviews?: number;
 }
 
-// Composite types with related entities
+// Composite types for API responses
 export interface LessonWithSchedule extends Lesson {
   schedules?: LessonSchedule[];
   teacher?: Profile;
-  subject?: Subject & { lesson_count?: number };
+  subject?: Subject;
 }
 
 export interface BookingWithDetails extends Booking {
@@ -293,31 +402,10 @@ export interface BookingWithDetails extends Booking {
 }
 
 export interface TeacherWithSubjects extends Profile {
-  subjects?: (TeacherSubject & { 
-    subject: Subject & { lesson_count?: number } 
-  })[];
+  subjects?: (TeacherSubject & { subject: Subject })[];
   work_hours?: TeacherWorkHours;
 }
 
-export interface LessonWithProfile extends Lesson {
-  profiles?: {
-    id: string;
-    full_name: string;
-    avatar_url?: string | null;
-  };
-  teacher?: {
-    full_name: string;
-    avatar_url?: string | null;
-  };
-  subject?: {
-    name: string;
-    slug: string;
-    category_id: string;
-    lesson_count?: number;
-  };
-}
-
-// Database function return types
 export interface AvailabilityDay {
   date: string;
   available_slots: {
@@ -326,4 +414,26 @@ export interface AvailabilityDay {
     end: string;
     is_available: boolean;
   }[];
-} 
+}
+
+export interface StudentProfile extends BaseEntity {
+  user_id: string;
+  learning_goals?: string[];
+  interests?: string[];
+  age?: number;
+}
+
+export interface TeacherProfile extends BaseEntity {
+  user_id: string;
+  education: string[];
+  experience: string;
+  expertise_areas?: string[];
+  hourly_rate: number;
+  tax_id?: string;
+}
+
+export type StudentProfileInsert = Omit<StudentProfile, 'id' | 'created_at' | 'updated_at'>;
+export type StudentProfileUpdate = Partial<StudentProfileInsert>;
+
+export type TeacherProfileInsert = Omit<TeacherProfile, 'id' | 'created_at' | 'updated_at'>;
+export type TeacherProfileUpdate = Partial<TeacherProfileInsert>; 

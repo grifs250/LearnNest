@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { BookingStatus } from "@/types/database";
+import { BookingStatus } from "@/lib/types";
 import { useStudentLessons } from "../hooks/useStudentLessons";
 import { toast } from "react-hot-toast";
 

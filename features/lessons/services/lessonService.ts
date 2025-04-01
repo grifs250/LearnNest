@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import type { Lesson, LessonWithProfile, Database } from '@/types/database';
+import type { Lesson, LessonWithProfile, Database } from '@/lib/types';
 
 /**
  * Fetches all published lessons

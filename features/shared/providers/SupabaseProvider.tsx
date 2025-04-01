@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 

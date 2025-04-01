@@ -1,5 +1,5 @@
 import { createServerClient } from '@/lib/supabase/server';
-import type { UserProfile } from '@/types/database';
+import type { UserProfile } from '@/lib/types';
 
 /**
  * Fetches a user profile by user ID

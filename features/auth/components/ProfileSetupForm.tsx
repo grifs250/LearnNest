@@ -1,820 +1,410 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUser, useAuth } from '@clerk/nextjs';
-import { createClient } from '@/lib/supabase/client';
-import { UserRole } from '@/lib/types/database.types';
-import { toast } from 'react-hot-toast';
-import { Check, ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-react';
-import { RoleSelectionForm } from './RoleSelectionForm';
+import { useState, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { RoleSelectionForm } from "./RoleSelectionForm";
+import { StudentRoleForm } from "./StudentRoleForm";
+import { TeacherRoleForm } from "./TeacherRoleForm";
+import { useToast } from "@/features/shared/hooks/useToast";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Database } from "@/lib/supabase/database.types";
 
-// Common profile form for both roles - Step 2
-function CommonProfileForm({ onSubmit, isLoading }: { 
-  onSubmit: (data: any) => void; 
-  isLoading: boolean 
-}) {
-  const { user } = useUser();
-  const [fullName, setFullName] = useState(user?.fullName || '');
-  const [bio, setBio] = useState('');
-  const [age, setAge] = useState<number | undefined>();
-  const [phone, setPhone] = useState('');
-  const [languages, setLanguages] = useState<string[]>([]);
-  const [language, setLanguage] = useState('');
-
-  const handleAddLanguage = () => {
-    if (language.trim() && !languages.includes(language.trim())) {
-      setLanguages([...languages, language.trim()]);
-      setLanguage('');
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      full_name: fullName,
-      bio,
-      age,
-      phone,
-      languages
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-2xl font-bold">Pamata informācija</h2>
-      <p className="text-base-content/70 mb-6">Lūdzu, aizpildiet šo informāciju, lai varētu sākt izmantot platformu.</p>
-      
-      {/* Full Name */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Pilns vārds</span>
-        </label>
-        <input
-          type="text"
-          className="input input-bordered w-full"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          placeholder="Vārds Uzvārds"
-          required
-        />
-      </div>
-      
-      {/* Bio */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Par mani</span>
-        </label>
-        <textarea
-          className="textarea textarea-bordered h-24"
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          placeholder="Pastāstiet par sevi"
-        />
-      </div>
-      
-      {/* Age */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Vecums</span>
-        </label>
-        <input
-          type="number"
-          className="input input-bordered w-full"
-          value={age || ''}
-          onChange={(e) => setAge(e.target.value ? Number(e.target.value) : undefined)}
-          placeholder="Jūsu vecums"
-        />
-      </div>
-      
-      {/* Phone */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Telefona numurs</span>
-        </label>
-        <input
-          type="tel"
-          className="input input-bordered w-full"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+371 XXXXXXXX"
-        />
-      </div>
-      
-      {/* Languages */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Valodas, kurās runājat</span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="input input-bordered flex-1"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-            placeholder="Piem., Latviešu"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddLanguage();
-              }
-            }}
-          />
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleAddLanguage}
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {languages.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {languages.map((lang, i) => (
-              <div key={i} className="badge badge-primary badge-lg gap-1 p-3">
-                <span>{lang}</span>
-                <button 
-                  type="button" 
-                  className="btn btn-ghost btn-xs btn-circle" 
-                  onClick={() => setLanguages(languages.filter((_, idx) => idx !== i))}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      <button 
-        type="submit" 
-        className="btn btn-primary w-full mt-8"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="animate-spin mr-2" size={20} />
-            <span>Apstrādā...</span>
-          </>
-        ) : (
-          <>
-            <span>Turpināt</span>
-            <ChevronRight size={18} />
-          </>
-        )}
-      </button>
-    </form>
-  );
-}
-
-// Student-specific form - Step 2 for students
-function StudentRoleForm({ onSubmit, isLoading }: { 
-  onSubmit: (data: any) => void; 
-  isLoading: boolean 
-}) {
-  const [learningGoals, setLearningGoals] = useState<string[]>([]);
-  const [goal, setGoal] = useState('');
-
-  const handleAddGoal = () => {
-    if (goal.trim() && !learningGoals.includes(goal.trim())) {
-      setLearningGoals([...learningGoals, goal.trim()]);
-      setGoal('');
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      learning_goals: learningGoals
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-2xl font-bold">Skolēna profila izveide</h2>
-      <p className="text-base-content/70 mb-6">Pastāstiet mums vairāk par jūsu mācību mērķiem.</p>
-      
-      {/* Learning Goals */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Mācību mērķi</span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="input input-bordered flex-1"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            placeholder="Piem., Uzlabot angļu valodu"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddGoal();
-              }
-            }}
-          />
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleAddGoal}
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {learningGoals.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {learningGoals.map((g, i) => (
-              <div key={i} className="badge badge-accent badge-lg gap-1 p-3">
-                <span>{g}</span>
-                <button 
-                  type="button" 
-                  className="btn btn-ghost btn-xs btn-circle"
-                  onClick={() => setLearningGoals(learningGoals.filter((_, idx) => idx !== i))}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <label className="label mt-2">
-          <span className="label-text-alt">Jūsu mācību mērķi palīdzēs pasniedzējiem labāk saprast jūsu vajadzības.</span>
-        </label>
-      </div>
-      
-      <div className="flex gap-4 mt-8">
-        <button 
-          type="button" 
-          className="btn btn-outline flex-1"
-          onClick={() => onSubmit({ goBack: true })}
-        >
-          <ChevronLeft size={18} />
-          <span>Atpakaļ</span>
-        </button>
-        
-        <button 
-          type="submit" 
-          className="btn btn-accent flex-1"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="animate-spin mr-2" size={20} />
-              <span>Apstrādā...</span>
-            </>
-          ) : (
-            <>
-              <span>Pabeigt reģistrāciju</span>
-              <ChevronRight size={18} />
-            </>
-          )}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// Teacher-specific form - Step 2 for teachers
-function TeacherRoleForm({ onSubmit, isLoading }: { 
-  onSubmit: (data: any) => void; 
-  isLoading: boolean 
-}) {
-  const [hourlyRate, setHourlyRate] = useState<number | undefined>();
-  const [education, setEducation] = useState<string[]>([]);
-  const [educationItem, setEducationItem] = useState('');
-  const [experience, setExperience] = useState<string[]>([]);
-  const [experienceItem, setExperienceItem] = useState('');
-  const [specializations, setSpecializations] = useState<string[]>([]);
-  const [specializationItem, setSpecializationItem] = useState('');
-
-  const handleAddEducation = () => {
-    if (educationItem.trim() && !education.includes(educationItem.trim())) {
-      setEducation([...education, educationItem.trim()]);
-      setEducationItem('');
-    }
-  };
-
-  const handleAddExperience = () => {
-    if (experienceItem.trim() && !experience.includes(experienceItem.trim())) {
-      setExperience([...experience, experienceItem.trim()]);
-      setExperienceItem('');
-    }
-  };
-
-  const handleAddSpecialization = () => {
-    if (specializationItem.trim() && !specializations.includes(specializationItem.trim())) {
-      setSpecializations([...specializations, specializationItem.trim()]);
-      setSpecializationItem('');
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      hourly_rate: hourlyRate,
-      education,
-      experience,
-      specializations
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-2xl font-bold">Pasniedzēja profila izveide</h2>
-      <p className="text-base-content/70 mb-6">Pastāstiet mums vairāk par jūsu profesionālo pieredzi.</p>
-      
-      {/* Hourly Rate */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Stundas likme (€)</span>
-        </label>
-        <input
-          type="number"
-          step="0.01"
-          className="input input-bordered w-full"
-          value={hourlyRate || ''}
-          onChange={(e) => setHourlyRate(e.target.value ? Number(e.target.value) : undefined)}
-          placeholder="15.00"
-          required
-        />
-        <label className="label">
-          <span className="label-text-alt">Cik jūs ņemat par vienu mācību stundu (60 min).</span>
-        </label>
-      </div>
-      
-      {/* Education */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Izglītība</span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="input input-bordered flex-1"
-            value={educationItem}
-            onChange={(e) => setEducationItem(e.target.value)}
-            placeholder="Piem., Bakalaura grāds matemātikā"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddEducation();
-              }
-            }}
-          />
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleAddEducation}
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {education.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {education.map((edu, i) => (
-              <div key={i} className="badge badge-secondary badge-lg gap-1 p-3">
-                <span>{edu}</span>
-                <button 
-                  type="button" 
-                  className="btn btn-ghost btn-xs btn-circle" 
-                  onClick={() => setEducation(education.filter((_, idx) => idx !== i))}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      {/* Experience */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Pieredze</span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="input input-bordered flex-1"
-            value={experienceItem}
-            onChange={(e) => setExperienceItem(e.target.value)}
-            placeholder="Piem., 5 gadi skolā kā matemātikas skolotājs"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddExperience();
-              }
-            }}
-          />
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleAddExperience}
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {experience.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {experience.map((exp, i) => (
-              <div key={i} className="badge badge-secondary badge-lg gap-1 p-3">
-                <span>{exp}</span>
-                <button 
-                  type="button" 
-                  className="btn btn-ghost btn-xs btn-circle" 
-                  onClick={() => setExperience(experience.filter((_, idx) => idx !== i))}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      {/* Specializations */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Specializācijas</span>
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            className="input input-bordered flex-1"
-            value={specializationItem}
-            onChange={(e) => setSpecializationItem(e.target.value)}
-            placeholder="Piem., Algebriskās vienādojumu sistēmas"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddSpecialization();
-              }
-            }}
-          />
-          <button 
-            type="button" 
-            className="btn btn-primary" 
-            onClick={handleAddSpecialization}
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {specializations.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {specializations.map((spec, i) => (
-              <div key={i} className="badge badge-secondary badge-lg gap-1 p-3">
-                <span>{spec}</span>
-                <button 
-                  type="button" 
-                  className="btn btn-ghost btn-xs btn-circle" 
-                  onClick={() => setSpecializations(specializations.filter((_, idx) => idx !== i))}
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      <div className="flex gap-4 mt-8">
-        <button 
-          type="button" 
-          className="btn btn-outline flex-1"
-          onClick={() => onSubmit({ goBack: true })}
-        >
-          <ChevronLeft size={18} />
-          <span>Atpakaļ</span>
-        </button>
-        
-        <button 
-          type="submit" 
-          className="btn btn-secondary flex-1"
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="animate-spin mr-2" size={20} />
-              <span>Apstrādā...</span>
-            </>
-          ) : (
-            <>
-              <span>Pabeigt reģistrāciju</span>
-              <ChevronRight size={18} />
-            </>
-          )}
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// Progress steps for setup flow
-function SetupSteps({ currentStep, totalSteps, role }: { 
-  currentStep: number; 
-  totalSteps: number;
-  role: UserRole | null;
-}) {
-  return (
-    <ul className="steps w-full mb-8">
-      {Array.from({ length: totalSteps }).map((_, index) => (
-        <li 
-          key={index} 
-          className={`step ${index + 1 <= currentStep ? (index + 1 === currentStep ? 'step-primary' : 'step-success') : ''}`}
-        >
-          {index + 1 === 1 && 'Loma'}
-          {index + 1 === 2 && 'Pamata informācija'}
-          {index + 1 === 3 && (role === 'teacher' ? 'Pasniedzēja info' : 'Skolēna info')}
-          {index + 1 === 4 && 'Pabeigts'}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/**
- * Main profile setup form component
- * Handles both teacher and student profile setup with a multi-step approach
- */
 export function ProfileSetupForm() {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { userId } = useAuth();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [role, setRole] = useState<UserRole | null>(null);
-  const [step, setStep] = useState(1); // Start with role selection
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [profileData, setProfileData] = useState<any>({});
+  const { showToast } = useToast();
+  const supabase = createClientComponentClient<Database>();
   
+  // State management
+  const [step, setStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [role, setRole] = useState<'student' | 'teacher' | null>(null);
+  const [formData, setFormData] = useState({
+    full_name: "",
+    bio: "",
+    age: null as number | null,
+    phone: "",
+    languages: [] as string[],
+    learning_goals: [] as string[],
+    hourly_rate: null as number | null,
+    education: [] as string[],
+    experience: [] as string[],
+    specializations: [] as string[]
+  });
+
+  // Load initial role from Clerk metadata
   useEffect(() => {
-    if (!userLoaded) return;
-
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    // Check if user already has a role selected from Clerk metadata
-    // Even if they have a role, we'll still show the role selection step
-    // to give them a chance to change it
-    const userRole = user.unsafeMetadata?.role as UserRole;
-    if (userRole) {
-      // Pre-select the role but stay on step 1
-      setRole(userRole);
-    }
-    
-    setLoading(false);
-  }, [user, userLoaded, router]);
-
-  // Handle role selection (step 1)
-  const handleRoleSelection = async (selectedRole: UserRole) => {
-    setSubmitting(true);
-    
-    try {
-      // Store role in state and localStorage for backup
-      setRole(selectedRole);
-      localStorage.setItem('userRole', selectedRole);
-      
-      // Update Clerk metadata
-      if (user) {
-        await user.update({
-          unsafeMetadata: {
-            ...user.unsafeMetadata,
-            role: selectedRole
-          }
-        });
+    if (isLoaded && user) {
+      const userRole = user.unsafeMetadata?.role as 'student' | 'teacher' | null;
+      if (userRole) {
+        setRole(userRole);
       }
+    }
+  }, [isLoaded, user]);
+
+  // Handle role selection
+  const handleRoleSelect = async (selectedRole: 'student' | 'teacher') => {
+    try {
+      setIsLoading(true);
+      
+      // Update Clerk user metadata
+      await user?.update({
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          role: selectedRole
+        }
+      });
+      
+      // Update local state
+      setRole(selectedRole);
+      
+      // Update Supabase profile
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: selectedRole })
+        .eq('user_id', user?.id);
+        
+      if (error) throw error;
       
       // Move to next step
-      setStep(2);
+    setStep(2);
+      
+      showToast({
+        type: "success",
+        title: "Loma izvēlēta",
+        description: "Lūdzu, aizpildiet savu profilu"
+      });
     } catch (error) {
-      console.error('Role selection error:', error);
-      toast.error('Kļūda lomas saglabāšanā');
+      console.error("Error selecting role:", error);
+      showToast({
+        type: "error",
+        title: "Kļūda",
+        description: "Neizdevās saglabāt lomas izvēli"
+      });
     } finally {
-      setSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  // Handle step 2 (common info) submission
-  const handleCommonInfoSubmit = async (data: any) => {
-    setProfileData({ ...profileData, ...data });
-    setStep(3);
-  };
-
-  // Handle step 3 (role-specific info) submission
-  const handleRoleInfoSubmit = async (data: any) => {
-    // Check if user wants to go back
-    if (data.goBack) {
-      setStep(2);
-      return;
-    }
-    
-    // Combine all profile data
-    const completeProfileData = { ...profileData, ...data };
-    
-    // Submit the complete profile
-    await saveProfileToDatabase(completeProfileData);
-  };
-
-  // Final submission handler
-  const saveProfileToDatabase = async (data: any) => {
-    if (!user || !role || !userId) return;
-    
-    setSubmitting(true);
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
     
     try {
-      const supabase = createClient();
+      setIsLoading(true);
       
-      // Generate a URL slug from the full name
-      const fullName = data.full_name || user.fullName || 'User';
-      const urlSlug = fullName
+      // Generate URL slug from name
+      const slug = formData.full_name
         .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w\-]+/g, '')
-        .replace(/\-\-+/g, '-')
-        .trim();
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
       
-      console.log("User ID:", userId);
-      console.log("Role:", role);
-      console.log("Profile data:", data);
-      
-      // Build the profile payload
+      // Build profile payload
       const profilePayload = {
-        user_id: userId,
+        user_id: user.id,
         email: user.primaryEmailAddress?.emailAddress || '',
-        full_name: data.full_name || user.fullName || 'User',
-        role,
-        bio: data.bio || null,
-        phone: data.phone || null,
+        full_name: formData.full_name,
+        role: role || 'student',
+        bio: formData.bio,
+        phone: formData.phone,
         is_active: true,
-        hourly_rate: role === 'teacher' ? data.hourly_rate : null,
-        learning_goals: role === 'student' ? data.learning_goals : null,
-        age: data.age || null,
-        languages: data.languages || null,
+        hourly_rate: formData.hourly_rate,
+        learning_goals: formData.learning_goals,
+        age: formData.age,
+        languages: formData.languages,
         metadata: {
-          profile_slug: urlSlug,
-          education: role === 'teacher' ? data.education : null,
-          experience: role === 'teacher' ? data.experience : null,
-          specializations: role === 'teacher' ? data.specializations : null,
+          profile_slug: slug,
+          education: formData.education,
+          experience: formData.experience,
+          specializations: formData.specializations,
           profile_completed: true,
           profile_needs_setup: false,
           profile_completion_date: new Date().toISOString()
         }
       };
 
-      // First check if user already has a profile
-      const { data: existingProfile, error: fetchError } = await supabase
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id, metadata')
-        .eq('user_id', userId)
+        .eq('user_id', user.id)
         .single();
 
-      console.log("Fetch result:", existingProfile, fetchError);
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw new Error(`Kļūda profila meklēšanā: ${fetchError.message}`);
-      }
-
-      // If profile exists, update it while preserving existing metadata
       if (existingProfile) {
-        // Merge existing metadata with new metadata
-        const mergedMetadata = {
-          ...(existingProfile.metadata || {}),
-          ...profilePayload.metadata
-        };
-
-        const { error: updateError } = await supabase
+        // Update existing profile while preserving metadata
+        const { error } = await supabase
           .from('profiles')
           .update({
             ...profilePayload,
-            metadata: mergedMetadata,
-            updated_at: new Date().toISOString()
+            metadata: {
+              ...existingProfile.metadata,
+              ...profilePayload.metadata
+            }
           })
-          .eq('id', existingProfile.id);
+          .eq('user_id', user.id);
 
-        if (updateError) {
-          throw new Error(`Kļūda profila atjaunināšanā: ${updateError.message}`);
-        }
+        if (error) throw error;
       } else {
-        // Create a new profile
-        const { error: insertError } = await supabase
+        // Create new profile
+        const { error } = await supabase
           .from('profiles')
-          .insert({
-            ...profilePayload,
-            created_at: new Date().toISOString()
-          });
+          .insert([profilePayload]);
 
-        if (insertError) {
-          throw new Error(`Kļūda profila izveidē: ${insertError.message}`);
-        }
+        if (error) throw error;
       }
 
       // Update Clerk user metadata
       await user.update({
         unsafeMetadata: {
           ...user.unsafeMetadata,
-          role,
+          role: role,
           profile_completed: true,
           profile_needs_setup: false
         }
       });
-
-      toast.success('Profils veiksmīgi izveidots!');
-      setStep(4); // Show success state
       
-      // Redirect after a short delay
-      setTimeout(() => {
+      showToast({
+        type: "success",
+        title: "Profils saglabāts",
+        description: "Jūsu profils ir veiksmīgi saglabāts"
+      });
+      
+      // Redirect based on role
         if (role === 'teacher') {
-          router.push('/teacher');
+        router.push("/teacher");
         } else {
-          router.push('/student');
+        router.push("/student");
         }
-      }, 2000);
     } catch (error) {
-      console.error('Profile setup error:', error);
-      toast.error((error as Error).message || 'Kļūda profila saglabāšanā');
+      console.error("Error saving profile:", error);
+      showToast({
+        type: "error",
+        title: "Kļūda",
+        description: "Neizdevās saglabāt profilu"
+      });
     } finally {
-      setSubmitting(false);
+      setIsLoading(false);
     }
   };
 
-  // Loading state
-  if (loading) {
+  // Render loading state
+  if (!isLoaded) {
     return (
-      <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-lg">
-        <div className="card-body items-center p-8">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-base-200 p-4">
+        <div className="max-w-md w-full mx-auto text-center">
           <div className="loading loading-spinner loading-lg mb-4"></div>
-          <p className="text-lg">Ielādē profila informāciju...</p>
+          <h2 className="text-xl font-bold">Ielādē profila informāciju</h2>
+          <p className="text-base-content/70 mt-2">Lūdzu, uzgaidiet...</p>
         </div>
       </div>
     );
   }
 
-  // Success state (step 4)
-  if (step === 4) {
+  // Render form based on step
     return (
-      <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-lg">
-        <div className="card-body p-8">
-          <SetupSteps currentStep={4} totalSteps={4} role={role} />
-          
-          <div className="text-center py-8">
-            <div className="flex justify-center mb-6">
-              <div className="rounded-full bg-success/20 p-4">
-                <Check className="w-16 h-16 text-success" />
+    <div className="min-h-screen bg-base-200 py-10">
+      <div className="container mx-auto px-4">
+        <div className="max-w-2xl mx-auto bg-base-100 rounded-lg shadow-lg p-6">
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-center mb-2">Profila iestatīšana</h1>
+            <p className="text-center text-base-content/70">
+              {step === 1 && "Izvēlieties savu lomu platformā"}
+              {step === 2 && "Aizpildiet pamatinformāciju"}
+              {step === 3 && role === 'student' && "Nosakiet savus mācīšanās mērķus"}
+              {step === 3 && role === 'teacher' && "Pievienojiet savu izglītību un pieredzi"}
+              {step === 4 && "Pārskatiet un apstipriniet informāciju"}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Step 1: Role Selection */}
+            <div className={`${step === 1 ? 'block' : 'hidden'}`}>
+              <RoleSelectionForm 
+                onSelect={handleRoleSelect} 
+                isLoading={isLoading}
+                initialRole={role}
+              />
+            </div>
+
+            {/* Step 2: Basic Information */}
+            <div className={`${step === 2 ? 'block' : 'hidden'}`}>
+              <div className="space-y-4">
+                <div>
+                  <label className="label">
+                    <span className="label-text">Vārds, uzvārds</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="label">
+                    <span className="label-text">Biogrāfija</span>
+                  </label>
+                  <textarea
+                    className="textarea textarea-bordered w-full"
+                    value={formData.bio}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    rows={4}
+                  />
+                </div>
+
+                <div>
+                  <label className="label">
+                    <span className="label-text">Vecums</span>
+                  </label>
+                  <input
+                    type="number"
+                    className="input input-bordered w-full"
+                    value={formData.age || ''}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value ? parseInt(e.target.value) : null })}
+                  />
+                </div>
+
+                <div>
+                  <label className="label">
+                    <span className="label-text">Tālrunis</span>
+                  </label>
+                  <input
+                    type="tel"
+                    className="input input-bordered w-full"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="label">
+                    <span className="label-text">Valodas</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    value={formData.languages.join(', ')}
+                    onChange={(e) => setFormData({ ...formData, languages: e.target.value.split(',').map(lang => lang.trim()) })}
+                    placeholder="Latviešu, Angļu, Krievu"
+                  />
+                </div>
+
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setStep(1)}
+                  >
+                    Atpakaļ
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setStep(3)}
+                  >
+                    Tālāk
+                  </button>
+                </div>
               </div>
             </div>
-            <h2 className="text-2xl font-bold mb-4">Profils veiksmīgi izveidots!</h2>
-            <p className="text-base-content/70 mb-6">
-              Paldies par reģistrāciju platformā MāciesTe! Jūs tiekat novirzīts uz {role === 'teacher' ? 'pasniedzēja' : 'skolēna'} paneli.
-            </p>
-            <div className="loading loading-dots loading-md mx-auto"></div>
+
+            {/* Step 3: Role-Specific Information */}
+            <div className={`${step === 3 ? 'block' : 'hidden'}`}>
+              {role === 'student' ? (
+                <StudentRoleForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onBack={() => setStep(2)}
+                  onNext={() => setStep(4)}
+                />
+              ) : (
+                <TeacherRoleForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  onBack={() => setStep(2)}
+                  onNext={() => setStep(4)}
+                />
+              )}
+            </div>
+
+            {/* Step 4: Review */}
+            <div className={`${step === 4 ? 'block' : 'hidden'}`}>
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Pārskats</h3>
+                
+                <div className="space-y-2">
+                  <p><strong>Loma:</strong> {role === 'student' ? 'Skolēns' : 'Skolotājs'}</p>
+                  <p><strong>Vārds, uzvārds:</strong> {formData.full_name}</p>
+                  <p><strong>Biogrāfija:</strong> {formData.bio}</p>
+                  <p><strong>Vecums:</strong> {formData.age}</p>
+                  <p><strong>Tālrunis:</strong> {formData.phone}</p>
+                  <p><strong>Valodas:</strong> {formData.languages.join(', ')}</p>
+                  
+                  {role === 'student' ? (
+                    <>
+                      <p><strong>Mācīšanās mērķi:</strong></p>
+                      <ul className="list-disc list-inside">
+                        {formData.learning_goals.map((goal, index) => (
+                          <li key={index}>{goal}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Stundas maksa:</strong> €{formData.hourly_rate}/h</p>
+                      <p><strong>Izglītība:</strong></p>
+                      <ul className="list-disc list-inside">
+                        {formData.education.map((edu, index) => (
+                          <li key={index}>{edu}</li>
+                        ))}
+                      </ul>
+                      <p><strong>Pieredze:</strong></p>
+                      <ul className="list-disc list-inside">
+                        {formData.experience.map((exp, index) => (
+                          <li key={index}>{exp}</li>
+                        ))}
+                      </ul>
+                      <p><strong>Specializācijas:</strong></p>
+                      <ul className="list-disc list-inside">
+                        {formData.specializations.map((spec, index) => (
+                          <li key={index}>{spec}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex justify-between">
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setStep(3)}
+                  >
+                    Atpakaļ
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm mr-2"></span>
+                        Saglabā...
+                      </>
+                    ) : (
+                      'Saglabāt profilu'
+                    )}
+                  </button>
           </div>
         </div>
       </div>
-    );
-  }
-
-  // Step 1: Role selection
-  if (step === 1) {
-    return (
-      <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-lg">
-        <div className="card-body p-8">
-          <SetupSteps currentStep={1} totalSteps={4} role={role} />
-          
-          <RoleSelectionForm 
-            onSubmit={handleRoleSelection} 
-            isLoading={submitting} 
-            initialRole={role}
-          />
+          </form>
         </div>
-      </div>
-    );
-  }
-
-  // Step 2: Basic common information
-  if (step === 2) {
-    return (
-      <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-lg">
-        <div className="card-body p-8">
-          <SetupSteps currentStep={2} totalSteps={4} role={role} />
-          
-          <CommonProfileForm onSubmit={handleCommonInfoSubmit} isLoading={submitting} />
-        </div>
-      </div>
-    );
-  }
-
-  // Step 3: Role-specific information
-  return (
-    <div className="card w-full max-w-2xl mx-auto bg-base-100 shadow-lg">
-      <div className="card-body p-8">
-        <SetupSteps currentStep={3} totalSteps={4} role={role} />
-        
-        {role === 'teacher' ? (
-          <TeacherRoleForm onSubmit={handleRoleInfoSubmit} isLoading={submitting} />
-        ) : (
-          <StudentRoleForm onSubmit={handleRoleInfoSubmit} isLoading={submitting} />
-        )}
       </div>
     </div>
   );

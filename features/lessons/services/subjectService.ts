@@ -1,7 +1,7 @@
 'use server';
 
 import { createServerClient } from '@/lib/supabase/server';
-import type { Subject, CategoryWithSubjects } from '@/types/database';
+import type { Subject, CategoryWithSubjects } from '@/lib/types';
 import { createClient } from '@supabase/supabase-js';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 

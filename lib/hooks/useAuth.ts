@@ -4,7 +4,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
 import { Session } from '@supabase/supabase-js'
 import { useSupabase } from '@/lib/hooks/useSupabase'
-import { UserRole } from '@/features/auth/types/types'
+import { UserRole } from '@/lib/types/common.types'
 
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(true)

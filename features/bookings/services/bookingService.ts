@@ -1,25 +1,9 @@
 import { createClerkSupabaseClient } from '@/lib/supabase/server';
-import type { Database } from '@/types/supabase.types';
+import type { Database, Vacancy } from '@/lib/types';
 
 type LessonSchedule = Database['public']['Tables']['lesson_schedules']['Row'];
 type Lesson = Database['public']['Tables']['lessons']['Row'];
 type Booking = Database['public']['Tables']['bookings']['Row'];
-
-export interface Vacancy {
-  id: string;
-  start_time: string;
-  end_time: string;
-  is_available: boolean;
-  lesson: {
-    id: string;
-    title: string;
-    description: string | null;
-    price: number;
-    duration: number;
-  };
-  created_at: string | null;
-  updated_at: string | null;
-}
 
 export async function getVacancies(): Promise<Vacancy[]> {
   const supabase = await createClerkSupabaseClient();
@@ -43,6 +27,7 @@ export async function getVacancies(): Promise<Vacancy[]> {
 
   return (data as (LessonSchedule & { lesson: Lesson })[]).map(schedule => ({
     id: schedule.id,
+    lesson_id: schedule.lesson_id,
     start_time: schedule.start_time,
     end_time: schedule.end_time,
     is_available: schedule.is_available ?? true,

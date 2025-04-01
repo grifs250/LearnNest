@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { dbService } from '@/lib/supabase/db';
 import CategoryDetail from './client';
 import { notFound } from 'next/navigation';
-import { Category, Subject } from '@/types/database';
+import { Category, Subject } from '@/lib/types';
 
 export const revalidate = 3600; // Revalidate this page every hour
 

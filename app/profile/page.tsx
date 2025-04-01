@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth';
 import { initializeUserProfile } from '@/lib/utils/profile';
 import { toast } from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
-import type { UserProfile } from '@/types/database';
+import type { UserProfile } from '@/lib/types';
 import type { SupabaseError } from '@/lib/types/supabase';
 import { StudentBookings, TeacherBookings } from '@/features/bookings/components';
 import { formatClerkId } from '@/lib/utils/user';

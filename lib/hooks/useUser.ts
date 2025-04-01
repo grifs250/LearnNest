@@ -1,7 +1,7 @@
 import { useUser as useClerkUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import type { Profile } from '@/types/supabase.types';
+import type { Profile } from '@/lib/types';
 
 export function useUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useClerkUser();

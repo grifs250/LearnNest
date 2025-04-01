@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
 
 type Lesson = Database['public']['Tables']['lessons']['Row'];

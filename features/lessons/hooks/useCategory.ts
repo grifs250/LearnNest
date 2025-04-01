@@ -2,15 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
-import { Category, Subject } from '@/types/database';
+import { Category, Subject, CategoryWithSubjects } from '@/lib/types';
 import { toast } from 'react-hot-toast';
 import dbService from '@/lib/supabase/db';
 
 // Define a more specific interface for API response
-export interface CategoryWithSubjects extends Category {
-  subjects: Subject[];
-}
-
 interface UseCategoryResult {
   data: CategoryWithSubjects | null;
   isLoading: boolean;

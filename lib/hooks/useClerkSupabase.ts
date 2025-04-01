@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useAuth } from '@clerk/nextjs';
-import type { Database } from '@/types/supabase';
+import type { Database } from '@/lib/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export function useClerkSupabase() {

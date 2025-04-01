@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase from '@/lib/supabase/client';
-import { Subject } from '@/types/database';
+import { Subject } from '@/lib/types';
 // Check if the admin file exists and import it correctly
 // import { adminFunction } from '@/lib/firebase/admin'; // Uncomment and correct if needed
 

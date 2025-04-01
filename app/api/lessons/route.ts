@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { Lesson, LessonSchedule, UserProfile } from '@/types/database';
+import { Lesson, LessonSchedule, UserProfile } from '@/lib/types';
 import dbService from '@/lib/supabase/db';
 
 export async function GET(request: NextRequest) {

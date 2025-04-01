@@ -4,7 +4,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import type { Database } from '@/types/database';
+import type { Database } from '@/lib/types';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -47,6 +47,53 @@ export async function createAdminClient() {
 }
 
 /**
+ * Create a Supabase admin client
+ */
+export async function createSupabaseAdmin() {
+  return createAdminClient();
+}
+
+/**
+ * Admin query function
+ */
+export async function adminQuery<T extends keyof Database['public']['Tables']>(table?: T) {
+  const admin = await createAdminClient();
+  return table ? admin.from(table) : admin.from;
+}
+
+/**
+ * Admin storage function with proper return types
+ */
+export async function adminStorage(bucket?: string): Promise<{
+  upload: (path: string, data: any) => Promise<any>;
+  download: (path: string) => Promise<any>;
+} | import('@supabase/supabase-js').SupabaseClient<Database>['storage']> {
+  const admin = await createAdminClient();
+  
+  if (bucket) {
+    return {
+      upload: async (path: string, data: any) => {
+        return admin.storage.from(bucket).upload(path, data);
+      },
+      download: async (path: string) => {
+        return admin.storage.from(bucket).download(path);
+      }
+    };
+  }
+  
+  return admin.storage;
+}
+
+/**
+ * Get public URL for a storage file
+ */
+export async function getPublicUrl(bucket: string, path: string): Promise<string> {
+  const admin = await createAdminClient();
+  const { data } = admin.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/**
  * Create a client with a Clerk JWT token
  */
 export async function createClientWithToken(token: string) {
@@ -61,6 +108,17 @@ export async function createClientWithToken(token: string) {
       },
     }
   );
+}
+
+/**
+ * Create a Supabase client for server components with Clerk auth
+ * This is used for APIs and server actions that need to use Clerk auth
+ */
+export async function createClerkSupabaseClient() {
+  // For server components, we use the admin client
+  // In a real app, you would get the Clerk JWT and use it with Supabase
+  // For simplicity, we're using the admin client here
+  return createAdminClient();
 }
 
 /**

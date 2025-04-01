@@ -2,7 +2,7 @@
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { Database } from '@/lib/types';
 
 // Get environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

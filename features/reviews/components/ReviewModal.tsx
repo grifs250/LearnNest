@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
 import { useUser } from '@clerk/nextjs';
 import { toast } from 'react-hot-toast';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 
 type Review = Database['public']['Tables']['reviews']['Row'];
 

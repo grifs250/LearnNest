@@ -1,35 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserRole } from '@/lib/types/database.types';
 import { ChevronRight, Loader2, GraduationCap, Book, Check } from 'lucide-react';
 
 /**
  * Role selection form - First step in onboarding
  * Allows users to choose between student and teacher roles
  */
-export function RoleSelectionForm({ 
-  onSubmit, 
-  isLoading,
-  initialRole = null
-}: { 
-  onSubmit: (role: UserRole) => void; 
+interface RoleSelectionFormProps {
+  onSelect: (role: 'student' | 'teacher') => void;
   isLoading: boolean;
-  initialRole?: UserRole | null;
-}) {
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(initialRole);
+  initialRole: 'student' | 'teacher' | null;
+}
 
-  // Update selected role if initialRole changes
+export function RoleSelectionForm({ onSelect, isLoading, initialRole }: RoleSelectionFormProps) {
+  const [selectedRole, setSelectedRole] = useState<'student' | 'teacher' | null>(initialRole);
+
   useEffect(() => {
-    if (initialRole) {
-      setSelectedRole(initialRole);
-    }
+    setSelectedRole(initialRole);
   }, [initialRole]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedRole) {
-      onSubmit(selectedRole);
+      onSelect(selectedRole);
     }
   };
 
@@ -49,69 +43,82 @@ export function RoleSelectionForm({
         Lai labāk pielāgotu platformu jūsu vajadzībām, lūdzu norādiet, kā plānojat izmantot MāciesTe.
       </p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-        {/* Student Role Option */}
-        <div 
-          className={`
-            cursor-pointer border rounded-lg p-6 text-center 
-            transition-all duration-200 hover:shadow-md
-            ${selectedRole === 'student' 
-              ? 'border-primary bg-primary/10 ring-2 ring-primary' 
-              : 'border-base-300 hover:border-primary/50'}
-          `}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Student Role Card */}
+        <div
+          className={`card bg-base-100 shadow-xl cursor-pointer transition-all ${
+            selectedRole === 'student' ? 'ring-2 ring-primary' : ''
+          }`}
           onClick={() => setSelectedRole('student')}
         >
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-primary/20 p-3">
-              <Book className="w-10 h-10 text-primary" />
+          <div className="card-body">
+            <h2 className="card-title">Skolēns</h2>
+            <p className="text-base-content/70">
+              Esmu skolēns un vēlos atrast pasniedzējus privātmācībām
+            </p>
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Atrodi piemērotus pasniedzējus</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Plāno mācību laiku</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Seko savam progresam</span>
+              </div>
             </div>
           </div>
-          <h3 className="text-xl font-semibold mb-2">Skolēns</h3>
-          <p className="text-base-content/70">
-            Es vēlos atrast pasniedzējus un pierakstīties uz nodarbībām
-          </p>
         </div>
-        
-        {/* Teacher Role Option */}
-        <div 
-          className={`
-            cursor-pointer border rounded-lg p-6 text-center 
-            transition-all duration-200 hover:shadow-md
-            ${selectedRole === 'teacher' 
-              ? 'border-secondary bg-secondary/10 ring-2 ring-secondary' 
-              : 'border-base-300 hover:border-secondary/50'}
-          `}
+
+        {/* Teacher Role Card */}
+        <div
+          className={`card bg-base-100 shadow-xl cursor-pointer transition-all ${
+            selectedRole === 'teacher' ? 'ring-2 ring-primary' : ''
+          }`}
           onClick={() => setSelectedRole('teacher')}
         >
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-secondary/20 p-3">
-              <GraduationCap className="w-10 h-10 text-secondary" />
+          <div className="card-body">
+            <h2 className="card-title">Pasniedzējs</h2>
+            <p className="text-base-content/70">
+              Esmu pasniedzējs un vēlos piedāvāt privātmācības
+            </p>
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Piedāvā savas pakalpojumus</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Pārvaldi mācību grafiku</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-success">✓</span>
+                <span>Seko studentu progresam</span>
+              </div>
             </div>
           </div>
-          <h3 className="text-xl font-semibold mb-2">Pasniedzējs</h3>
-          <p className="text-base-content/70">
-            Es vēlos piedāvāt savas zināšanas un rīkot nodarbības
-          </p>
         </div>
       </div>
       
-      <button 
-        type="submit" 
-        className="btn btn-primary w-full mt-8"
-        disabled={isLoading || !selectedRole}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="animate-spin mr-2" size={20} />
-            <span>Apstrādā...</span>
-          </>
-        ) : (
-          <>
-            <span>Turpināt</span>
-            <ChevronRight size={18} />
-          </>
-        )}
-      </button>
+      <div className="flex justify-end">
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={!selectedRole || isLoading}
+        >
+          {isLoading ? (
+            <>
+              <span className="loading loading-spinner loading-sm mr-2"></span>
+              Saglabā...
+            </>
+          ) : (
+            'Turpināt'
+          )}
+        </button>
+      </div>
     </form>
   );
 } 

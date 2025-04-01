@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Notification } from '@/types/supabase';
+import { Notification } from '@/lib/types';
 
 // Get user's notifications
 export const getUserNotifications = async (userId: string) => {

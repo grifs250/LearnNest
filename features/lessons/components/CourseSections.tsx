@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Subject } from '@/types/database';
+import { Subject } from '@/lib/types';
 import { dbService } from '@/lib/supabase/db';
-import { Lesson, LessonWithProfile } from '@/types/database';
+import { Lesson, LessonWithProfile } from '@/lib/types';
 
 interface CourseSectionsProps {
   subject?: Subject | null;

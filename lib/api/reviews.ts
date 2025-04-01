@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Review } from '@/types/supabase';
+import { Review } from '@/lib/types';
 
 // Get review by ID
 export const getReviewById = async (reviewId: string) => {

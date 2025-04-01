@@ -1,6 +1,6 @@
 'use client';
 
-import { Subject } from '@/types/database';
+import { Subject } from '@/lib/types';
 import Link from 'next/link';
 import { useState } from 'react';
 

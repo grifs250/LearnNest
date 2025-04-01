@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { UserProfile } from "@/types/database";
+import { UserProfile } from "@/lib/types";
 
 export interface TeacherProfileProps {
   teacher: UserProfile;

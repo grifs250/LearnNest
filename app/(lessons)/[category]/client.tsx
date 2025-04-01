@@ -1,6 +1,6 @@
 'use client';
 
-import { Category, Subject } from '@/types/database';
+import { Category, Subject } from '@/lib/types';
 import Link from 'next/link';
 
 interface CategoryDetailProps {

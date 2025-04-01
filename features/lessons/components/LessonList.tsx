@@ -3,7 +3,7 @@
 import { supabase } from '@/lib/supabase/client';
 import { useUser } from '@/lib/hooks/useUser';
 import { useEffect, useState } from 'react';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 
 type Lesson = Database['public']['Tables']['lessons']['Row'];
 

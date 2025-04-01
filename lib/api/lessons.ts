@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Lesson, LessonSchedule } from '@/types/supabase';
+import { Lesson, LessonSchedule } from '@/lib/types';
 
 // Get all lessons
 export const getAllLessons = async () => {

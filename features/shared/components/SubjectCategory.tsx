@@ -1,6 +1,6 @@
 'use client';
 
-import { Category, Subject as BaseSubject } from '@/types/database';
+import { Category, Subject as BaseSubject } from '@/lib/types';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 

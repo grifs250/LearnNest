@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import { Subject, TeacherSubject } from '@/types/supabase';
+import { Subject, TeacherSubject } from '@/lib/types';
 
 // Get all subjects
 export const getAllSubjects = async () => {

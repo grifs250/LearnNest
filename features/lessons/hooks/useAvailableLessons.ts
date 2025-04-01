@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useClerkSupabase } from '@/lib/hooks/useClerkSupabase';
-import type { Database } from '@/types/supabase.types';
+import type { Database } from '@/lib/types';
 import { toast } from 'react-hot-toast';
 
 type Lesson = Database['public']['Tables']['lessons']['Row'];

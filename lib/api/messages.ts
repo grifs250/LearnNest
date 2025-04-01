@@ -1,6 +1,6 @@
 "use server";
 import { supabase } from '@/lib/supabase/client';
-import type { Message as DbMessage } from '@/types/supabase';
+import type { Message as DbMessage } from '@/lib/types';
 
 interface ThreadProfile {
   id: string;

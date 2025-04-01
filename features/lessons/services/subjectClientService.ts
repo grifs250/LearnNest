@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
-import { Subject } from '@/types/models';
-import type { Database } from '@/types/supabase';
+import { Subject } from '@/lib/types';
+import type { Database } from '@/lib/types';
 
 const createClient = () => {
   return createBrowserClient<Database>(
