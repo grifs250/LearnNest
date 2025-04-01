@@ -125,17 +125,47 @@ export async function createClerkSupabaseClient() {
  * Get a profile by user ID
  */
 export async function getProfileByUserId(userId: string) {
-  const supabase = await createAdminClient();
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-  
-  if (error) {
-    console.error('Error fetching profile:', error);
+  try {
+    const supabase = await createAdminClient();
+    
+    // Log the userId for debugging
+    console.log('Fetching profile for user ID:', userId);
+    
+    // Check if the user ID looks like a Clerk ID (starts with "user_")
+    if (userId.startsWith('user_')) {
+      console.log('Using Clerk User ID for profile lookup');
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile with Clerk ID:', error);
+        return null;
+      }
+      
+      return data;
+    } else {
+      // Assume it's a UUID for direct database lookup
+      console.log('Using UUID for profile lookup');
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile with UUID:', error);
+        return null;
+      }
+      
+      return data;
+    }
+  } catch (error) {
+    console.error('Unexpected error in getProfileByUserId:', error);
     return null;
   }
-  
-  return data;
 } 

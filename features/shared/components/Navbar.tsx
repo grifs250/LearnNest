@@ -1,27 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import SmoothScrollLink from "@/features/shared/components/ui/SmoothScrollLink";
-import { Menu, X, Book, HelpCircle, Phone, Home, Info, Sun, Moon, User } from "lucide-react";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { Menu, X, Book, HelpCircle, Phone, Home, Info, Sun, Moon, User, LogOut, Settings } from "lucide-react";
+import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { useTheme } from "@/app/themeProvider";
 import { isLoggedInFromCookie, getUserRoleFromCookie } from "@/lib/utils/cookies";
 import { useRouter } from "next/navigation";
 
 // Dynamically import Clerk components to reduce initial bundle size
-const UserButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.UserButton), {
-  ssr: false,
-  loading: () => (
-    <button className="btn btn-sm btn-neutral px-3" disabled>
-      <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
-      <span className="sr-only">Ielādē...</span>
-    </button>
-  )
-});
-
 const SignInButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.SignInButton), {
   ssr: false,
   loading: () => (
@@ -51,9 +41,12 @@ export default function Navbar() {
   const pathname = usePathname();
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
+  const { signOut } = useClerk();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { theme, toggleTheme, isThemeReady } = useTheme();
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // Function to check if user is logged in from cookies
   // This provides instant auth state without waiting for Clerk to load
@@ -81,23 +74,27 @@ export default function Navbar() {
     setMounted(true);
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Close the mobile menu when navigating
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // User-specific navigation items
-  const userNavItems: NavItem[] = isSignedIn ? [
-    {
-      label: "Mans profils",
-      shortLabel: "Profils",
-      href: user ? `/profile/${user.id}` : "/profile",
-      icon: <User size={16} className="mr-1" />
-    }
-  ] : [];
-
   // Public navigation items available to all users
-  const publicNavItems: NavItem[] = [
+  const navItems: NavItem[] = [
     // Reordered to put "How it works" first
     { 
       label: "Kā tas darbojas", 
@@ -129,7 +126,112 @@ export default function Navbar() {
     }
   ];
 
-  const navItems = [...userNavItems, ...publicNavItems];
+  // Custom user button with dropdown
+  const CustomUserButton = () => {
+    const toggleMenu = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsMenuOpen(!isMenuOpen);
+    };
+    
+    // Handle outside clicks using useEffect instead of refs on initial render
+    useEffect(() => {
+      if (!mounted) return;
+      
+      // Only add click handlers after component is mounted
+      const handleClickOutside = (event: MouseEvent) => {
+        if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+          setIsMenuOpen(false);
+        }
+      };
+      
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [mounted, isMenuOpen]);
+    
+    // No ref during server rendering - will be attached after hydration by React
+    return (
+      <div className="relative" {...(mounted ? { ref: profileDropdownRef } : {})}>
+        <button
+          className="btn btn-circle btn-ghost overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          onClick={toggleMenu}
+          aria-expanded={isMenuOpen}
+          aria-haspopup="true"
+        >
+          {user?.imageUrl ? (
+            <img 
+              src={user.imageUrl} 
+              alt={user.fullName || 'Lietotājs'} 
+              className="w-8 h-8 rounded-full object-cover" 
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content font-medium">
+              {user?.fullName?.[0] || user?.username?.[0] || 'U'}
+            </div>
+          )}
+        </button>
+        {isMenuOpen && (
+          <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-base-100 border border-base-300 z-[100]">
+            <div className="py-2">
+              <div className="px-4 py-2 text-sm font-medium text-base-content border-b border-base-200 mb-1">
+                {user?.fullName || user?.username || 'Lietotājs'}
+              </div>
+              <Link 
+                href={`/profile/${user?.id}`} 
+                className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <div className="flex items-center">
+                  <User size={16} className="mr-2" />
+                  <span>Mans profils</span>
+                </div>
+              </Link>
+              {user?.publicMetadata?.role === 'teacher' && (
+                <Link 
+                  href="/teacher" 
+                  className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <Book size={16} className="mr-2" />
+                    <span>Pasniedzēja panelis</span>
+                  </div>
+                </Link>
+              )}
+              {user?.publicMetadata?.role === 'student' && (
+                <Link 
+                  href="/student" 
+                  className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <Book size={16} className="mr-2" />
+                    <span>Skolēna panelis</span>
+                  </div>
+                </Link>
+              )}
+              <div className="border-t border-base-200 mt-1">
+                <button 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    signOut();
+                  }} 
+                  className="block w-full text-left px-4 py-2 text-sm text-error hover:bg-base-200"
+                >
+                  <div className="flex items-center">
+                    <LogOut size={16} className="mr-2" />
+                    <span>Iziet</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Auth button component with gray appearance
   const AuthButton = () => {
@@ -147,12 +249,12 @@ export default function Navbar() {
     };
     
     return (
-      <div className="w-full md:w-auto mt-4 md:mt-0 order-last md:order-none">
+      <div className="order-last order-none">
         {/* Login button - initially hidden for all users until client-side hydration */}
         <div className="hidden" data-auth-login>
           <Link
             href="/login"
-            className="btn btn-sm btn-neutral bg-base-200 hover:bg-base-300 text-base-content border-base-300 shadow-sm w-full md:w-auto"
+            className="btn btn-sm btn-neutral bg-base-200 hover:bg-base-300 text-base-content border-base-300 shadow-sm"
             prefetch={true}
             onClick={handleLogin}
           >
@@ -163,7 +265,7 @@ export default function Navbar() {
         
         {/* User button - initially hidden for all users until client-side hydration */}
         <div className="hidden" data-auth-user>
-          <UserButton afterSignOutUrl="/" />
+          {isLoggedIn && <CustomUserButton />}
         </div>
 
         {/* Apply correct visibility after hydration */}
@@ -235,7 +337,7 @@ export default function Navbar() {
 
   return (
     <div className="sticky top-0 z-50">
-      <nav className="navbar bg-primary text-primary-content shadow-md">
+      <nav className="navbar bg-primary text-primary-content shadow-md px-2 sm:px-4">
         <div className="flex-1 mr-2">
           <Link href="/" className="btn btn-ghost normal-case text-lg sm:text-xl">
             📚 <span>MāciesTe</span>
@@ -258,20 +360,20 @@ export default function Navbar() {
               </button>
             ))}
           </div>
-          
-          {/* Login/User Button */}
-          <AuthButton />
-          
-          {/* Theme Toggle */}
-          <ThemeToggle />
         </div>
 
-        {/* Mobile menu button */}
-        <div className="flex md:hidden items-center">
+        {/* Always visible auth and theme controls */}
+        <div className="flex items-center gap-2 pr-1 sm:pr-2">
+          {/* Theme Toggle */}
           <ThemeToggle />
+          
+          {/* Auth Button - always visible */}
+          <AuthButton />
+          
+          {/* Mobile menu button - only on small screens */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="btn btn-ghost btn-sm"
+            className="md:hidden btn btn-ghost btn-sm"
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -292,9 +394,6 @@ export default function Navbar() {
               {item.label}
             </button>
           ))}
-          
-          {/* Login button in mobile menu */}
-          <AuthButton />
         </div>
       )}
     </div>

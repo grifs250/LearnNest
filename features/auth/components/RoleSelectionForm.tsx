@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ChevronRight, Loader2, GraduationCap, Book, Check } from 'lucide-react';
 
 /**
- * Role selection form - First step in onboarding
+ * Role selection component - First step in onboarding
  * Allows users to choose between student and teacher roles
  */
 interface RoleSelectionFormProps {
@@ -20,15 +20,14 @@ export function RoleSelectionForm({ onSelect, isLoading, initialRole }: RoleSele
     setSelectedRole(initialRole);
   }, [initialRole]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleContinue = () => {
     if (selectedRole) {
       onSelect(selectedRole);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       {/* Logo and Platform Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center p-2 bg-primary/10 rounded-full mb-4">
@@ -105,8 +104,9 @@ export function RoleSelectionForm({ onSelect, isLoading, initialRole }: RoleSele
       
       <div className="flex justify-end">
         <button
-          type="submit"
+          type="button"
           className="btn btn-primary"
+          onClick={handleContinue}
           disabled={!selectedRole || isLoading}
         >
           {isLoading ? (
@@ -119,6 +119,6 @@ export function RoleSelectionForm({ onSelect, isLoading, initialRole }: RoleSele
           )}
         </button>
       </div>
-    </form>
+    </div>
   );
 } 

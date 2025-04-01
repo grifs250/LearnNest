@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { generateDynamicMetadata } from '@/components/SEO/DynamicMetadata';
 
 export async function generateMetadata({ params }: {
@@ -9,10 +9,13 @@ export async function generateMetadata({ params }: {
     lessonId: string;
   }
 }): Promise<Metadata> {
-  const { category, subjectId, lessonId } = params;
+  // Extract params values to avoid Next.js dynamic API warnings
+  const category = params.category;
+  const subjectId = params.subjectId;
+  const lessonId = params.lessonId;
   
   // Create Supabase client
-  const supabase = await createClient();
+  const supabase = await createServerClient();
   
   // Fetch lesson details
   const { data: lesson } = await supabase

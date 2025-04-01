@@ -11,20 +11,14 @@ export function GlobalSearch() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const debouncedQuery = useDebounce(query, 300);
   const router = useRouter();
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Close search results when clicking outside
+  // Track when component is mounted to prevent hydration mismatch
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    setMounted(true);
   }, []);
 
   // Handle search when query changes
@@ -57,8 +51,22 @@ export function GlobalSearch() {
     setQuery('');
   };
 
+  // Handle click outside for search results
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mounted, searchRef]);
+
   return (
-    <div className="relative w-full max-w-md" ref={searchRef}>
+    <div className="relative w-full max-w-md" {...(mounted ? { ref: searchRef } : {})}>
       <div className="relative">
         <input
           type="text"

@@ -5,6 +5,14 @@ interface ToastState {
   message: string;
   type: ToastType;
   id: number;
+  title?: string;
+  description?: string;
+}
+
+interface ToastOptions {
+  type?: ToastType;
+  title?: string;
+  description: string;
 }
 
 let toastId = 0;
@@ -19,31 +27,71 @@ export function useToast() {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'info') => {
+    (messageOrOptions: string | ToastOptions, type: ToastType = 'info') => {
       const id = toastId++;
-      setToasts((currentToasts) => [...currentToasts, { message, type, id }]);
+      
+      if (typeof messageOrOptions === 'string') {
+        // Handle string message
+        setToasts((currentToasts) => [
+          ...currentToasts, 
+          { message: messageOrOptions, type, id }
+        ]);
+      } else {
+        // Handle options object
+        const { type: optionsType = 'info', description, title } = messageOrOptions;
+        setToasts((currentToasts) => [
+          ...currentToasts, 
+          { 
+            message: description,
+            type: optionsType, 
+            id,
+            title
+          }
+        ]);
+      }
+      
       return id;
     },
     []
   );
 
   const success = useCallback(
-    (message: string) => showToast(message, 'success'),
+    (messageOrOptions: string | Omit<ToastOptions, 'type'>) => {
+      if (typeof messageOrOptions === 'string') {
+        return showToast(messageOrOptions, 'success');
+      }
+      return showToast({ ...messageOrOptions, type: 'success' });
+    },
     [showToast]
   );
 
   const error = useCallback(
-    (message: string) => showToast(message, 'error'),
+    (messageOrOptions: string | Omit<ToastOptions, 'type'>) => {
+      if (typeof messageOrOptions === 'string') {
+        return showToast(messageOrOptions, 'error');
+      }
+      return showToast({ ...messageOrOptions, type: 'error' });
+    },
     [showToast]
   );
 
   const info = useCallback(
-    (message: string) => showToast(message, 'info'),
+    (messageOrOptions: string | Omit<ToastOptions, 'type'>) => {
+      if (typeof messageOrOptions === 'string') {
+        return showToast(messageOrOptions, 'info');
+      }
+      return showToast({ ...messageOrOptions, type: 'info' });
+    },
     [showToast]
   );
 
   const warning = useCallback(
-    (message: string) => showToast(message, 'warning'),
+    (messageOrOptions: string | Omit<ToastOptions, 'type'>) => {
+      if (typeof messageOrOptions === 'string') {
+        return showToast(messageOrOptions, 'warning');
+      }
+      return showToast({ ...messageOrOptions, type: 'warning' });
+    },
     [showToast]
   );
 

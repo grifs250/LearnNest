@@ -41,8 +41,14 @@ export function Toast({
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [portalContainer, setPortalContainer] = useState<Element | null>(null);
+  const [mounted, setMounted] = useState(false);
   const toastRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout>();
+
+  // Set mounted state to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let container = document.getElementById('toast-container');
@@ -103,7 +109,7 @@ export function Toast({
 
   return createPortal(
     <div
-      ref={toastRef}
+      {...(mounted ? { ref: toastRef } : {})}
       className={`
         ${toastStyles[type]}
         flex items-center px-4 py-3 rounded-lg border

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ConfirmDialogProps {
@@ -37,9 +39,15 @@ export function ConfirmDialog({
   onCancel,
   variant = 'danger',
 }: ConfirmDialogProps) {
+  const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+
+  // Set mounted state to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -105,7 +113,7 @@ export function ConfirmDialog({
 
         {/* Dialog panel */}
         <div
-          ref={dialogRef}
+          {...(mounted ? { ref: dialogRef } : {})}
           className="relative inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
         >
           <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
@@ -143,7 +151,7 @@ export function ConfirmDialog({
           </div>
           <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
-              ref={confirmButtonRef}
+              {...(mounted ? { ref: confirmButtonRef } : {})}
               type="button"
               className={`inline-flex w-full justify-center rounded-md border border-transparent px-4 py-2 text-base font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm ${variantStyles[variant].button}`}
               onClick={onConfirm}

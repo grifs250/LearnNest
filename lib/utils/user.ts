@@ -1,6 +1,13 @@
+/**
+ * Formats a Clerk ID for use with Supabase
+ * This function is used to ensure compatibility with Clerk IDs in the database
+ */
 export function formatClerkId(clerkId: string): string {
-  // Remove any non-alphanumeric characters and ensure length is 32
-  const cleanId = clerkId.replace(/[^a-zA-Z0-9]/g, '');
-  // Pad or truncate to exactly 32 characters
-  return cleanId.padEnd(32, '0').slice(0, 32);
+  // If the ID starts with 'user_', we'll keep it intact for lookup by user_id field
+  if (clerkId.startsWith('user_')) {
+    return clerkId;
+  }
+  
+  // Otherwise, treat it as a regular UUID/string
+  return clerkId;
 } 

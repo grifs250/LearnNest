@@ -8,6 +8,7 @@ interface ToastProps {
   type: ToastType;
   duration?: number;
   onClose: () => void;
+  title?: string;
 }
 
 const toastStyles: Record<ToastType, string> = {
@@ -36,6 +37,7 @@ export function Toast({
   type,
   duration = 3000,
   onClose,
+  title,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [portalContainer, setPortalContainer] = useState<Element | null>(null);
@@ -108,9 +110,10 @@ export function Toast({
       ref={toastRef}
       className={`
         ${toastStyles[type]}
-        flex items-center px-4 py-3 rounded-lg border
+        flex items-start px-4 py-3 rounded-lg border
         transform transition-all duration-300
         ${isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}
+        max-w-md w-full
       `}
       role={toastRoles[type]}
       aria-live={type === 'error' ? 'assertive' : 'polite'}
@@ -118,16 +121,21 @@ export function Toast({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <span className="mr-2 text-xl" aria-hidden="true">
+      <span className="mr-2 text-xl flex-shrink-0 mt-0.5" aria-hidden="true">
         {toastIcons[type]}
       </span>
-      <p className="text-sm font-medium">{message}</p>
+      <div className="flex-1">
+        {title && (
+          <h4 className="font-semibold text-sm">{title}</h4>
+        )}
+        <p className="text-sm">{message}</p>
+      </div>
       <button
         onClick={() => {
           setIsVisible(false);
           setTimeout(onClose, 300);
         }}
-        className="ml-auto text-lg font-semibold opacity-75 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-current rounded"
+        className="ml-2 text-lg font-semibold opacity-75 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-current rounded flex-shrink-0"
         aria-label="Close notification"
       >
         ×

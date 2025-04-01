@@ -8,7 +8,7 @@ import { StudentRoleForm } from "./StudentRoleForm";
 import { TeacherRoleForm } from "./TeacherRoleForm";
 import { useToast } from "@/features/shared/hooks/useToast";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { Database } from "@/lib/supabase/database.types";
+import { Database } from "@/lib/types/database.types";
 
 export function ProfileSetupForm() {
   const { user, isLoaded } = useUser();
@@ -400,9 +400,9 @@ export function ProfileSetupForm() {
                       'Saglabāt profilu'
                     )}
                   </button>
-          </div>
-        </div>
-      </div>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
       </div>

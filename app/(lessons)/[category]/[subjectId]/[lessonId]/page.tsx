@@ -11,9 +11,14 @@ interface LessonPageProps {
   };
 }
 
-export default function LessonPage({ params }: LessonPageProps) {
-  // Server-only data fetching if needed
-  // const data = await fetchDataOnServer(params);
+export default async function LessonPage({ params }: LessonPageProps) {
+  // Extract params first to avoid Next.js dynamic API warnings
+  const category = params.category;
+  const subjectId = params.subjectId;
+  const lessonId = params.lessonId;
   
-  return <ClientComponents.LessonDetail params={params} />;
+  // Server-only data fetching if needed
+  // const data = await fetchDataOnServer({ category, subjectId, lessonId });
+  
+  return <ClientComponents.LessonDetail params={{ category, subjectId, lessonId }} />;
 }
