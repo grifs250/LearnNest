@@ -22,6 +22,16 @@ const SignInButton = dynamic(() => import('@clerk/nextjs').then(mod => mod.SignI
   )
 });
 
+// Dynamically import client-only components
+const UserMenu = dynamic(() => import('./UserMenu'), {
+  ssr: false,
+  loading: () => (
+    <button className="btn btn-sm btn-neutral px-3" disabled>
+      <span className="loading loading-spinner loading-xs" aria-hidden="true"></span>
+    </button>
+  )
+});
+
 // Define interface for navigation items
 interface NavItem {
   label: string;
@@ -42,10 +52,10 @@ export default function Navbar() {
   const { isSignedIn, isLoaded } = useAuth();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { theme, toggleTheme, isThemeReady } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { theme, toggleTheme, isThemeReady } = useTheme();
   const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // Function to check if user is logged in from cookies
@@ -125,163 +135,6 @@ export default function Navbar() {
       icon: <Phone size={16} className="mr-1" />
     }
   ];
-
-  // Custom user button with dropdown
-  const CustomUserButton = () => {
-    const toggleMenu = (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsMenuOpen(!isMenuOpen);
-    };
-    
-    // Handle outside clicks using useEffect instead of refs on initial render
-    useEffect(() => {
-      if (!mounted) return;
-      
-      // Only add click handlers after component is mounted
-      const handleClickOutside = (event: MouseEvent) => {
-        if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
-          setIsMenuOpen(false);
-        }
-      };
-      
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, [mounted, isMenuOpen]);
-    
-    // No ref during server rendering - will be attached after hydration by React
-    return (
-      <div className="relative" {...(mounted ? { ref: profileDropdownRef } : {})}>
-        <button
-          className="btn btn-circle btn-ghost overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-          onClick={toggleMenu}
-          aria-expanded={isMenuOpen}
-          aria-haspopup="true"
-        >
-          {user?.imageUrl ? (
-            <img 
-              src={user.imageUrl} 
-              alt={user.fullName || 'Lietotājs'} 
-              className="w-8 h-8 rounded-full object-cover" 
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-content font-medium">
-              {user?.fullName?.[0] || user?.username?.[0] || 'U'}
-            </div>
-          )}
-        </button>
-        {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-base-100 border border-base-300 z-[100]">
-            <div className="py-2">
-              <div className="px-4 py-2 text-sm font-medium text-base-content border-b border-base-200 mb-1">
-                {user?.fullName || user?.username || 'Lietotājs'}
-              </div>
-              <Link 
-                href={`/profile/${user?.id}`} 
-                className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <div className="flex items-center">
-                  <User size={16} className="mr-2" />
-                  <span>Mans profils</span>
-                </div>
-              </Link>
-              {user?.publicMetadata?.role === 'teacher' && (
-                <Link 
-                  href="/teacher" 
-                  className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <Book size={16} className="mr-2" />
-                    <span>Pasniedzēja panelis</span>
-                  </div>
-                </Link>
-              )}
-              {user?.publicMetadata?.role === 'student' && (
-                <Link 
-                  href="/student" 
-                  className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <Book size={16} className="mr-2" />
-                    <span>Skolēna panelis</span>
-                  </div>
-                </Link>
-              )}
-              <div className="border-t border-base-200 mt-1">
-                <button 
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    signOut();
-                  }} 
-                  className="block w-full text-left px-4 py-2 text-sm text-error hover:bg-base-200"
-                >
-                  <div className="flex items-center">
-                    <LogOut size={16} className="mr-2" />
-                    <span>Iziet</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // Auth button component with gray appearance
-  const AuthButton = () => {
-    // Instead of conditionally rendering based on client-side state,
-    // we'll render both versions but hide one with CSS
-    // This ensures the button is clickable instantly 
-    
-    // Function to handle navigation with proper root path
-    const handleLogin = (e: React.MouseEvent) => {
-      // If we're not on the homepage, we need to go to the login page directly
-      if (pathname !== '/') {
-        e.preventDefault();
-        router.push('/login');
-      }
-    };
-    
-    return (
-      <div className="order-last order-none">
-        {/* Login button - initially hidden for all users until client-side hydration */}
-        <div className="hidden" data-auth-login>
-          <Link
-            href="/login"
-            className="btn btn-sm btn-neutral bg-base-200 hover:bg-base-300 text-base-content border-base-300 shadow-sm"
-            prefetch={true}
-            onClick={handleLogin}
-          >
-            <User size={16} className="mr-1" />
-            Ieiet
-          </Link>
-        </div>
-        
-        {/* User button - initially hidden for all users until client-side hydration */}
-        <div className="hidden" data-auth-user>
-          {isLoggedIn && <CustomUserButton />}
-        </div>
-
-        {/* Apply correct visibility after hydration */}
-        {mounted && (
-          <style jsx global>{`
-            [data-auth-login] {
-              display: ${isLoggedIn ? 'none' : 'block'};
-            }
-            [data-auth-user] {
-              display: ${isLoggedIn ? 'block' : 'none'};
-            }
-          `}</style>
-        )}
-      </div>
-    );
-  };
 
   // Theme toggle button with improved server/client consistency
   const ThemeToggle = () => {
@@ -367,8 +220,25 @@ export default function Navbar() {
           {/* Theme Toggle */}
           <ThemeToggle />
           
-          {/* Auth Button - always visible */}
-          <AuthButton />
+          {/* Auth Components */}
+          <div className="order-last order-none">
+            {mounted ? (
+              isLoggedIn ? <UserMenu /> : (
+                <Link
+                  href="/login"
+                  className="btn btn-sm btn-neutral bg-base-200 hover:bg-base-300 text-base-content border-base-300 shadow-sm"
+                  prefetch={true}
+                >
+                  <User size={16} className="mr-1" />
+                  Ieiet
+                </Link>
+              )
+            ) : (
+              <button className="btn btn-sm btn-neutral bg-base-200 opacity-70" disabled>
+                <span className="loading loading-spinner loading-xs"></span>
+              </button>
+            )}
+          </div>
           
           {/* Mobile menu button - only on small screens */}
           <button
