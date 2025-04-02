@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
-import { createClient } from '@/lib/supabase/server';
-import { generateDynamicMetadata } from '@/components/SEO/DynamicMetadata';
+import { createServerClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import TeacherProfile from '@/shared/components/TeacherProfile';
 import { UserProfile } from '@/lib/types';
@@ -22,15 +21,21 @@ export async function generateMetadata({ params }: TeacherPageProps): Promise<Me
   }
   
   // Extract metadata values
-  const experienceYears = teacher.teacher_experience_years || 0;
+  const experienceYears = teacher.metadata?.teacher_experience_years 
+    ? String(teacher.metadata.teacher_experience_years) 
+    : '0';
+  
+  const description = teacher.metadata?.page_description 
+    ? String(teacher.metadata.page_description) 
+    : `${teacher.full_name} - pasniedzējs ar ${experienceYears} gadu pieredzi. Piesakies nodarbībām jau šodien!`;
   
   return {
     title: `${teacher.full_name} - ${teacher.page_title || "Pasniedzējs"} | MāciesTe`,
-    description: teacher.page_description || `${teacher.full_name} - pasniedzējs ar ${experienceYears} gadu pieredzi. Piesakies nodarbībām jau šodien!`,
+    description,
     openGraph: {
       images: teacher.avatar_url ? [teacher.avatar_url] : [],
       title: `${teacher.full_name} - ${teacher.page_title || "Pasniedzējs"} | MāciesTe`,
-      description: teacher.page_description || `${teacher.full_name} - pasniedzējs ar ${experienceYears} gadu pieredzi. Piesakies nodarbībām jau šodien!`,
+      description,
     },
   };
 }
@@ -47,7 +52,7 @@ export default async function TeacherPage({ params }: TeacherPageProps) {
 
 async function getTeacherProfile(slug: string): Promise<UserProfile | null> {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerClient();
     
     const { data, error } = await supabase
       .from("user_profiles")

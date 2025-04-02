@@ -58,7 +58,7 @@ export default function UserMenu() {
               {user?.fullName || user?.username || 'Lietotājs'}
             </div>
             <Link 
-              href={`/profile/${user?.id}`} 
+              href={`/profiles/${user?.id}`} 
               className="block px-4 py-2 text-sm text-base-content hover:bg-base-200"
               onClick={() => setIsMenuOpen(false)}
             >

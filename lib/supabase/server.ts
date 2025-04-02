@@ -126,46 +126,83 @@ export async function createClerkSupabaseClient() {
  */
 export async function getProfileByUserId(userId: string) {
   try {
+    if (!userId) {
+      console.error('getProfileByUserId called with empty userId');
+      return null;
+    }
+
+    console.log('🔍 getProfileByUserId START for ID:', userId);
+
     const supabase = await createAdminClient();
-    
-    // Log the userId for debugging
-    console.log('Fetching profile for user ID:', userId);
     
     // Check if the user ID looks like a Clerk ID (starts with "user_")
     if (userId.startsWith('user_')) {
-      console.log('Using Clerk User ID for profile lookup');
+      console.log('👤 Using Clerk User ID for profile lookup:', userId);
       
+      console.log('🔎 SQL: SELECT * FROM profiles WHERE user_id = ?', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
-        console.error('Error fetching profile with Clerk ID:', error);
+        console.error('❌ Error fetching profile with Clerk ID:', error);
         return null;
       }
       
+      if (!data) {
+        console.warn('⚠️ No profile found for Clerk ID:', userId);
+        console.log('Possible reasons:');
+        console.log('1. User might be new and profile not created yet');
+        console.log('2. Webhook from Clerk to create profile might have failed'); 
+        console.log('3. Profile might have been deleted');
+      } else {
+        console.log('✅ Profile found for Clerk ID:', userId);
+        console.log('👤 Profile details:', { 
+          id: data.id, 
+          email: data.email,
+          role: data.role,
+          is_active: data.is_active
+        });
+      }
+      
+      console.log('🔍 getProfileByUserId END for Clerk ID:', userId);
       return data;
     } else {
       // Assume it's a UUID for direct database lookup
-      console.log('Using UUID for profile lookup');
+      console.log('🆔 Using UUID for profile lookup:', userId);
       
+      console.log('🔎 SQL: SELECT * FROM profiles WHERE id = ?', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
-        console.error('Error fetching profile with UUID:', error);
+        console.error('❌ Error fetching profile with UUID:', error);
         return null;
       }
       
+      if (!data) {
+        console.warn('⚠️ No profile found for UUID:', userId);
+      } else {
+        console.log('✅ Profile found for UUID:', userId);
+        console.log('👤 Profile details:', { 
+          id: data.id, 
+          email: data.email,
+          user_id: data.user_id,
+          role: data.role,
+          is_active: data.is_active
+        });
+      }
+      
+      console.log('🔍 getProfileByUserId END for UUID:', userId);
       return data;
     }
   } catch (error) {
-    console.error('Unexpected error in getProfileByUserId:', error);
+    console.error('❌ Unexpected error in getProfileByUserId:', error);
     return null;
   }
 } 
