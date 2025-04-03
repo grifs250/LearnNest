@@ -17,22 +17,51 @@ export default function ProfileRedirectCheck({ children }: { children: React.Rea
   
   // Paths that should be excluded from the redirect check
   const excludedPaths = [
-    '/profile/setup',
-    '/login',
+    '/profile/setup',   // Profile setup page
+    '/login',           // Auth pages
     '/register',
     '/verify-email',
     '/verify-code',
-    '/api',
-    '/buj',
-    '/',
-    '/profiles',
-    '/subjects'
+    '/api',             // API endpoints
+    '/buj',             // FAQ/Help pages
+    '/',                // Landing page
+    '/profiles',        // Public profile pages
+    '/subjects'         // Subject listings
   ];
   
+  // System paths that are always excluded (including in production)
+  const systemPaths = [
+    '/debug',           // Debug tools
+    '/admin',           // Admin tools
+    '/system'           // System pages
+  ];
+  
+  // Special development paths (only excluded in development)
+  const devPaths = process.env.NODE_ENV === 'development' ? [
+    '/playground',      // Component playground
+    '/test'             // Test pages
+  ] : [];
+  
+  // Combine all excluded paths
+  const allExcludedPaths = [...excludedPaths, ...systemPaths, ...devPaths];
+  
   // Check if current path is in the excluded list (including paths that start with excluded paths)
-  const isExcludedPath = excludedPaths.some(path => 
+  const isExcludedPath = allExcludedPaths.some(path => 
     pathname === path || pathname.startsWith(`${path}/`)
   );
+  
+  // Log debug mode for system paths in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      const isSystemPath = systemPaths.some(path => 
+        pathname === path || pathname.startsWith(`${path}/`)
+      );
+      
+      if (isSystemPath) {
+        console.log('🛠️ Debug mode active:', pathname);
+      }
+    }
+  }, [pathname]);
   
   useEffect(() => {
     // Skip checking for excluded paths or if auth isn't loaded yet

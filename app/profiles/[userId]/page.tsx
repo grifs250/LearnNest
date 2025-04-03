@@ -13,10 +13,13 @@ interface PageProps {
 // Separate function to check if user needs setup
 // This allows us to use it in both metadata and page component
 async function checkUserNeedsSetup(userId: string): Promise<boolean> {
-  if (!userId.startsWith('user_')) return false;
+  // Ensure userId is resolved
+  const resolvedUserId = await Promise.resolve(userId);
+  
+  if (!resolvedUserId.startsWith('user_')) return false;
   
   // Check if this user has a profile
-  const profile = await getProfileByUserId(userId);
+  const profile = await getProfileByUserId(resolvedUserId);
   
   if (profile) return false; // Profile exists, no setup needed
   
@@ -25,11 +28,13 @@ async function checkUserNeedsSetup(userId: string): Promise<boolean> {
   const currentUserId = authState.userId;
   
   // Only redirect if this is the current user viewing their own missing profile
-  return currentUserId === userId;
+  return currentUserId === resolvedUserId;
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const { userId } = params;
+  // Await the params object before destructuring
+  const resolvedParams = await Promise.resolve(params);
+  const userId = resolvedParams.userId;
   
   console.log('generateMetadata for profiles/[userId] with userId:', userId);
   
@@ -77,7 +82,9 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function ProfilePage({ params }: PageProps) {
-  const { userId } = params;
+  // Await the params object before destructuring
+  const resolvedParams = await Promise.resolve(params);
+  const userId = resolvedParams.userId;
   
   console.log('Rendering ProfilePage for userId:', userId);
   

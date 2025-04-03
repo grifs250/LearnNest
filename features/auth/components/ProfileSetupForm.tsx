@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { RoleSelectionForm } from "./RoleSelectionForm";
 import { StudentRoleForm } from "./StudentRoleForm";
 import { TeacherRoleForm } from "./TeacherRoleForm";
 import { useToast } from "@/features/shared/hooks/useToast";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from "@/lib/types/database.types";
 import { 
   CheckCircle2, 
@@ -67,9 +68,12 @@ const AVAILABLE_LANGUAGES = [
 
 export function ProfileSetupForm() {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
-  const supabase = createClientComponentClient<Database>();
+  
+  // State for Supabase client
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null);
   
   // State management
   const [step, setStep] = useState(1);
@@ -95,6 +99,100 @@ export function ProfileSetupForm() {
   
   // Add this state for language search
   const [languageSearch, setLanguageSearch] = useState("");
+
+  // Initialize Supabase client with JWT token
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    
+    const initSupabase = async () => {
+      try {
+        // Get Clerk JWT token WITHOUT specifying a template 
+        // This will avoid the role issue in the JWT
+        const token = await getToken();
+        
+        if (!token) {
+          console.error("No JWT token returned from Clerk");
+          showToast({
+            type: "error",
+            title: "Autentifikācijas kļūda",
+            description: "Neizdevās iegūt autentifikācijas tokenu"
+          });
+          return;
+        }
+        
+        console.log("✅ JWT token obtained from Clerk");
+        
+        // Create Supabase client with the token
+        const supabaseClient = createSupabaseClient<Database>(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            },
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+            }
+          }
+        );
+        
+        console.log("✅ Supabase client initialized with JWT token");
+        setSupabase(supabaseClient);
+      } catch (error) {
+        console.error("❌ Error initializing Supabase client:", error);
+        showToast({
+          type: "error",
+          title: "Kļūda",
+          description: "Neizdevās izveidot savienojumu ar datubāzi"
+        });
+      }
+    };
+    
+    initSupabase();
+    
+    // Set up a refresh interval to keep the token fresh
+    const tokenRefreshInterval = setInterval(async () => {
+      try {
+        const newToken = await getToken();
+        
+        if (!newToken) {
+          console.error("No JWT token returned during refresh");
+          return;
+        }
+        
+        console.log("🔄 Refreshing Supabase client with new JWT token");
+        
+        // Create a new Supabase client with the fresh token
+        const refreshedClient = createSupabaseClient<Database>(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            global: {
+              headers: {
+                Authorization: `Bearer ${newToken}`
+              }
+            },
+            auth: {
+              persistSession: false,
+              autoRefreshToken: false,
+            }
+          }
+        );
+        
+        setSupabase(refreshedClient);
+        console.log("✅ Supabase client refreshed with new token");
+      } catch (error) {
+        console.error("❌ Error refreshing Supabase client:", error);
+      }
+    }, 4 * 60 * 1000); // Refresh every 4 minutes to avoid 5-minute JWT expiration
+    
+    return () => {
+      clearInterval(tokenRefreshInterval);
+    };
+  }, [isLoaded, user, getToken, showToast]);
 
   // Load initial role from Clerk metadata
   useEffect(() => {
@@ -227,10 +325,50 @@ export function ProfileSetupForm() {
     setStep(step - 1);
   };
 
+  // Get a fresh Supabase client with the latest token
+  const getFreshSupabaseClient = async (): Promise<SupabaseClient<Database> | null> => {
+    try {
+      const token = await getToken();
+      
+      if (!token) {
+        console.error("No JWT token returned from Clerk");
+        return null;
+      }
+      
+      console.log("🔄 Creating fresh Supabase client with new token");
+      
+      return createSupabaseClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          },
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          }
+        }
+      );
+    } catch (error) {
+      console.error("❌ Error creating fresh Supabase client:", error);
+      return null;
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      showToast({
+        type: "error",
+        title: "Kļūda",
+        description: "Nav iespējams saglabāt profilu, lūdzu mēģiniet vēlreiz"
+      });
+      return;
+    }
     
     // Final validation
     try {
@@ -267,24 +405,40 @@ export function ProfileSetupForm() {
     try {
       setIsLoading(true);
       
+      // Make sure role is explicitly set to one of the valid enum values
+      const userRole = role === 'teacher' ? 'teacher' : 'student';
+      
       // Generate URL slug from name
       const slug = formData.full_name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
       
-      // Build profile payload
-      const profilePayload = {
-        user_id: user.id,
+      // First update Clerk metadata
+      console.log("🔄 Updating Clerk metadata with role:", userRole);
+      await user.update({
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          role: userRole,
+          profile_completed: true,
+          profile_needs_setup: false
+        }
+      });
+
+      // Prepare profile data to send to our API endpoint
+      const profileData = {
+        user_id: user.id,  // Store Clerk ID in user_id field
         email: user.primaryEmailAddress?.emailAddress || '',
         full_name: formData.full_name,
-        role: role || 'student',
+        role: userRole,
         bio: formData.bio,
         phone: formData.phone,
         is_active: true,
         learning_goals: formData.learning_goals,
         age: formData.age,
         languages: formData.languages,
+        // Add hourly_rate when role is teacher to satisfy DB constraint
+        ...(userRole === 'teacher' ? { hourly_rate: 5.00 } : {}),
         metadata: {
           profile_slug: slug,
           education: formData.education,
@@ -296,45 +450,24 @@ export function ProfileSetupForm() {
         }
       };
 
-      // Check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id, metadata')
-        .eq('user_id', user.id)
-        .single();
+      console.log("📝 Sending profile data to API:", JSON.stringify(profileData, null, 2));
 
-      if (existingProfile) {
-        // Update existing profile while preserving metadata
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            ...profilePayload,
-            metadata: {
-              ...existingProfile.metadata,
-              ...profilePayload.metadata
-            }
-          })
-          .eq('user_id', user.id);
+      // Send data to our API endpoint
+      const response = await fetch('/api/profile/setup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      });
 
-        if (error) throw error;
-      } else {
-        // Create new profile
-        const { error } = await supabase
-          .from('profiles')
-          .insert([profilePayload]);
-
-        if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save profile');
       }
 
-      // Update Clerk user metadata
-      await user.update({
-        unsafeMetadata: {
-          ...user.unsafeMetadata,
-          role: role,
-          profile_completed: true,
-          profile_needs_setup: false
-        }
-      });
+      const result = await response.json();
+      console.log("✅ Profile saved successfully:", result);
       
       showToast({
         type: "success",
@@ -342,20 +475,37 @@ export function ProfileSetupForm() {
         description: "Jūsu profils ir veiksmīgi saglabāts"
       });
       
-      // Redirect based on role
-        if (role === 'teacher') {
-        router.push("/teacher");
+      // Set loading state for redirect
+      setIsLoading(true);
+      
+      // Add a small delay before redirect to ensure data is properly saved
+      setTimeout(() => {
+        // Force a cache refresh
+        router.refresh();
+        
+        // Redirect based on role
+        if (userRole === 'teacher') {
+          window.location.href = "/teacher";
         } else {
-        router.push("/student");
+          window.location.href = "/student";
         }
+      }, 1000);
     } catch (error) {
-      console.error("Error saving profile:", error);
+      console.error("❌ Error saving profile:", error);
+      // Enhanced error reporting
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      } else if (typeof error === 'object' && error !== null) {
+        console.error("Error object:", JSON.stringify(error, null, 2));
+      }
+      
       showToast({
         type: "error",
         title: "Kļūda",
-        description: "Neizdevās saglabāt profilu"
+        description: "Neizdevās saglabāt profilu. Lūdzu, mēģiniet vēlreiz."
       });
-    } finally {
+      
       setIsLoading(false);
     }
   };
@@ -760,7 +910,7 @@ export function ProfileSetupForm() {
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Saglabā...
+                        {step === 3 ? 'Saglabā un pāradresē...' : 'Apstrādā...'}
                       </>
                     ) : step === 3 ? (
                       <>

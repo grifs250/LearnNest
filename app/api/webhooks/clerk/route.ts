@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     
     // If there are no headers, error out
     if (!svix_id || !svix_timestamp || !svix_signature) {
+      console.error('Missing svix headers', { svix_id, svix_timestamp, svix_signature });
       return new Response('Missing svix headers', { status: 400 });
     }
     
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
     
     if (!webhookSecret) {
+      console.error('Missing webhook secret');
       return new Response('Missing webhook secret', { status: 500 });
     }
 
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
     
     // Handle the different webhook events
     const eventType = evt.type;
+    console.log(`📩 Webhook received: ${eventType}`, JSON.stringify(evt.data).substring(0, 100) + '...');
     
     // Get Supabase admin client
     const supabase = await createAdminClient();
@@ -71,10 +74,15 @@ export async function POST(req: Request) {
         profile_completed: false
       };
 
-      console.log("Creating new user profile with needs_setup flag");
+      console.log("Creating new user profile with needs_setup flag:", { 
+        id, 
+        email,
+        fullName,
+        metadata: JSON.stringify(metadata)
+      });
 
       // Create a new user profile with default role (will be selected during onboarding)
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .upsert({
           user_id: id,
@@ -86,13 +94,23 @@ export async function POST(req: Request) {
           metadata,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        });
+        }, { onConflict: 'user_id' })
+        .select();
       
       if (error) {
         console.error('Error creating user profile:', error);
         return new Response('Error creating user profile', { status: 500 });
       }
-    } else if (eventType === 'user.updated') {
+
+      console.log("✅ User profile created successfully:", {
+        userId: id,
+        profile: data
+      });
+      
+      return NextResponse.json({ success: true, data });
+    }
+    
+    else if (eventType === 'user.updated') {
       const { id, email_addresses, first_name, last_name, image_url, unsafe_metadata } = evt.data;
       
       // Get the email
@@ -130,15 +148,23 @@ export async function POST(req: Request) {
         };
       }
       
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('user_id', id);
+        .eq('user_id', id)
+        .select();
       
       if (error) {
         console.error('Error updating user profile:', error);
         return new Response('Error updating user profile', { status: 500 });
       }
+
+      console.log("✅ User profile updated successfully:", {
+        userId: id,
+        profile: data
+      });
+      
+      return NextResponse.json({ success: true, data });
     }
     
     if (eventType === 'user.deleted') {
@@ -157,9 +183,14 @@ export async function POST(req: Request) {
         console.error('Error marking user as inactive:', error);
         return new Response('Error marking user as inactive', { status: 500 });
       }
+
+      console.log("✅ User marked as inactive:", { userId: id });
+      
+      return NextResponse.json({ success: true });
     }
     
-    return NextResponse.json({ success: true });
+    // Return a 200 for all other event types
+    return NextResponse.json({ success: true, message: `Webhook received: ${eventType}` });
   } catch (error) {
     console.error('Error processing webhook:', error);
     return new Response('Error processing webhook', { status: 500 });

@@ -39,6 +39,7 @@ export default clerkMiddleware((auth, req) => {
     '/verify-code(.*)',     // Email verification code page
     '/verify-email(.*)',    // Email verification page
     '/profile/setup(.*)',   // Profile setup page
+    '/profile-reset(.*)',   // Profile reset page
     '/api/webhooks(.*)',    // Webhook endpoints
     '/buj(.*)',             // FAQ page
     '/profiles/(.*)',       // Public profiles
