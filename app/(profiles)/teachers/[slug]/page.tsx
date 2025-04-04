@@ -1,75 +1,69 @@
 import { Metadata } from 'next';
-import { createServerClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import TeacherProfile from '@/shared/components/TeacherProfile';
-import { UserProfile } from '@/lib/types';
+import { TeacherProfile } from '@/features/shared/components';
+import { createServerClient } from '@/lib/supabase/server';
 
-interface TeacherPageProps {
-  params: {
-    slug: string;
+// Define types
+interface UserProfile {
+  id: string;
+  user_id: string;
+  email: string;
+  full_name: string;
+  profile_type: 'student' | 'teacher' | 'admin';
+  avatar_url: string | null;
+  teacher_bio: string | null;
+  teacher_rate: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+  metadata?: {
+    teacher_experience_years?: number;
+    [key: string]: any;
   };
 }
 
-export async function generateMetadata({ params }: TeacherPageProps): Promise<Metadata> {
-  const teacher = await getTeacherProfile(params.slug);
-  
+// Metadata generation
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const supabase = await createServerClient();
+  const { data: teacher } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', params.slug)
+    .eq('profile_type', 'teacher')
+    .single();
+
   if (!teacher) {
     return {
-      title: 'Pasniedzējs nav atrasts | MāciesTe',
-      description: 'Meklētais pasniedzējs nav atrasts mūsu platformā.'
+      title: 'Pasniedzējs nav atrasts',
+      description: 'Diemžēl meklētais pasniedzējs nav atrasts.'
     };
   }
-  
-  // Extract metadata values
-  const experienceYears = teacher.metadata?.teacher_experience_years 
-    ? String(teacher.metadata.teacher_experience_years) 
-    : '0';
-  
-  const description = teacher.metadata?.page_description 
-    ? String(teacher.metadata.page_description) 
-    : `${teacher.full_name} - pasniedzējs ar ${experienceYears} gadu pieredzi. Piesakies nodarbībām jau šodien!`;
-  
+
   return {
-    title: `${teacher.full_name} - ${teacher.page_title || "Pasniedzējs"} | MāciesTe`,
-    description,
-    openGraph: {
-      images: teacher.avatar_url ? [teacher.avatar_url] : [],
-      title: `${teacher.full_name} - ${teacher.page_title || "Pasniedzējs"} | MāciesTe`,
-      description,
-    },
+    title: `${teacher.full_name} | MāciesTe`,
+    description: teacher.teacher_bio || 'Iepazīsti pasniedzēju un pieraksties uz nodarbībām tiešsaistē.',
   };
 }
 
-export default async function TeacherPage({ params }: TeacherPageProps) {
-  const teacher = await getTeacherProfile(params.slug);
+export default async function TeacherProfilePage({ params }: { params: { slug: string } }) {
+  const supabase = await createServerClient();
   
-  if (!teacher) {
-    return notFound();
-  }
-  
-  return <TeacherProfile teacher={teacher} />;
-}
+  // Use user_id to find teacher
+  const { data: teacher, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', params.slug)
+    .eq('profile_type', 'teacher')
+    .single();
 
-async function getTeacherProfile(slug: string): Promise<UserProfile | null> {
-  try {
-    const supabase = await createServerClient();
-    
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("url_slug", slug)
-      .eq("profile_type", "teacher")
-      .eq("is_active", true)
-      .single();
-    
-    if (error || !data) {
-      console.error("Error fetching teacher profile:", error);
-      return null;
-    }
-    
-    return data as UserProfile;
-  } catch (error) {
-    console.error("Error in getTeacherProfile:", error);
-    return null;
+  if (error || !teacher) {
+    console.error('Error fetching teacher:', error);
+    notFound();
   }
+
+  return (
+    <main>
+      <TeacherProfile teacher={teacher as UserProfile} />
+    </main>
+  );
 } 

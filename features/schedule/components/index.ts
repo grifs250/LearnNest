@@ -1,2 +1,2 @@
-export * from './TeacherWorkHours';
-export * from './WorkSchedule'; 
+export * from './WorkSchedule';
+export * from './TeacherAvailability'; 

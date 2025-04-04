@@ -325,11 +325,62 @@ $$;
 ALTER FUNCTION "public"."is_teacher"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."is_teacher_available"("teacher_id" character varying, "check_date" "date", "check_time" time without time zone) RETURNS boolean
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+DECLARE
+  day_num INTEGER;
+  is_available BOOLEAN;
+BEGIN
+  -- Extract day of week (0=Sunday, 1=Monday, etc)
+  day_num := EXTRACT(DOW FROM check_date);
+  
+  -- Check if teacher has availability for this time
+  SELECT EXISTS (
+    SELECT 1 FROM teacher_availability
+    WHERE teacher_availability.teacher_id = is_teacher_available.teacher_id
+    AND day_of_week = day_num
+    AND start_time <= check_time
+    AND end_time > check_time
+    AND is_active = true
+  ) INTO is_available;
+  
+  RETURN is_available;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."is_teacher_available"("teacher_id" character varying, "check_date" "date", "check_time" time without time zone) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."log_booking_changes"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  INSERT INTO audit_log(table_name, record_id, action, old_data, new_data, changed_by, created_at)
+  VALUES (
+    TG_TABLE_NAME,
+    COALESCE(OLD.id, NEW.id),
+    TG_OP,
+    to_jsonb(OLD),
+    to_jsonb(NEW),
+    COALESCE(NULLIF(current_setting('request.jwt.claims', true)::jsonb->>'sub', ''), 'system'),
+    now()
+  );
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."log_booking_changes"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."log_profile_changes"() RETURNS "trigger"
     LANGUAGE "plpgsql"
     AS $$
 BEGIN
-  INSERT INTO audit_log(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+  INSERT INTO audit_log(table_name, record_id, action, old_data, new_data, changed_by, created_at)
   VALUES (
     TG_TABLE_NAME,
     COALESCE(OLD.id, NEW.id),
@@ -394,6 +445,19 @@ $$;
 
 
 ALTER FUNCTION "public"."update_subject_lesson_count"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_teacher_availability_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."update_teacher_availability_updated_at"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
@@ -806,6 +870,23 @@ CREATE TABLE IF NOT EXISTS "public"."subjects" (
 ALTER TABLE "public"."subjects" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."teacher_availability" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "teacher_id" character varying(255) NOT NULL,
+    "day_of_week" integer NOT NULL,
+    "start_time" time without time zone NOT NULL,
+    "end_time" time without time zone NOT NULL,
+    "is_active" boolean DEFAULT true,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "teacher_availability_check" CHECK (("end_time" > "start_time")),
+    CONSTRAINT "teacher_availability_day_of_week_check" CHECK ((("day_of_week" >= 0) AND ("day_of_week" <= 6)))
+);
+
+
+ALTER TABLE "public"."teacher_availability" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."teacher_subjects" (
     "teacher_id" character varying(255) NOT NULL,
     "subject_id" "uuid" NOT NULL,
@@ -1012,6 +1093,16 @@ ALTER TABLE ONLY "public"."subjects"
 
 
 
+ALTER TABLE ONLY "public"."teacher_availability"
+    ADD CONSTRAINT "teacher_availability_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."teacher_availability"
+    ADD CONSTRAINT "teacher_availability_teacher_id_day_of_week_start_time_end__key" UNIQUE ("teacher_id", "day_of_week", "start_time", "end_time");
+
+
+
 ALTER TABLE ONLY "public"."teacher_subjects"
     ADD CONSTRAINT "teacher_subjects_pkey" PRIMARY KEY ("teacher_id", "subject_id");
 
@@ -1049,6 +1140,10 @@ CREATE INDEX "idx_bookings_composite" ON "public"."bookings" USING "btree" ("stu
 
 
 
+CREATE INDEX "idx_bookings_payment_status" ON "public"."bookings" USING "btree" ("payment_status");
+
+
+
 CREATE INDEX "idx_bookings_schedule_id_status" ON "public"."bookings" USING "btree" ("schedule_id", "status");
 
 
@@ -1069,7 +1164,15 @@ CREATE INDEX "idx_bookings_student_id" ON "public"."bookings" USING "btree" ("st
 
 
 
+CREATE INDEX "idx_bookings_updated_at" ON "public"."bookings" USING "btree" ("updated_at" DESC);
+
+
+
 CREATE INDEX "idx_lesson_schedules_availability" ON "public"."lesson_schedules" USING "btree" ("lesson_id", "start_time", "is_available");
+
+
+
+CREATE INDEX "idx_lesson_schedules_is_available" ON "public"."lesson_schedules" USING "btree" ("is_available");
 
 
 
@@ -1113,6 +1216,10 @@ CREATE INDEX "idx_lessons_teacher_active" ON "public"."lessons" USING "btree" ("
 
 
 
+CREATE INDEX "idx_lessons_teacher_active_subject" ON "public"."lessons" USING "btree" ("teacher_id", "is_active", "subject_id");
+
+
+
 CREATE INDEX "idx_lessons_teacher_id" ON "public"."lessons" USING "btree" ("teacher_id");
 
 
@@ -1122,6 +1229,10 @@ CREATE INDEX "idx_lessons_teacher_subject" ON "public"."lessons" USING "btree" (
 
 
 CREATE INDEX "idx_lessons_title_trgm" ON "public"."lessons" USING "gin" ("title" "public"."gin_trgm_ops");
+
+
+
+CREATE INDEX "idx_lessons_updated_at" ON "public"."lessons" USING "btree" ("updated_at" DESC);
 
 
 
@@ -1197,6 +1308,10 @@ CREATE INDEX "idx_profiles_verification" ON "public"."profiles" USING "btree" ("
 
 
 
+CREATE INDEX "idx_profiles_verification_status" ON "public"."profiles" USING "btree" ("verification_status");
+
+
+
 CREATE INDEX "idx_reviews_booking" ON "public"."reviews" USING "btree" ("booking_id");
 
 
@@ -1229,6 +1344,14 @@ CREATE INDEX "idx_subjects_slug" ON "public"."subjects" USING "btree" ("slug");
 
 
 
+CREATE INDEX "idx_teacher_availability_day_of_week" ON "public"."teacher_availability" USING "btree" ("day_of_week");
+
+
+
+CREATE INDEX "idx_teacher_availability_teacher" ON "public"."teacher_availability" USING "btree" ("teacher_id");
+
+
+
 CREATE INDEX "idx_teacher_work_hours_teacher" ON "public"."teacher_work_hours" USING "btree" ("teacher_id");
 
 
@@ -1242,6 +1365,10 @@ CREATE INDEX "idx_wallet_transactions_type" ON "public"."wallet_transactions" US
 
 
 CREATE OR REPLACE TRIGGER "audit_log_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."log_profile_changes"();
+
+
+
+CREATE OR REPLACE TRIGGER "bookings_audit_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."bookings" FOR EACH ROW EXECUTE FUNCTION "public"."log_booking_changes"();
 
 
 
@@ -1261,6 +1388,10 @@ CREATE OR REPLACE TRIGGER "ensure_valid_profile_id" BEFORE INSERT OR UPDATE ON "
 
 
 
+CREATE OR REPLACE TRIGGER "lessons_audit_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."lessons" FOR EACH ROW EXECUTE FUNCTION "public"."log_profile_changes"();
+
+
+
 CREATE OR REPLACE TRIGGER "profiles_audit_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."profiles" FOR EACH ROW EXECUTE FUNCTION "public"."log_profile_changes"();
 
 
@@ -1270,6 +1401,10 @@ CREATE OR REPLACE TRIGGER "update_profiles_updated_at" BEFORE UPDATE ON "public"
 
 
 CREATE OR REPLACE TRIGGER "update_subject_lesson_count_trigger" AFTER INSERT OR DELETE OR UPDATE ON "public"."lessons" FOR EACH ROW EXECUTE FUNCTION "public"."update_subject_lesson_count"();
+
+
+
+CREATE OR REPLACE TRIGGER "update_teacher_availability_updated_at" BEFORE UPDATE ON "public"."teacher_availability" FOR EACH ROW EXECUTE FUNCTION "public"."update_teacher_availability_updated_at"();
 
 
 
@@ -1317,6 +1452,11 @@ ALTER TABLE ONLY "public"."notifications"
 
 
 
+ALTER TABLE ONLY "public"."payment_intents"
+    ADD CONSTRAINT "payment_intents_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."reviews"
     ADD CONSTRAINT "reviews_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE CASCADE;
 
@@ -1339,6 +1479,11 @@ ALTER TABLE ONLY "public"."subjects"
 
 ALTER TABLE ONLY "public"."subjects"
     ADD CONSTRAINT "subjects_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "public"."subjects"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."teacher_availability"
+    ADD CONSTRAINT "teacher_availability_teacher_id_fkey" FOREIGN KEY ("teacher_id") REFERENCES "public"."profiles"("id") ON DELETE CASCADE;
 
 
 
@@ -1414,7 +1559,40 @@ ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."reviews" ENABLE ROW LEVEL SECURITY;
 
 
+CREATE POLICY "students_view_own_bookings" ON "public"."bookings" FOR SELECT USING ((("student_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
+
+
 ALTER TABLE "public"."subjects" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."teacher_availability" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "teacher_availability_delete_policy" ON "public"."teacher_availability" FOR DELETE USING ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
+
+
+CREATE POLICY "teacher_availability_insert_policy" ON "public"."teacher_availability" FOR INSERT WITH CHECK ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
+
+
+CREATE POLICY "teacher_availability_select_policy" ON "public"."teacher_availability" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "teacher_availability_update_policy" ON "public"."teacher_availability" FOR UPDATE USING ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text"))))) WITH CHECK ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
 
 
 ALTER TABLE "public"."teacher_subjects" ENABLE ROW LEVEL SECURITY;
@@ -1440,6 +1618,25 @@ CREATE POLICY "teacher_work_hours_update_policy" ON "public"."teacher_work_hours
   WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text"))))) WITH CHECK ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
    FROM "public"."profiles"
   WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
+
+
+CREATE POLICY "teachers_manage_own_lessons" ON "public"."lessons" USING ((("teacher_id")::"text" IN ( SELECT "profiles"."id"
+   FROM "public"."profiles"
+  WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))));
+
+
+
+CREATE POLICY "teachers_view_lesson_bookings" ON "public"."bookings" FOR SELECT USING (("schedule_id" IN ( SELECT "ls"."id"
+   FROM ("public"."lesson_schedules" "ls"
+     JOIN "public"."lessons" "l" ON (("ls"."lesson_id" = "l"."id")))
+  WHERE (("l"."teacher_id")::"text" IN ( SELECT "profiles"."id"
+           FROM "public"."profiles"
+          WHERE ("profiles"."user_id" = (("current_setting"('request.jwt.claims'::"text", true))::"jsonb" ->> 'sub'::"text")))))));
+
+
+
+CREATE POLICY "users_view_active_lessons" ON "public"."lessons" FOR SELECT USING (("is_active" = true));
 
 
 
@@ -1804,6 +2001,18 @@ GRANT ALL ON FUNCTION "public"."is_teacher"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."is_teacher_available"("teacher_id" character varying, "check_date" "date", "check_time" time without time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."is_teacher_available"("teacher_id" character varying, "check_date" "date", "check_time" time without time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."is_teacher_available"("teacher_id" character varying, "check_date" "date", "check_time" time without time zone) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."log_booking_changes"() TO "anon";
+GRANT ALL ON FUNCTION "public"."log_booking_changes"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_booking_changes"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."log_profile_changes"() TO "anon";
 GRANT ALL ON FUNCTION "public"."log_profile_changes"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."log_profile_changes"() TO "service_role";
@@ -1918,6 +2127,12 @@ GRANT ALL ON FUNCTION "public"."unaccent_lexize"("internal", "internal", "intern
 GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "anon";
 GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."update_subject_lesson_count"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_teacher_availability_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_teacher_availability_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_teacher_availability_updated_at"() TO "service_role";
 
 
 
@@ -2056,6 +2271,12 @@ GRANT ALL ON TABLE "public"."reviews" TO "service_role";
 GRANT ALL ON TABLE "public"."subjects" TO "authenticated";
 GRANT ALL ON TABLE "public"."subjects" TO "service_role";
 GRANT SELECT ON TABLE "public"."subjects" TO "anon";
+
+
+
+GRANT ALL ON TABLE "public"."teacher_availability" TO "anon";
+GRANT ALL ON TABLE "public"."teacher_availability" TO "authenticated";
+GRANT ALL ON TABLE "public"."teacher_availability" TO "service_role";
 
 
 

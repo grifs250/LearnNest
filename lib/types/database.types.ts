@@ -84,6 +84,11 @@ export interface Database {
         Insert: TeacherWorkHoursInsert;
         Update: TeacherWorkHoursUpdate;
       };
+      teacher_availability: {
+        Row: TeacherAvailability;
+        Insert: TeacherAvailabilityInsert;
+        Update: TeacherAvailabilityUpdate;
+      };
       audit_log: {
         Row: AuditLog;
         Insert: AuditLogInsert;
@@ -362,6 +367,18 @@ export interface TeacherWorkHours extends BaseEntity {
 
 export type TeacherWorkHoursInsert = Omit<TeacherWorkHours, 'id' | 'created_at' | 'updated_at'>;
 export type TeacherWorkHoursUpdate = Partial<TeacherWorkHoursInsert>;
+
+// New TeacherAvailability types for improved availability model
+export interface TeacherAvailability extends BaseEntity {
+  teacher_id: string;
+  day_of_week: number; // 0=Sunday, 1=Monday, etc.
+  start_time: string;  // Format: "HH:MM:SS"
+  end_time: string;    // Format: "HH:MM:SS"
+  is_active: boolean;
+}
+
+export type TeacherAvailabilityInsert = Omit<TeacherAvailability, 'id' | 'created_at' | 'updated_at'>;
+export type TeacherAvailabilityUpdate = Partial<TeacherAvailabilityInsert>;
 
 // Audit log types
 export interface AuditLog extends BaseEntity {

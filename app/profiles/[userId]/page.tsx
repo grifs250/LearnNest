@@ -1,7 +1,6 @@
 import { getProfileByUserId } from '@/lib/supabase/server';
 import { notFound, redirect } from 'next/navigation';
 import Image from 'next/image';
-import ErrorDisplay from '../../../shared/components/ErrorDisplay';
 import { auth } from '@clerk/nextjs/server';
 
 interface PageProps {
@@ -195,6 +194,19 @@ export default async function ProfilePage({ params }: PageProps) {
     }
   } catch (error) {
     console.error('Error in ProfilePage:', error);
-    return <ErrorDisplay />;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-error/10 border border-error text-error rounded-lg p-6">
+          <h2 className="text-xl font-bold mb-2">Kļūda ielādējot profilu</h2>
+          <p>Diemžēl, radās kļūda ielādējot lietotāja profilu. Lūdzu, mēģiniet vēlreiz.</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="btn btn-error mt-4"
+          >
+            Mēģināt vēlreiz
+          </button>
+        </div>
+      </div>
+    );
   }
 } 

@@ -1,1 +1,1 @@
-export * from './useWorkHours'; 
+export * from './useTeacherAvailability'; 

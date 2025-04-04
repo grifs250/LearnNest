@@ -408,12 +408,6 @@ export function ProfileSetupForm() {
       // Make sure role is explicitly set to one of the valid enum values
       const userRole = role === 'teacher' ? 'teacher' : 'student';
       
-      // Generate URL slug from name
-      const slug = formData.full_name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      
       // First update Clerk metadata
       console.log("🔄 Updating Clerk metadata with role:", userRole);
       await user.update({
@@ -427,26 +421,39 @@ export function ProfileSetupForm() {
 
       // Prepare profile data to send to our API endpoint
       const profileData = {
-        user_id: user.id,  // Store Clerk ID in user_id field
+        // Direct fields from the profiles table
+        user_id: user.id,
         email: user.primaryEmailAddress?.emailAddress || '',
         full_name: formData.full_name,
         role: userRole,
         bio: formData.bio,
         phone: formData.phone,
         is_active: true,
-        learning_goals: formData.learning_goals,
         age: formData.age,
         languages: formData.languages,
-        // Add hourly_rate when role is teacher to satisfy DB constraint
-        ...(userRole === 'teacher' ? { hourly_rate: 5.00 } : {}),
+        
+        // Role-specific fields
+        ...(userRole === 'student' ? {
+          learning_goals: formData.learning_goals,
+        } : {}),
+        
+        // Teacher-specific fields
+        ...(userRole === 'teacher' ? {
+          // For teacher_bio field - combine bio with education and experience
+          teacher_bio: formData.bio ? 
+            formData.bio +
+            (formData.education.length > 0 ? 
+              `\n\nIzglītība:\n${formData.education.join('\n')}` : '') +
+            (formData.experience.length > 0 ? 
+              `\n\nPieredze:\n${formData.experience.join('\n')}` : '') : '',
+          hourly_rate: 5.00, // Default initial rate
+          work_hours: formData.work_hours
+        } : {}),
+        
+        // Minimal metadata - only system flags
         metadata: {
-          profile_slug: slug,
-          education: formData.education,
-          experience: formData.experience,
-          work_hours: formData.work_hours,
-          profile_completed: true,
-          profile_needs_setup: false,
-          profile_completion_date: new Date().toISOString()
+          profile_setup_date: new Date().toISOString(),
+          profile_completed: true
         }
       };
 
@@ -630,7 +637,7 @@ export function ProfileSetupForm() {
                     value={formData.bio || ''}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     rows={3}
-                    placeholder="Pastāstiet par sevi"
+                    placeholder="Pastāstiet par sevi, jūsu pieredzi, interesēm un ko jūs vēlaties sasniegt. Šī informācija būs redzama jūsu publiskajā profilā."
                   />
                   {formErrors.bio && (
                     <p className="text-error text-sm mt-1">{formErrors.bio}</p>

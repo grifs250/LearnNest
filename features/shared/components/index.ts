@@ -1,6 +1,5 @@
 // UI Components
 export * from './ui';
-export * from './LoadingSpinner';
 
 // Dialog and Toast Components
 export * from './ui/Toast';
@@ -10,19 +9,56 @@ export * from './ui/ConfirmDialog';
 // Re-export types
 export type { ToastType } from './ui/Toast';
 
-// Layout Components
-export { Footer } from './Footer';
-export * from './Footer';
-export { ErrorBoundary } from './ErrorBoundary';
-export * from './ErrorBoundary';
-export { default as Navbar } from './Navbar';
-export * from './Navbar';
-export { default as ClientInitializer } from './ClientInitializer';
-export { default as ProfileRedirectCheck } from './ProfileRedirectCheck';
+// Import components with their proper exports
+import { Footer } from './Footer';
+import { ErrorBoundary } from './ErrorBoundary';
+import Navbar from './Navbar';
+import ClientInitializer from './ClientInitializer';
+import ProfileRedirectCheck from './ProfileRedirectCheck';
+import UserMenu from './UserMenu';
+import { LoadingSpinner } from './LoadingSpinner';
+import { UserInfoModal } from './UserInfoModal';
+import { ConfirmDialog } from './ConfirmDialog';
+import { Toast } from './Toast';
+import BujSection from './BujSection';
+import SubjectCategory from './SubjectCategory';
+import TeacherProfile from './TeacherProfile';
 
-// Modal Components
-export * from './UserInfoModal';
+// UI component imports
+import * as UI from './ui';
 
-// Content Components
-export { default as BujSection } from './BujSection';
-export { default as SubjectCategory } from './SubjectCategory'; 
+// Export all components
+export {
+  Footer,
+  ErrorBoundary,
+  Navbar,
+  ClientInitializer,
+  ProfileRedirectCheck,
+  UserMenu,
+  LoadingSpinner,
+  UserInfoModal,
+  ConfirmDialog,
+  Toast,
+  BujSection,
+  SubjectCategory,
+  TeacherProfile,
+  UI,
+};
+
+// Export default
+export default {
+  Footer,
+  ErrorBoundary,
+  Navbar,
+  ClientInitializer,
+  ProfileRedirectCheck,
+  UserMenu,
+  LoadingSpinner,
+  UserInfoModal,
+  ConfirmDialog,
+  Toast,
+  BujSection,
+  SubjectCategory,
+  TeacherProfile,
+  UI,
+}; 
